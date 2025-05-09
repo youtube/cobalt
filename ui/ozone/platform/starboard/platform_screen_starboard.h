@@ -15,20 +15,15 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_SCREEN_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_SCREEN_STARBOARD_H_
 
-#include "base/memory/weak_ptr.h"
 #include "ui/display/display_list.h"
-#include "ui/events/event.h"
 #include "ui/gfx/geometry/point.h"
-#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/ozone/public/platform_screen.h"
-#include "ui/platform_window/platform_window.h"
 
 namespace ui {
 
 class PlatformWindowStarboard;
 
-class PlatformScreenStarboard : public PlatformScreen,
-                                public PlatformEventObserverStarboard {
+class PlatformScreenStarboard : public PlatformScreen {
  public:
   PlatformScreenStarboard();
 
@@ -53,8 +48,6 @@ class PlatformScreenStarboard : public PlatformScreen,
 
   void AddObserver(display::DisplayObserver* observer) override;
   void RemoveObserver(display::DisplayObserver* observer) override;
-
-  void ProcessWindowSizeChangedEvent(int width, int height) override;
 
  private:
   display::DisplayList display_list_;

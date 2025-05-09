@@ -14,12 +14,7 @@
 
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
-#include "base/check.h"
-#include "base/logging.h"
 #include "ui/display/display.h"
-#include "ui/events/platform/platform_event_source.h"
-#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 namespace ui {
 
@@ -30,14 +25,7 @@ constexpr float kDefaultDeviceScaleFactor = 1.f;
 
 }  // namespace
 
-PlatformScreenStarboard::PlatformScreenStarboard() {
-  // Listen for window size changes.
-  if (PlatformEventSource::GetInstance()) {
-    static_cast<PlatformEventSourceStarboard*>(
-        PlatformEventSource::GetInstance())
-        ->AddPlatformEventObserverStarboard(this);
-  }
-}
+PlatformScreenStarboard::PlatformScreenStarboard() {}
 
 PlatformScreenStarboard::~PlatformScreenStarboard() = default;
 
@@ -103,13 +91,6 @@ void PlatformScreenStarboard::AddObserver(display::DisplayObserver* observer) {
 void PlatformScreenStarboard::RemoveObserver(
     display::DisplayObserver* observer) {
   display_list_.RemoveObserver(observer);
-}
-
-void PlatformScreenStarboard::ProcessWindowSizeChangedEvent(int width,
-                                                            int height) {
-  display::Display disp = GetPrimaryDisplay();
-  disp.set_bounds(gfx::Rect(gfx::Size(width, height)));
-  display_list_.AddOrUpdateDisplay(disp, display::DisplayList::Type::PRIMARY);
 }
 
 }  // namespace ui
