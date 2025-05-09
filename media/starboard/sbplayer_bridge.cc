@@ -238,9 +238,9 @@ SbPlayerBridge::SbPlayerBridge(
       is_url_based_(false)
 #endif  // SB_HAS(PLAYER_WITH_URL
 {
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+#if BUILDFLAG(IS_ANDROID)
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+#endif  // BUILDFLAG(IS_ANDROID)
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -791,11 +791,11 @@ void SbPlayerBridge::CreatePlayer() {
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+#if BUILDFLAG(IS_ANDROID)
       get_decode_target_graphics_context_provider_func_.Run());
-#else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+#else   // BUILDFLAG(IS_ANDROID)
       nullptr);
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+#endif  // BUILDFLAG(IS_ANDROID)
 #if COBALT_MEDIA_ENABLE_CVAL
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL

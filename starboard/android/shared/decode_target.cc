@@ -65,6 +65,7 @@ void RunOnContextRunner(void* context) {
 }  // namespace
 
 DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
+  texture_native_id_ = *reinterpret_cast<int*>(provider->egl_context);
   std::function<void()> closure =
       std::bind(&DecodeTarget::CreateOnContextRunner, this);
   SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
