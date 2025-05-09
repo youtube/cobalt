@@ -525,13 +525,6 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   frame->data[0] = frame_buffer;
   frame->linesize[0] = y_stride;
 
-#if LIBAVCODEC_VERSION_MAJOR >= 61
-// We don't copy user data, since we use default mechanism to calculate
-// AVFrame.pts from AVPacket.pts
-#else
-  frame->reordered_opaque = codec_context->reordered_opaque;
-#endif
-
   frame->data[1] = frame_buffer + y_stride * aligned_height;
   frame->linesize[1] = uv_stride;
 
@@ -542,6 +535,13 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   frame->width = codec_context->width;
   frame->height = codec_context->height;
   frame->format = codec_context->pix_fmt;
+
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+// We don't copy user data, since we use default mechanism to calculate
+// AVFrame.pts from AVPacket.pts
+#else
+  frame->reordered_opaque = codec_context->reordered_opaque;
+#endif
 
   frame->buf[0] = static_cast<AVBufferRef*>(ffmpeg_->av_buffer_create(
       frame_buffer, GetYV12SizeInBytes(y_stride, aligned_height),
