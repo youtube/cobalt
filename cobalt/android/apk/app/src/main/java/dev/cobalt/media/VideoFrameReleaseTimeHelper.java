@@ -156,7 +156,8 @@ public final class VideoFrameReleaseTimeHelper {
           adjustedFrameTimeNs = candidateAdjustedFrameTimeNs;
           adjustedReleaseTimeNs =
               syncUnadjustedReleaseTimeNs
-                  + (long) ((adjustedFrameTimeNs - syncFramePresentationTimeNs) / playbackRate);
+                  + adjustFrameTimeForPlaybackRate(
+                      adjustedFrameTimeNs - syncFramePresentationTimeNs, playbackRate);
         }
       } else {
         // We're synced but haven't waited the required number of frames to apply an adjustment.
@@ -197,8 +198,22 @@ public final class VideoFrameReleaseTimeHelper {
   private boolean isDriftTooLarge(long frameTimeNs, long releaseTimeNs, double playbackRate) {
     long elapsedFrameTimeNs = frameTimeNs - syncFramePresentationTimeNs;
     long elapsedReleaseTimeNs = releaseTimeNs - syncUnadjustedReleaseTimeNs;
-    return Math.abs(elapsedReleaseTimeNs - elapsedFrameTimeNs / playbackRate)
+    return Math.abs(
+            elapsedReleaseTimeNs - adjustFrameTimeForPlaybackRate(elapsedFrameTimeNs, playbackRate))
         > MAX_ALLOWED_DRIFT_NS;
+  }
+
+  private long adjustFrameTimeForPlaybackRate(long frameTimeNs, double playbackRate) {
+    if (playbackRate == 1.0 || playbackRate == 0.0) {
+      return frameTimeNs;
+    }
+    // Double has 52 bits for number precision while long may have 63 bits.
+    final long PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER = 1024;
+    long high = frameTimeNs / PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER;
+    long low = frameTimeNs % PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER;
+    long adjustedHigh = (long) (high * playbackRate);
+    long adjustedLow = (long) (low * playbackRate);
+    return adjustedHigh * PLAYBACK_RATE_ADJUSTMENT_MULTIPLIER + adjustedLow;
   }
 
   private static long closestVsync(long releaseTime, long sampledVsyncTime, long vsyncDuration) {
