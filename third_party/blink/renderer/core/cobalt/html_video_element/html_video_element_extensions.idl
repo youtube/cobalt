@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
-// This interface mirrors the setMaxVideoCapabilities function defined in
-// Cobalt LTS 25: https://github.com/youtube/cobalt/blob/25.lts.30/cobalt/dom/html_video_element.idl
-// Documentation for this implementation can be seen here:
-// https://docs.google.com/document/d/1LJNh1LrBhfblop9Xpevg0Z7yMBJtZX8eD1g-Nn1YjEA/edit?tab=t.0#heading=h.u0p1e6iom4ri
+// This interface mirrors the setMaxVideoCapabilities function defined in Cobalt LTS 25:
+// https://github.com/youtube/cobalt/blob/25.lts.30/cobalt/dom/html_video_element.idl
+// Documentation for this implementation can be seen from b/132612288.
 //
 // Non standard interface used for Cobalt only.
 [
@@ -29,7 +28,7 @@
     // playback pipeline for, say, a low quality video stream if it knows that it
     // will never adapt to a higher quality stream. This function must be called
     // *before* the src attribute is set on the element, otherwise an
-    // INVALID_STATE_ERR exception is raised. The format of the string passed in
+    // InvalidStateError exception is raised. The format of the string passed in
     // is the same as the format for the string passed in to
     // HTMLMediaElement.canPlayType().
     [RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
