@@ -17,7 +17,6 @@
 #include <thread>
 
 #include "base/logging.h"
-#include "base/memory/weak_ptr.h"
 #include "starboard/event.h"
 #include "ui/base/ime/input_method_minimal.h"
 #include "ui/display/fake/fake_display_delegate.h"
@@ -83,10 +82,9 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<PlatformWindow> CreatePlatformWindow(
       PlatformWindowDelegate* delegate,
       PlatformWindowInitProperties properties) override {
-    auto new_platform_window =
-        std::make_unique<PlatformWindowStarboard>(delegate, properties.bounds);
-    platform_window_ = new_platform_window->AsWeakPtr();
-    return new_platform_window;
+    initial_window_size_ = properties.bounds;
+    return std::make_unique<PlatformWindowStarboard>(delegate,
+                                                     properties.bounds);
   }
 
   std::unique_ptr<display::NativeDisplayDelegate> CreateNativeDisplayDelegate()
@@ -106,9 +104,9 @@ class OzonePlatformStarboard : public OzonePlatform {
   // observer recursion into display::Screen from inside CreateScreen.
   void InitScreen(PlatformScreen* screen) override {
     auto platform_screen = static_cast<PlatformScreenStarboard*>(screen);
-    if (platform_window_) {
-      platform_screen->InitScreen(platform_window_->GetBoundsInPixels());
-    }
+    // NOTE(b/410834483) we can initialize the screen with the window size
+    // because for Cobalt we assume that window size is also screen size.
+    platform_screen->InitScreen(initial_window_size_);
   }
 
   std::unique_ptr<InputMethod> CreateInputMethod(
@@ -164,7 +162,7 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
 
   // Used to initialize the PlatformScreen within the InitScreen() method later.
-  base::WeakPtr<PlatformWindowStarboard> platform_window_;
+  gfx::Rect initial_window_size_;
 };
 
 }  // namespace

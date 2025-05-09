@@ -15,7 +15,6 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 
-#include "base/memory/weak_ptr.h"
 #include "starboard/window.h"
 #include "ui/base/cursor/platform_cursor.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
@@ -76,10 +75,6 @@ class PlatformWindowStarboard : public PlatformWindow,
   void SetBoundsInPixels(const gfx::Rect& bounds) override;
   gfx::Rect GetBoundsInPixels() const override;
 
-  base::WeakPtr<PlatformWindowStarboard> AsWeakPtr() {
-    return weak_ptr_factory_.GetWeakPtr();
-  }
-
  protected:
   PlatformWindowDelegate* delegate() { return delegate_; }
 
@@ -96,8 +91,6 @@ class PlatformWindowStarboard : public PlatformWindow,
   raw_ptr<PlatformWindowDelegate> delegate_ = nullptr;
   ui::PlatformWindowState window_state_ = ui::PlatformWindowState::kUnknown;
   ActivationState activation_state_ = ActivationState::kUnknown;
-
-  base::WeakPtrFactory<PlatformWindowStarboard> weak_ptr_factory_{this};
 };
 
 }  // namespace ui
