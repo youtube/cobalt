@@ -47,6 +47,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
@@ -349,6 +350,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
   map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
+  map_["writev"] = reinterpret_cast<const void*>(&__abi_wrap_writev);
 
   REGISTER_SYMBOL(vswprintf);
 
