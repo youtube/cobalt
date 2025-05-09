@@ -65,6 +65,7 @@ void RunOnContextRunner(void* context) {
 }  // namespace
 
 DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
+  texture_native_id_ = *reinterpret_cast<int*>(provider->egl_context);
   std::function<void()> closure =
       std::bind(&DecodeTarget::CreateOnContextRunner, this);
   SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
@@ -84,8 +85,8 @@ DecodeTarget::~DecodeTarget() {
   env->DeleteGlobalRef(surface_);
   env->DeleteGlobalRef(surface_texture_);
 
-  glDeleteTextures(1, &info_.planes[0].texture);
-  SB_DCHECK(glGetError() == GL_NO_ERROR);
+  // glDeleteTextures(1, &info_.planes[0].texture);
+  // SB_DCHECK(glGetError() == GL_NO_ERROR);
 }
 
 void DecodeTarget::CreateOnContextRunner() {
@@ -93,8 +94,8 @@ void DecodeTarget::CreateOnContextRunner() {
   // the decoder.  We don't call glTexImage2d() on it, Android will handle
   // the creation of the content when SurfaceTexture::updateTexImage() is
   // called.
-  GLuint texture;
-  GL_CALL(glGenTextures(1, &texture));
+  GLuint texture = texture_native_id_;
+  /*GL_CALL(glGenTextures(1, &texture));
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture));
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
                           GL_LINEAR));
@@ -103,7 +104,7 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_S,
                           GL_CLAMP_TO_EDGE));
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
-                          GL_CLAMP_TO_EDGE));
+                          GL_CLAMP_TO_EDGE));*/
 
   // Wrap the GL texture in an Android SurfaceTexture object.
   surface_texture_ = CreateSurfaceTexture(texture);
@@ -130,7 +131,7 @@ void DecodeTarget::CreateOnContextRunner() {
   info_.planes[0].content_region.top = 0;
   info_.planes[0].content_region.bottom = 0;
 
-  GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
+  // GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 }
 
 }  // namespace shared

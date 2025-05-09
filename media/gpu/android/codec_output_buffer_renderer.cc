@@ -24,6 +24,15 @@ CodecOutputBufferRenderer::CodecOutputBufferRenderer(
       codec_buffer_wait_coordinator_(std::move(codec_buffer_wait_coordinator)) {
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+CodecOutputBufferRenderer::CodecOutputBufferRenderer(
+    scoped_refptr<CodecBufferWaitCoordinator> codec_buffer_wait_coordinator,
+    scoped_refptr<gpu::RefCountedLock> drdc_lock)
+    : RefCountedLockHelperDrDc(std::move(drdc_lock)),
+      codec_buffer_wait_coordinator_(std::move(codec_buffer_wait_coordinator)) {
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 CodecOutputBufferRenderer::~CodecOutputBufferRenderer() = default;
 
 bool CodecOutputBufferRenderer::RenderToTextureOwnerBackBuffer() {
@@ -47,10 +56,12 @@ bool CodecOutputBufferRenderer::RenderToTextureOwnerBackBuffer() {
   if (codec_buffer_wait_coordinator_->IsExpectingFrameAvailable()) {
     return false;
   }
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!output_buffer_->ReleaseToSurface()) {
     phase_ = Phase::kInvalidated;
     return false;
   }
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
   phase_ = Phase::kInBackBuffer;
   codec_buffer_wait_coordinator_->SetReleaseTimeToNow();
   return true;
@@ -130,10 +141,12 @@ bool CodecOutputBufferRenderer::RenderToOverlay() {
   if (phase_ == Phase::kInvalidated)
     return false;
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!output_buffer_->ReleaseToSurface()) {
     phase_ = Phase::kInvalidated;
     return false;
   }
+#endif // !BUILDFLAG(USE_STARBOARD_MEDIA)
   phase_ = Phase::kInFrontBuffer;
   return true;
 }

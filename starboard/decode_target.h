@@ -253,6 +253,10 @@ typedef struct SbDecodeTargetInfo {
   // kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV}) associated with this
   // decode target.
   SbDecodeTargetInfoPlane planes[3];
+
+  uint8_t* pixel_buffer;
+  int y_stride;
+  int uv_stride;
 } SbDecodeTargetInfo;
 
 // --- Constants -------------------------------------------------------------
