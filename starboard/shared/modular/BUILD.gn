@@ -31,6 +31,8 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_stat_abi_wrappers.h",
       "starboard_layer_posix_time_abi_wrappers.cc",
       "starboard_layer_posix_time_abi_wrappers.h",
+      "starboard_layer_posix_uio_abi_wrappers.cc",
+      "starboard_layer_posix_uio_abi_wrappers.h",
       "starboard_layer_posix_unistd_abi_wrappers.cc",
       "starboard_layer_posix_unistd_abi_wrappers.h",
     ]
@@ -55,6 +57,7 @@ if (is_cobalt_hermetic_build && !sb_is_evergreen &&
       "cobalt_layer_posix_socket_abi_wrappers.cc",
       "cobalt_layer_posix_stat_abi_wrappers.cc",
       "cobalt_layer_posix_time_abi_wrappers.cc",
+      "cobalt_layer_posix_uio_abi_wrappers.cc",
       "cobalt_layer_posix_unistd_abi_wrappers.cc",
     ]
     deps = [ "//starboard/common:common_headers_only" ]
