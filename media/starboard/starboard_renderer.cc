@@ -424,9 +424,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::set_paint_video_hole_frame_callback(
-    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+void StarboardRenderer::SetStarboardRendererCallbacks(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+  update_starboard_rendering_mode_cb_ =
+      std::move(update_starboard_rendering_mode_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
@@ -517,6 +520,21 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+    switch (output_mode) {
+      case kSbPlayerOutputModeDecodeToTexture:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kDecodeToTexture);
+        break;
+      case kSbPlayerOutputModePunchOut:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kPunchOut);
+        break;
+      case kSbPlayerOutputModeInvalid:
+        NOTREACHED() << "Invalid SbPlayer output mode";
+        break;
+    }
+
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }

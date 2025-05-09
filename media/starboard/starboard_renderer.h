@@ -31,6 +31,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -98,8 +99,11 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   using PaintVideoHoleFrameCallback =
       base::RepeatingCallback<void(const gfx::Size&)>;
-  void set_paint_video_hole_frame_callback(
-      PaintVideoHoleFrameCallback paint_video_hole_frame_cb);
+  using UpdateStarboardRenderingModeCallback =
+      base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+  void SetStarboardRendererCallbacks(
+      PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
 
  private:
@@ -153,6 +157,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
+  UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;

@@ -75,6 +75,8 @@ class StarboardRendererWrapper final
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
+  void OnUpdateStarboardRenderingModeByStarboard(
+      const StarboardRenderingMode mode);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;

@@ -21,6 +21,7 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/clients/mojo_renderer_wrapper.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/starboard/bind_host_receiver_callback.h"
@@ -73,6 +74,7 @@ class MEDIA_EXPORT StarboardRendererClient
 
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
+  void UpdateStarboardRenderingMode(const StarboardRenderingMode mode) override;
 
   // cobalt::media::mojom::VideoGeometryChangeClient implementation.
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
@@ -109,6 +111,10 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::Remote<RendererExtension> renderer_extension_;
 
   raw_ptr<RendererClient> client_ = nullptr;
+
+  // Rendering mode the Starboard Renderer will use.
+  // Default is punch-out mode.
+  StarboardRenderingMode rendering_mode_ = StarboardRenderingMode::kPunchOut;
 
   mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
       video_geometry_change_subcriber_remote_;

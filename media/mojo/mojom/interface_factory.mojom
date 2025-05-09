@@ -17,7 +17,7 @@ import "mojo/public/mojom/base/token.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 
 [EnableIf=use_starboard_media]
-import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
+import "media/mojo/mojom/starboard/starboard_media_types.mojom";
 
 // A disconnection of this interface can be interpreted as the
 // VideoDecoder implementation created by
