@@ -733,7 +733,8 @@ void HTMLVideoElement::AddedEventListener(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
-  if (FastGetAttribute(html_names::kSrcAttr)!= g_null_atom) {
+  String srcAttr = FastGetAttribute(html_names::kSrcAttr);
+  if (srcAttr != g_null_atom && srcAttr.length() > 0) {
     exception_state.ThrowDOMException(
       DOMExceptionCode::kInvalidStateError,
       "Cannot set maximum capabilities after src is defined.");
