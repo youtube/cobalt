@@ -112,6 +112,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'listen',
     'lseek',
     'malloc',
+    'madvise',
     'posix_memalign',
     'recv',
     'recvfrom',
@@ -173,6 +174,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'opendir',
     'closedir',
     'readdir_r',
+    'malloc_usable_size',
 ]
 
 
