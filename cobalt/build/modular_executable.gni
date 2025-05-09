@@ -15,15 +15,14 @@
 template("modular_executable") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
-    shared_library(original_target_name) {
-      forward_variables_from(invoker, "*")
-      write_runtime_deps =
-          "$root_build_dir/${original_target_name}.runtime_deps"
+    group(original_target_name) {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      deps = [ ":${original_target_name}_copy" ]
+    }
 
-      if (!defined(data_deps)) {
-        data_deps = []
-      }
-      data_deps += [ ":${original_target_name}_copy" ]
+    shared_library("${original_target_name}_library") {
+      forward_variables_from(invoker, "*")
+      output_name = original_target_name
     }
 
     copy("${original_target_name}_copy") {
@@ -55,7 +54,10 @@ template("modular_executable") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      deps = [ "//starboard:starboard_group" ]
+      deps = [
+        ":${original_target_name}_library($default_toolchain)",
+        "//starboard:starboard_group",
+      ]
     }
   }
 }

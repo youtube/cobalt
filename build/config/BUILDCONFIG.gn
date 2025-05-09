@@ -544,6 +544,25 @@ TESTONLY_AND_VISIBILITY = [
 #       Targets that set this usually also want to remove
 #       "//build/config/compiler:runtime_library" from configs (to remove
 #       its subconfig "//build/config/c++:runtime_library").
+foreach(_target_type, ["static_library", "source_set"]) {
+  template(_target_type) {
+    target(_target_type, target_name) {
+      forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (defined(visibility)) {
+        foreach(vis, visibility) {
+          replaced_vis = string_replace(vis, "*", "")
+          if (replaced_vis == vis) {
+            label_no_toolchain = get_label_info(vis, "label_no_toolchain")
+            toolchain_label = get_label_info(vis, "toolchain")
+            visibility += [ "${label_no_toolchain}_library($toolchain_label)" ]
+          }
+        }
+      }
+    }
+  }
+}
+
 foreach(_target_type,
         [
           "executable",
@@ -561,6 +580,16 @@ foreach(_target_type,
                              "*",
                              TESTONLY_AND_VISIBILITY + [ "no_default_deps" ])
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      if (defined(visibility)) {
+        foreach(vis, visibility) {
+          replaced_vis = string_replace(vis, "*", "")
+          if (replaced_vis == vis) {
+            label_no_toolchain = get_label_info(vis, "label_no_toolchain")
+            toolchain_label = get_label_info(vis, "toolchain")
+            visibility += [ "${label_no_toolchain}_library($toolchain_label)" ]
+          }
+        }
+      }
       if (!defined(deps)) {
         deps = []
       }
