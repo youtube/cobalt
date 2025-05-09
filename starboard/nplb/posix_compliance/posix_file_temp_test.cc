@@ -34,8 +34,9 @@ TEST_F(FileTempTest, MkdtempBasicSuccess) {
   char buffer[tmpl.length() + 1];
   strcpy(buffer, tmpl.c_str());
 
-  char* result = mkdtemp(buffer);
-  ASSERT_NE(result, nullptr);
+  char* const result = mkdtemp(buffer);
+  ASSERT_NE(result, nullptr)
+      << "mkdtemp failed for template '" << tmpl << "': " << strerror(errno);
 }
 
 TEST_F(FileTempTest, MkdtempInvalidTemplate) {
@@ -43,9 +44,13 @@ TEST_F(FileTempTest, MkdtempInvalidTemplate) {
   char buffer[tmpl.length() + 1];
   strcpy(buffer, tmpl.c_str());
 
-  char* result = mkdtemp(buffer);
-  EXPECT_EQ(result, nullptr);
-  EXPECT_EQ(errno, EINVAL);
+  char* const result = mkdtemp(buffer);
+  EXPECT_EQ(result, nullptr)
+      << "mkdtemp should fail for invalid template, but returned '"
+      << (result ? result : "nullptr") << "'.";
+  EXPECT_EQ(errno, EINVAL) << "mkdtemp expected errno EINVAL (" << EINVAL
+                           << ") for invalid template, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkdtempNonExistentPath) {
@@ -53,9 +58,13 @@ TEST_F(FileTempTest, MkdtempNonExistentPath) {
   char buffer[tmpl.length() + 1];
   strcpy(buffer, tmpl.c_str());
 
-  char* result = mkdtemp(buffer);
-  EXPECT_EQ(result, nullptr);
-  EXPECT_EQ(errno, ENOENT);
+  char* const result = mkdtemp(buffer);
+  EXPECT_EQ(result, nullptr)
+      << "mkdtemp should fail for non-existent path, but returned '"
+      << (result ? result : "nullptr") << "'.";
+  EXPECT_EQ(errno, ENOENT) << "mkdtemp expected errno ENOENT (" << ENOENT
+                           << ") for non-existent path, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkstempBasicSuccess) {
@@ -64,9 +73,9 @@ TEST_F(FileTempTest, MkstempBasicSuccess) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkstemp(buffer);
-  ASSERT_NE(fd, -1);
+  ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
 
-  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);  // Add to cleanup list
 }
 
@@ -76,8 +85,12 @@ TEST_F(FileTempTest, MkstempInvalidTemplate) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkstemp(buffer);
-  EXPECT_EQ(fd, -1);
-  EXPECT_EQ(errno, EINVAL);
+  EXPECT_EQ(fd, -1)
+      << "mkstemp should fail for invalid template, but returned fd " << fd
+      << ".";
+  EXPECT_EQ(errno, EINVAL) << "mkstemp expected errno EINVAL (" << EINVAL
+                           << ") for invalid template, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkstempNonExistentPath) {
@@ -86,8 +99,12 @@ TEST_F(FileTempTest, MkstempNonExistentPath) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkstemp(buffer);
-  EXPECT_EQ(fd, -1);
-  EXPECT_EQ(errno, ENOENT);
+  EXPECT_EQ(fd, -1)
+      << "mkstemp should fail for non-existent path, but returned fd " << fd
+      << ".";
+  EXPECT_EQ(errno, ENOENT) << "mkstemp expected errno ENOENT (" << ENOENT
+                           << ") for non-existent path, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkstempFileIsOpened) {
@@ -96,14 +113,16 @@ TEST_F(FileTempTest, MkstempFileIsOpened) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkstemp(buffer);
-  ASSERT_NE(fd, -1) << "mkstemp failed: " << errno;
+  ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
 
   // Try to write something to the file descriptor.
   const char* test_data = "test data";
   const ssize_t bytes_written = write(fd, test_data, strlen(test_data));
-  EXPECT_EQ(bytes_written, strlen(test_data));
+  EXPECT_EQ(bytes_written, strlen(test_data))
+      << "write failed or wrote incorrect bytes for fd " << fd
+      << " with error: " << strerror(errno);
 
-  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);
 }
 
@@ -113,13 +132,14 @@ TEST_F(FileTempTest, MkostempBasicSuccess) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkostemp(buffer, O_RDWR);
-  ASSERT_NE(fd, -1);
+  ASSERT_NE(fd, -1) << "mkostemp failed: " << strerror(errno);
 
-  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);
 
-  struct stat st;
-  ASSERT_EQ(stat(buffer, &st), 0);
+  struct stat st {};
+  const int stat_result = stat(buffer, &st);
+  ASSERT_EQ(stat_result, 0) << "stat failed: " << strerror(errno);
   ASSERT_TRUE(S_ISREG(st.st_mode));
 }
 
@@ -129,9 +149,9 @@ TEST_F(FileTempTest, MkostempWithFlags) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkostemp(buffer, O_RDWR | O_CREAT | O_EXCL);
-  ASSERT_NE(fd, -1);
+  ASSERT_NE(fd, -1) << "mkostemp failed: " << strerror(errno);
 
-  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);
 }
 
@@ -141,8 +161,12 @@ TEST_F(FileTempTest, MkostempInvalidTemplate) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkostemp(buffer, O_RDWR);
-  EXPECT_EQ(fd, -1);
-  EXPECT_EQ(errno, EINVAL);
+  EXPECT_EQ(fd, -1)
+      << "mkostemp should fail for invalid template, but returned fd " << fd
+      << ".";
+  EXPECT_EQ(errno, EINVAL) << "mkostemp expected errno EINVAL (" << EINVAL
+                           << ") for invalid template, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkostempNonExistentPath) {
@@ -151,8 +175,12 @@ TEST_F(FileTempTest, MkostempNonExistentPath) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkostemp(buffer, O_RDWR);
-  EXPECT_EQ(fd, -1);
-  EXPECT_EQ(errno, ENOENT);
+  EXPECT_EQ(fd, -1)
+      << "mkostemp should fail for non-existent path, but returned fd " << fd
+      << ".";
+  EXPECT_EQ(errno, ENOENT) << "mkostemp expected errno ENOENT (" << ENOENT
+                           << ") for non-existent path, but got " << errno
+                           << " (" << strerror(errno) << ").";
 }
 
 TEST_F(FileTempTest, MkostempWriteFile) {
@@ -161,13 +189,15 @@ TEST_F(FileTempTest, MkostempWriteFile) {
   strcpy(buffer, tmpl.c_str());
 
   const int fd = mkostemp(buffer, O_RDWR);
-  ASSERT_NE(fd, -1);
+  ASSERT_NE(fd, -1) << "mkostemp failed: " << strerror(errno);
 
   const char test_data[] = "Hello, world!";
-  ssize_t bytes_written = write(fd, test_data, sizeof(test_data) - 1);
-  EXPECT_EQ(bytes_written, sizeof(test_data) - 1);
+  const ssize_t bytes_written = write(fd, test_data, sizeof(test_data) - 1);
+  EXPECT_EQ(bytes_written, sizeof(test_data) - 1)
+      << "write failed or wrote incorrect bytes for fd " << fd
+      << " with error: " << strerror(errno);
 
-  EXPECT_EQ(close(fd), 0);
+  EXPECT_EQ(close(fd), 0) << "close failed: " << strerror(errno);
   AddCreatedFile(buffer);
 }
 
