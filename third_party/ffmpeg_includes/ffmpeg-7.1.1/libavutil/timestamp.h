@@ -40,13 +40,11 @@
  * @param ts the timestamp to represent
  * @return the buffer in input
  */
-static inline char* av_ts_make_string(char* buf, int64_t ts) {
-  if (ts == AV_NOPTS_VALUE) {
-    snprintf(buf, AV_TS_MAX_STRING_SIZE, "NOPTS");
-  } else {
-    snprintf(buf, AV_TS_MAX_STRING_SIZE, "%" PRId64, ts);
-  }
-  return buf;
+static inline char *av_ts_make_string(char *buf, int64_t ts)
+{
+    if (ts == AV_NOPTS_VALUE) snprintf(buf, AV_TS_MAX_STRING_SIZE, "NOPTS");
+    else                      snprintf(buf, AV_TS_MAX_STRING_SIZE, "%" PRId64, ts);
+    return buf;
 }
 
 /**
@@ -64,7 +62,7 @@ static inline char* av_ts_make_string(char* buf, int64_t ts) {
  * @param tb the timebase of the timestamp
  * @return the buffer in input
  */
-char* av_ts_make_time_string2(char* buf, int64_t ts, AVRational tb);
+char *av_ts_make_time_string2(char *buf, int64_t ts, AVRational tb);
 
 /**
  * Fill the provided buffer with a string containing a timestamp
@@ -72,17 +70,16 @@ char* av_ts_make_time_string2(char* buf, int64_t ts, AVRational tb);
  *
  * @see av_ts_make_time_string2
  */
-static inline char* av_ts_make_time_string(char* buf,
-                                           int64_t ts,
-                                           const AVRational* tb) {
-  return av_ts_make_time_string2(buf, ts, *tb);
+static inline char *av_ts_make_time_string(char *buf, int64_t ts,
+                                           const AVRational *tb)
+{
+    return av_ts_make_time_string2(buf, ts, *tb);
 }
 
 /**
  * Convenience macro, the return value should be used only directly in
  * function arguments but never stand-alone.
  */
-#define av_ts2timestr(ts, tb) \
-  av_ts_make_time_string((char[AV_TS_MAX_STRING_SIZE]){0}, ts, tb)
+#define av_ts2timestr(ts, tb) av_ts_make_time_string((char[AV_TS_MAX_STRING_SIZE]){0}, ts, tb)
 
 #endif /* AVUTIL_TIMESTAMP_H */

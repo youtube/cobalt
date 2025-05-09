@@ -43,7 +43,7 @@
  */
 
 typedef struct AVVTFramesContext {
-  enum AVColorRange color_range;
+    enum AVColorRange color_range;
 } AVVTFramesContext;
 
 /**
@@ -62,12 +62,11 @@ uint32_t av_map_videotoolbox_format_from_pixfmt(enum AVPixelFormat pix_fmt);
  * Same as av_map_videotoolbox_format_from_pixfmt function, but can map and
  * return full range pixel formats via a flag.
  */
-uint32_t av_map_videotoolbox_format_from_pixfmt2(enum AVPixelFormat pix_fmt,
-                                                 bool full_range);
+uint32_t av_map_videotoolbox_format_from_pixfmt2(enum AVPixelFormat pix_fmt, bool full_range);
 
 /**
- * Convert an AVChromaLocation to a VideoToolbox/CoreVideo chroma location
- * string. Returns 0 if no known equivalent was found.
+ * Convert an AVChromaLocation to a VideoToolbox/CoreVideo chroma location string.
+ * Returns 0 if no known equivalent was found.
  */
 CFStringRef av_map_videotoolbox_chroma_loc_from_av(enum AVChromaLocation loc);
 
@@ -78,32 +77,30 @@ CFStringRef av_map_videotoolbox_chroma_loc_from_av(enum AVChromaLocation loc);
 CFStringRef av_map_videotoolbox_color_matrix_from_av(enum AVColorSpace space);
 
 /**
- * Convert an AVColorPrimaries to a VideoToolbox/CoreVideo color primaries
- * string. Returns 0 if no known equivalent was found.
+ * Convert an AVColorPrimaries to a VideoToolbox/CoreVideo color primaries string.
+ * Returns 0 if no known equivalent was found.
  */
-CFStringRef av_map_videotoolbox_color_primaries_from_av(
-    enum AVColorPrimaries pri);
+CFStringRef av_map_videotoolbox_color_primaries_from_av(enum AVColorPrimaries pri);
 
 /**
- * Convert an AVColorTransferCharacteristic to a VideoToolbox/CoreVideo color
- * transfer function string. Returns 0 if no known equivalent was found.
+ * Convert an AVColorTransferCharacteristic to a VideoToolbox/CoreVideo color transfer
+ * function string.
+ * Returns 0 if no known equivalent was found.
  */
-CFStringRef av_map_videotoolbox_color_trc_from_av(
-    enum AVColorTransferCharacteristic trc);
+CFStringRef av_map_videotoolbox_color_trc_from_av(enum AVColorTransferCharacteristic trc);
 
 /**
  * Set CVPixelBufferRef's metadata based on an AVFrame.
  *
  * Sets/unsets the CVPixelBuffer attachments to match as closely as possible the
- * AVFrame metadata. To prevent inconsistent attachments, the attachments for
- * properties that could not be matched or are unspecified in the given AVFrame
- * are unset. So if any attachments already covered by AVFrame metadata need to
- * be set to a specific value, this should happen after calling this function.
+ * AVFrame metadata. To prevent inconsistent attachments, the attachments for properties
+ * that could not be matched or are unspecified in the given AVFrame are unset. So if
+ * any attachments already covered by AVFrame metadata need to be set to a specific
+ * value, this should happen after calling this function.
  *
  * Returns < 0 in case of an error.
  */
-int av_vt_pixbuf_set_attachments(void* log_ctx,
-                                 CVPixelBufferRef pixbuf,
-                                 const struct AVFrame* src);
+int av_vt_pixbuf_set_attachments(void *log_ctx,
+                                 CVPixelBufferRef pixbuf, const struct AVFrame *src);
 
 #endif /* AVUTIL_HWCONTEXT_VIDEOTOOLBOX_H */

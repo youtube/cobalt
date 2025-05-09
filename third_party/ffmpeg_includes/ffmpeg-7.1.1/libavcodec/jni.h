@@ -33,7 +33,7 @@
  * @param log_ctx context used for logging, can be NULL
  * @return 0 on success, < 0 otherwise
  */
-int av_jni_set_java_vm(void* vm, void* log_ctx);
+int av_jni_set_java_vm(void *vm, void *log_ctx);
 
 /*
  * Get the Java virtual machine which has been set with av_jni_set_java_vm.
@@ -41,18 +41,18 @@ int av_jni_set_java_vm(void* vm, void* log_ctx);
  * @param vm Java virtual machine
  * @return a pointer to the Java virtual machine
  */
-void* av_jni_get_java_vm(void* log_ctx);
+void *av_jni_get_java_vm(void *log_ctx);
 
 /*
- * Set the Android application context which will be used to retrieve the
- * Android content resolver to handle content uris.
+ * Set the Android application context which will be used to retrieve the Android
+ * content resolver to handle content uris.
  *
  * This function is only available on Android.
  *
  * @param app_ctx global JNI reference to the Android application context
  * @return 0 on success, < 0 otherwise
  */
-int av_jni_set_android_app_ctx(void* app_ctx, void* log_ctx);
+int av_jni_set_android_app_ctx(void *app_ctx, void *log_ctx);
 
 /*
  * Get the Android application context that has been set with
@@ -62,6 +62,6 @@ int av_jni_set_android_app_ctx(void* app_ctx, void* log_ctx);
  *
  * @return a pointer the the Android application context
  */
-void* av_jni_get_android_app_ctx(void);
+void *av_jni_get_android_app_ctx(void);
 
 #endif /* AVCODEC_JNI_H */

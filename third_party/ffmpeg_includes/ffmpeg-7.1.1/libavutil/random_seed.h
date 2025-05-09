@@ -32,8 +32,8 @@
  * Get a seed to use in conjunction with random functions.
  * This function tries to provide a good seed at a best effort bases.
  * Its possible to call this function multiple times if more bits are needed.
- * It can be quite slow, which is why it should only be used as seed for a
- * faster PRNG. The quality of the seed depends on the platform.
+ * It can be quite slow, which is why it should only be used as seed for a faster
+ * PRNG. The quality of the seed depends on the platform.
  */
 uint32_t av_get_random_seed(void);
 
@@ -44,11 +44,11 @@ uint32_t av_get_random_seed(void);
  * @param buf buffer into which the random data will be written
  * @param len size of buf in bytes
  *
- * @retval 0                         success, len bytes of random data was
- * written into buf
+ * @retval 0                         success, len bytes of random data was written
+ *                                   into buf
  * @retval "a negative AVERROR code" random data could not be generated
  */
-int av_random_bytes(uint8_t* buf, size_t len);
+int av_random_bytes(uint8_t *buf, size_t len);
 
 /**
  * @}

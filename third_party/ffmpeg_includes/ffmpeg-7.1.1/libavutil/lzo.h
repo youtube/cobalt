@@ -34,16 +34,16 @@
 /** @name Error flags returned by av_lzo1x_decode
  * @{ */
 /// end of the input buffer reached before decoding finished
-#define AV_LZO_INPUT_DEPLETED 1
+#define AV_LZO_INPUT_DEPLETED  1
 /// decoded data did not fit into output buffer
-#define AV_LZO_OUTPUT_FULL 2
+#define AV_LZO_OUTPUT_FULL     2
 /// a reference to previously decoded data was wrong
 #define AV_LZO_INVALID_BACKPTR 4
 /// a non-specific error in the compressed bitstream
-#define AV_LZO_ERROR 8
+#define AV_LZO_ERROR           8
 /** @} */
 
-#define AV_LZO_INPUT_PADDING 8
+#define AV_LZO_INPUT_PADDING   8
 #define AV_LZO_OUTPUT_PADDING 12
 
 /**
@@ -55,10 +55,9 @@
  * @return 0 on success, otherwise a combination of the error flags above
  *
  * Make sure all buffers are appropriately padded, in must provide
- * AV_LZO_INPUT_PADDING, out must provide AV_LZO_OUTPUT_PADDING additional
- * bytes.
+ * AV_LZO_INPUT_PADDING, out must provide AV_LZO_OUTPUT_PADDING additional bytes.
  */
-int av_lzo1x_decode(void* out, int* outlen, const void* in, int* inlen);
+int av_lzo1x_decode(void *out, int *outlen, const void *in, int *inlen);
 
 /**
  * @}

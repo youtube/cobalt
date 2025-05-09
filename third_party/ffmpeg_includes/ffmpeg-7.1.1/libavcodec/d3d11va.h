@@ -35,8 +35,8 @@
 #define _WIN32_WINNT 0x0602
 #endif
 
-#include <d3d11.h>
 #include <stdint.h>
+#include <d3d11.h>
 
 /**
  * @defgroup lavc_codec_hwaccel_d3d11va Direct3D11
@@ -54,45 +54,45 @@
  * Use av_d3d11va_alloc_context() exclusively to allocate an AVD3D11VAContext.
  */
 typedef struct AVD3D11VAContext {
-  /**
-   * D3D11 decoder object
-   */
-  ID3D11VideoDecoder* decoder;
+    /**
+     * D3D11 decoder object
+     */
+    ID3D11VideoDecoder *decoder;
 
-  /**
-   * D3D11 VideoContext
-   */
-  ID3D11VideoContext* video_context;
+    /**
+      * D3D11 VideoContext
+      */
+    ID3D11VideoContext *video_context;
 
-  /**
-   * D3D11 configuration used to create the decoder
-   */
-  D3D11_VIDEO_DECODER_CONFIG* cfg;
+    /**
+     * D3D11 configuration used to create the decoder
+     */
+    D3D11_VIDEO_DECODER_CONFIG *cfg;
 
-  /**
-   * The number of surface in the surface array
-   */
-  unsigned surface_count;
+    /**
+     * The number of surface in the surface array
+     */
+    unsigned surface_count;
 
-  /**
-   * The array of Direct3D surfaces used to create the decoder
-   */
-  ID3D11VideoDecoderOutputView** surface;
+    /**
+     * The array of Direct3D surfaces used to create the decoder
+     */
+    ID3D11VideoDecoderOutputView **surface;
 
-  /**
-   * A bit field configuring the workarounds needed for using the decoder
-   */
-  uint64_t workaround;
+    /**
+     * A bit field configuring the workarounds needed for using the decoder
+     */
+    uint64_t workaround;
 
-  /**
-   * Private to the FFmpeg AVHWAccel implementation
-   */
-  unsigned report_id;
+    /**
+     * Private to the FFmpeg AVHWAccel implementation
+     */
+    unsigned report_id;
 
-  /**
-   * Mutex to access video_context
-   */
-  HANDLE context_mutex;
+    /**
+      * Mutex to access video_context
+      */
+    HANDLE  context_mutex;
 } AVD3D11VAContext;
 
 /**
@@ -100,7 +100,7 @@ typedef struct AVD3D11VAContext {
  *
  * @return Newly-allocated AVD3D11VAContext or NULL on failure.
  */
-AVD3D11VAContext* av_d3d11va_alloc_context(void);
+AVD3D11VAContext *av_d3d11va_alloc_context(void);
 
 /**
  * @}
