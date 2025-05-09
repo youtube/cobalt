@@ -99,6 +99,17 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFrameRendered(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jobject unused_this,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
+}
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
     JniEnvExt* env,
     jobject unused_this,
@@ -430,7 +441,8 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
-    jlong presentation_time_microseconds) {
+    jlong presentation_time_microseconds,
+    jint flags) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> j_iv(env->NewByteArrayFromRaw(
       reinterpret_cast<const jbyte*>(drm_sample_info.initialization_vector),
@@ -464,10 +476,10 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   }
 
   return env->CallIntMethodOrAbort(
-      j_media_codec_bridge_, "queueSecureInputBuffer", "(II[B[B[I[IIIIIJ)I",
+      j_media_codec_bridge_, "queueSecureInputBuffer", "(II[B[B[I[IIIIIJI)I",
       index, offset, j_iv.Get(), j_key_id.Get(), j_clear_bytes.Get(),
       j_encrypted_bytes.Get(), subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds, flags);
 }
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -572,6 +584,10 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
 
 void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
+}
+
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
