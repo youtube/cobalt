@@ -17,8 +17,8 @@
 
 #include "build/build_config.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media"
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -30,7 +30,8 @@ class CORE_EXPORT HTMLVideoElementExtensions final {
 
  public:
   static void setMaxVideoCapabilities(HTMLVideoElement& video_element,
-                                      const String& max_video_capabilities);
+                                      const String& max_video_capabilities,
+                                      ExceptionState& exception_state);
 
   static String getMaxVideoCapabilities(const HTMLVideoElement& video_element);
 };

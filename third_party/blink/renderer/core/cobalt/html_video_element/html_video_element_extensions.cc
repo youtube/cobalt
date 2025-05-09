@@ -22,8 +22,10 @@ namespace blink {
 
 void HTMLVideoElementExtensions::setMaxVideoCapabilities(
     HTMLVideoElement& video_element,
-    const String& max_video_capabilities) {
-  video_element.setMaxVideoCapabilities(max_video_capabilities);
+    const String& max_video_capabilities,
+    ExceptionState& exception_state) {
+  video_element.setMaxVideoCapabilities(max_video_capabilities,
+                                        exception_state);
 }
 
 String HTMLVideoElementExtensions::getMaxVideoCapabilities(

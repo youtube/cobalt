@@ -35,6 +35,13 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+
 namespace blink {
 
 class ImageBitmapOptions;
@@ -162,7 +169,7 @@ class CORE_EXPORT HTMLVideoElement final
   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
 
   #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  void setMaxVideoCapabilities(const String& max_video_capabilities);
+  void setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
 
   // getMaxVideoCapabilities overrides the function in web_media_player_client.h to allow
   // other cc/h files to access the max_video_capabilities_ variable.
