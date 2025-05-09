@@ -4,37 +4,50 @@ This directory contains the header files of the ffmpeg library.
 
 ## How to import ffmpeg header files.
 
-```shell
+1. Download ffmpeg source and run `configure`
 
-# Downloads ffmpeg tarball from https://www.ffmpeg.org/download.html#releases.
+  ```shell
 
-# Customize these variabiles.
-# Customization-begin
-TARBALL_PATH=~/Downloads/ffmpeg-7.1.1.tar.xz
-COBALT_ROOT=~/chromium/src
-FFMPEG_TARGET=ffmpeg-7.1.1
-# Customization-end
+  # Downloads ffmpeg tarball from https://www.ffmpeg.org/download.html#releases.
 
-FFMPEG_INCLUDE_ROOT=${COBALT_ROOT}/third_party/ffmpeg_includes
-tar -xf ${TARBALL_PATH} -C ${FFMPEG_INCLUDE_ROOT}
+  # Customize these variabiles.
+  # Customization-begin
+  TARBALL_PATH=~/Downloads/ffmpeg-7.1.1.tar.xz
+  COBALT_ROOT=~/chromium/src
+  FFMPEG_TARGET=ffmpeg-7.1.1
+  # Customization-end
 
-cd ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET}
+  FFMPEG_INCLUDE_ROOT=${COBALT_ROOT}/third_party/ffmpeg_includes
+  $ tar -xf ${TARBALL_PATH} -C ${FFMPEG_INCLUDE_ROOT}
 
-# Generate avconfig.h
-./configure --disable-x86asm
+  $ cd ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET}
 
-# Keep only header files and COPYING.LGPLv2.1.
-find . -type f -not \( -name "COPYING.LGPLv2.1" -o -name "*.h" \) -delete
+  # Generate avconfig.h
+  $ ./configure --disable-x86asm
+  ```
 
-# Delete empty folders.
-find . -type d -empty -delete
+2. Trim unneeded files.
+  - First, do create initial header file list.
 
-# Keep only libavcodec, libavformat and libavutil.
-find . -depth -path "./libavcodec" -prune -o \
-              -path "./libavformat" -prune -o \
-              -path "./libavutil" -prune -o \
-              -type d -not -path "." -exec rm -rf {} \;
-```
+  ```shell
+  # Creat initial necessary ffmpeg header file list. 
+  # You can create it by copying http://go/paste/5889254032670720
+
+  # Delete files that are not listed in this list.
+  $ find ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET} -type f -print0 | \
+    grep --null-data -v -F -x -f necessary_ffmpeg_headers.txt | \
+    xargs -0 rm
+  ```
+  - Build linux cobalt app and, if the compiler complain about missing header files, undelete them.
+
+  - Repeat until there is no missing header files.
+
+3. Delete empty folders.
+
+  ```shell
+  # Delete empty folders.
+  $ find . -type d -empty -delete
+  ```
 
 ## Versions of libraries.
 
