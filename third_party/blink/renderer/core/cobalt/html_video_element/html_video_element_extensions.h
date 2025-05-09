@@ -19,6 +19,7 @@
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media"
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)

@@ -6,22 +6,29 @@
   <script type='module'>
     test(function(){
     var video = document.createElement('video');
-    assert_equals(video.getMaxVideoCapabilities(), '', 'getMaxVideoCapabilities can retrieve unset value');
-    assert_not_equals(video.getMaxVideoCapabilities(), '3', 'Assert that maxVideoCapabilities is properly updated');
+    assert_equals('', video.getMaxVideoCapabilities(), 'getMaxVideoCapabilities can retrieve unset value');
     }, 'getmaxVideoCapabilities for HTMLVideoElement');
 
     test(function(){
     var video = document.createElement('video');
     video.src = 'testStringToSetSRC';
-    assert_implements(video.setMaxVideoCapabilities, 'setMaxVideoCapabilities is validly implemented.')
-    assert_throws_dom('InvalidStateError', video.setMaxVideoCapabilities('width=1920; height=1080; framerate=15;'),
-                      'setMaxVideoCapabilities throws InvalidStateError');
-    }, 'setMaxVideoCapabilities throws INVALID_STATE_ERROR');
+    // a try catch must be used here, as trying to use assert_throws_dom or assert_throws_js
+    // will not work due to the returned error immediately stopping the test.
+    try{
+      video.setMaxVideoCapabilities('width=1920; height=1080; framerate=15;');
+      throw AssertionError('setMaxVideoCapabilities successfully ran when not supposed to');
+    }
+    catch ({name, message}){
+      assert_equals("InvalidStateError", name, 'InvalidStateError is thrown.');
+      assert_equals("Failed to execute 'setMaxVideoCapabilities' on 'HTMLVideoElement': Cannot set maximum capabilities after src is defined.", message,
+                    'Error message matches defined error message in setMaxVideoCapabilities');
+    }
+    }, 'setMaxVideoCapabilities cannot be set after src is defined');
 
     test(function(){
     var video = document.createElement('video');
     video.setMaxVideoCapabilities('width=1920; height=1080; framerate=15;');
-    assert_equals(video.getMaxVideoCapabilities(), 'width=1920; height=1080; framerate=15;',
+    assert_equals('width=1920; height=1080; framerate=15;', video.getMaxVideoCapabilities(),
                   'setMaxVideoCapabilities properly updates maxVideoCapabilities');
     }, 'setMaxVideoCapabilities successfully updates HTMLVideoElement');
   </script>

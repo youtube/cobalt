@@ -27,7 +27,6 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_MEDIA_HTML_VIDEO_ELEMENT_H_
 
 #include "third_party/blink/public/common/media/display_type.h"
-#include "third_party/blink/public/platform/web_media_player_client.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
@@ -36,9 +35,8 @@
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-
+#include "third_party/blink/public/platform/web_media_player_client.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 
@@ -168,7 +166,7 @@ class CORE_EXPORT HTMLVideoElement final
 
   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
 
-  #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   void setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
 
   // getMaxVideoCapabilities overrides the function in web_media_player_client.h to allow
@@ -269,9 +267,9 @@ class CORE_EXPORT HTMLVideoElement final
   // GetSourceImageForCanvas(), etc). Created on demand.
   std::unique_ptr<CanvasResourceProvider> resource_provider_;
 
-  #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   String max_video_capabilities_;
-  #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink
