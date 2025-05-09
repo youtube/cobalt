@@ -97,7 +97,7 @@ _FILTERED_TESTS = {
 }
 
 
-class TestFilters(object):
+class RdkTestFilters(object):
   """Starboard RDK platform test filters."""
 
   def GetTestFilters(self):
@@ -108,4 +108,4 @@ class TestFilters(object):
 
 
 def CreateTestFilters():
-  return TestFilters()
+  return RdkTestFilters()
