@@ -118,6 +118,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            const SbMediaColorMetadata* color_metadata,
                            bool require_software_codec,
                            const FrameRenderedCB& frame_rendered_cb,
+                           const FirstTunnelFrameReadyCB& first_tunnel_frame_ready_cb,
                            int tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
@@ -126,9 +127,11 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
+      first_tunnel_frame_ready_cb_(first_tunnel_frame_ready_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
+  SB_DCHECK(tunnel_mode_audio_session_id == -1 || first_tunnel_frame_ready_cb);
 
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   const bool require_secured_decoder =
@@ -499,13 +502,27 @@ bool MediaDecoder::ProcessOneInputBuffer(
                                                    BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = input_buffer->timestamp();
-    if (drm_system_ && input_buffer->drm_info()) {
-      status = media_codec_bridge_->QueueSecureInputBuffer(
-          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-          pts_us);
+    if (tunnel_mode_enabled_ && media_type_ == kSbMediaTypeVideo &&
+        host_->seek_to_time() > pts_us) {
+      if (drm_system_ && input_buffer->drm_info()) {
+        status = media_codec_bridge_->QueueSecureInputBuffer(
+            dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+            pts_us, BUFFER_FLAG_DECODE_ONLY);
+      } else {
+        status = media_codec_bridge_->QueueInputBuffer(
+            dequeue_input_result.index, kNoOffset, size, pts_us,
+            BUFFER_FLAG_DECODE_ONLY);
+      }
     } else {
-      status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
+      if (drm_system_ && input_buffer->drm_info()) {
+        status = media_codec_bridge_->QueueSecureInputBuffer(
+            dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+            pts_us, kNoBufferFlags);
+      } else {
+        status = media_codec_bridge_->QueueInputBuffer(
+            dequeue_input_result.index, kNoOffset, size, pts_us,
+            kNoBufferFlags);
+      }
     }
   } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
@@ -669,6 +686,10 @@ void MediaDecoder::OnMediaCodecOutputFormatChanged() {
 
 void MediaDecoder::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   frame_rendered_cb_(frame_timestamp);
+}
+
+void MediaDecoder::OnMediaCodecFirstTunnelFrameReady() {
+  first_tunnel_frame_ready_cb_();
 }
 
 bool MediaDecoder::Flush() {

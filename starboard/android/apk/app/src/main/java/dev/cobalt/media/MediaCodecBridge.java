@@ -75,6 +75,7 @@ class MediaCodecBridge {
   private int mFps = 30;
 
   private MediaCodec.OnFrameRenderedListener mFrameRendererListener;
+  private MediaCodec.OnFirstTunnelFrameReadyListener mFirstTunnelFrameReadyListener;
 
   // Functions that require this will be called frequently in a tight loop.
   // Only create one of these and reuse it to avoid excessive allocations,
@@ -531,6 +532,24 @@ class MediaCodecBridge {
           };
       mMediaCodec.get().setOnFrameRenderedListener(mFrameRendererListener, null);
     }
+
+    if (isFirstTunnelFrameReadyCallbackEnabled() && tunnelModeAudioSessionId != -1) {
+      mFirstTunnelFrameReadyListener =
+          new MediaCodec.OnFirstTunnelFrameReadyListener() {
+            @Override
+            public void onFirstTunnelFrameReady(MediaCodec codec) {
+              Log.i(TAG, "onFirstTunnelFrameReady");
+              synchronized (this) {
+                if (mNativeMediaCodecBridge == 0) {
+                  return;
+                }
+                nativeOnMediaCodecFirstTunnelFrameReady(mNativeMediaCodecBridge);
+              }
+            }
+          };
+      Log.i(TAG, "setup setOnFirstTunnelFrameReadyListener");
+      mMediaCodec.get().setOnFirstTunnelFrameReadyListener(null, mFirstTunnelFrameReadyListener);
+    }
   }
 
   @UsedByNative
@@ -538,6 +557,12 @@ class MediaCodecBridge {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
     return Build.VERSION.SDK_INT >= 34;
+  }
+
+  @UsedByNative
+  public static boolean isFirstTunnelFrameReadyCallbackEnabled() {
+    // OnFirstTunnelFrameReadyListener is added in Android 12
+    return Build.VERSION.SDK_INT >= 31;
   }
 
   @SuppressWarnings("unused")
@@ -763,6 +788,8 @@ class MediaCodecBridge {
     mMediaCodec.set(null);
   }
 
+  @SuppressWarnings("unused")
+  @UsedByNative
   public boolean start() {
     return start(null);
   }
@@ -965,7 +992,8 @@ class MediaCodecBridge {
       int cipherMode,
       int blocksToEncrypt,
       int blocksToSkip,
-      long presentationTimeUs) {
+      long presentationTimeUs,
+      int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
       CryptoInfo cryptoInfo = new CryptoInfo();
@@ -979,7 +1007,7 @@ class MediaCodecBridge {
         return MediaCodecStatus.ERROR;
       }
 
-      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
+      mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, flags);
     } catch (MediaCodec.CryptoException e) {
       int errorCode = e.getErrorCode();
       if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
@@ -1224,4 +1252,7 @@ class MediaCodecBridge {
 
   private native void nativeOnMediaCodecFrameRendered(
       long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+
+  private native void nativeOnMediaCodecFirstTunnelFrameReady(
+      long nativeMediaCodecBridge);
 }
