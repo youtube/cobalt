@@ -117,6 +117,8 @@ class PlayerComponents {
         return video_stream_info_.max_video_capabilities;
       }
 
+      std::string ToString() const;
+
       SbPlayer player() const { return player_; }
       SbPlayerOutputMode output_mode() const { return output_mode_; }
       int max_video_input_size() const { return max_video_input_size_; }
@@ -217,6 +219,13 @@ class PlayerComponents {
   PlayerComponents(const PlayerComponents&) = delete;
   void operator=(const PlayerComponents&) = delete;
 };
+
+inline std::ostream& operator<<(
+    std::ostream& os,
+    const PlayerComponents::Factory::CreationParameters& params) {
+  os << params.ToString();
+  return os;
+}
 
 }  // namespace filter
 }  // namespace player

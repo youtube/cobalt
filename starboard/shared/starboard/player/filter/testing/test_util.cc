@@ -164,8 +164,10 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   // disabled.
 
   const char* kFilenames[] = {
-      "beneath_the_canopy_137_avc.dmp", "beneath_the_canopy_248_vp9.dmp",
-      "sintel_399_av1.dmp", "black_test_avc_1080p_30to60_fps.dmp"};
+      // Test environment does not support avc(h264). See b/411115002#comment6.
+      // "beneath_the_canopy_137_avc.dmp",
+      // "black_test_avc_1080p_30to60_fps.dmp"
+      "beneath_the_canopy_248_vp9.dmp", "sintel_399_av1.dmp"};
 
   static std::vector<VideoTestParam> test_params;
 

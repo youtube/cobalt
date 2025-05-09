@@ -66,7 +66,8 @@ const char* kAudioOnlyTestFiles[] = {
 };
 
 const char* kVideoTestFiles[] = {
-    "beneath_the_canopy_137_avc.dmp",
+    // Test environment does not support avc(h264). See b/411115002#comment6.
+    // "beneath_the_canopy_137_avc.dmp",
     "beneath_the_canopy_248_vp9.dmp",
     "sintel_399_av1.dmp",
 #if defined(ENABLE_CAST_CODEC_TESTS)
