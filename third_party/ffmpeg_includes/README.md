@@ -33,11 +33,14 @@ This directory contains the header files of the ffmpeg library.
   # Creat initial necessary ffmpeg header file list. 
   # You can create it by copying http://go/paste/5889254032670720
 
+  $ cd ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET}
+
   # Delete files that are not listed in this list.
-  $ find ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET} -type f -print0 | \
+  $ find ./ -type f -print0 | \
     grep --null-data -v -F -x -f necessary_ffmpeg_headers.txt | \
     xargs -0 rm
   ```
+
   - Build linux cobalt app and, if the compiler complain about missing header files, undelete them.
 
   - Repeat until there is no missing header files.
