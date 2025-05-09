@@ -50,7 +50,6 @@ _CHROMIUM_PLATFORMS = [
     'chromium_android-x86',
 ]
 _COBALT_LINUX_PLATFORMS = [
-    'evergreen-x64',
     'linux-x64x11',
     'linux-x64x11-evergreen',
     'linux-x64x11-no-starboard',
