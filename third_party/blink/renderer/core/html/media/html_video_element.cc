@@ -732,7 +732,13 @@ void HTMLVideoElement::AddedEventListener(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities){
+void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
+  if (FastGetAttribute(html_names::kSrcAttr)!= g_null_atom) {
+    exception_state.ThrowDOMException(
+      DOMExceptionCode::kInvalidStateError,
+      "Cannot set maximum capabilities after src is defined.");
+    return;
+  }
   max_video_capabilities_ = max_video_capabilities;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
