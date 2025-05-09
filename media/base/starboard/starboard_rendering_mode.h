@@ -12,8 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module media.mojom;
+#ifndef MEDIA_BASE_STARBOARD_STARBOARD_RENDERING_MODE_H_
+#define MEDIA_BASE_STARBOARD_STARBOARD_RENDERING_MODE_H_
 
-// See media/base/starboard/starboard_renderer_config.h for descriptions.
-[Native]
-struct StarboardRendererConfig;
+namespace media {
+
+// This C++ enum is the equivalent to mojom::StarboardRenderingMode
+enum class StarboardRenderingMode : int32_t {
+  kDecodeToTexture = 0,
+  kPunchOut = 1,
+  kInvalid = 2,
+  kMaxValue = kInvalid,
+};
+
+}  // namespace media
+
+#endif  // MEDIA_BASE_STARBOARD_STARBOARD_RENDERING_MODE_H_
