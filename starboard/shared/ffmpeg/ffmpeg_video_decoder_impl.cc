@@ -55,9 +55,8 @@ void ReleaseBuffer(void* opaque, uint8_t* data) {
 int AllocateBufferCallback(AVCodecContext* codec_context,
                            AVFrame* frame,
                            int flags) {
-  VideoDecoderImpl<FFMPEG>* video_decoder =
-      static_cast<VideoDecoderImpl<FFMPEG>*>(codec_context->opaque);
-  return video_decoder->AllocateBuffer(codec_context, frame, flags);
+  return static_cast<VideoDecoderImpl<FFMPEG>*>(codec_context->opaque)
+      ->AllocateBuffer(codec_context, frame, flags);
 }
 
 #else   // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
@@ -107,11 +106,6 @@ VideoDecoderImpl<FFMPEG>::VideoDecoderImpl(
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider)
     : video_codec_(video_codec),
-      codec_context_(NULL),
-      av_frame_(NULL),
-      stream_ended_(false),
-      error_occurred_(false),
-      decoder_thread_(0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -130,13 +124,18 @@ VideoDecoderImpl<FFMPEG>::~VideoDecoderImpl() {
 }
 
 // static
-VideoDecoder* VideoDecoderImpl<FFMPEG>::Create(
+std::unique_ptr<VideoDecoder> VideoDecoderImpl<FFMPEG>::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
-  return new VideoDecoderImpl<FFMPEG>(video_codec, output_mode,
-                                      decode_target_graphics_context_provider);
+  auto video_decoder =
+      std::unique_ptr<VideoDecoderImpl<FFMPEG>>(new VideoDecoderImpl<FFMPEG>(
+          video_codec, output_mode, decode_target_graphics_context_provider));
+  if (!video_decoder->is_valid()) {
+    return nullptr;
+  }
+  return video_decoder;
 }
 
 void VideoDecoderImpl<FFMPEG>::Initialize(

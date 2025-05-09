@@ -28,10 +28,11 @@ namespace ffmpeg {
 template <int V>
 class VideoDecoderImpl : public VideoDecoder {
  public:
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
+  static std::unique_ptr<VideoDecoder> Create(
+      SbMediaVideoCodec video_codec,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider);
 };
 
 }  // namespace ffmpeg

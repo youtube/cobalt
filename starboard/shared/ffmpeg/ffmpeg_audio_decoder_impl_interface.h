@@ -29,7 +29,8 @@ namespace ffmpeg {
 template <int V>
 class AudioDecoderImpl : public AudioDecoder {
  public:
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
+  static std::unique_ptr<AudioDecoder> Create(
+      const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace ffmpeg

@@ -27,13 +27,11 @@ namespace ffmpeg {
 class VideoDecoder : public starboard::player::filter::VideoDecoder {
  public:
   // Create a video decoder for the currently loaded ffmpeg library.
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
-
-  // Returns true if the video decoder is initialized successfully.
-  virtual bool is_valid() const = 0;
+  static std::unique_ptr<VideoDecoder> Create(
+      SbMediaVideoCodec video_codec,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider);
 };
 
 }  // namespace ffmpeg

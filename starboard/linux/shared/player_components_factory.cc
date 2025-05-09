@@ -94,7 +94,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));
-          if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
+          if (audio_decoder_impl) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           } else {
@@ -158,7 +158,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                 creation_parameters.video_codec(),
                 creation_parameters.output_mode(),
                 creation_parameters.decode_target_graphics_context_provider()));
-        if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
+        if (ffmpeg_video_decoder) {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           video_decoder->reset(ffmpeg_video_decoder.release());
         } else {

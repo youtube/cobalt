@@ -27,42 +27,36 @@ namespace shared {
 namespace ffmpeg {
 
 // static
-AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
+std::unique_ptr<AudioDecoder> AudioDecoder::Create(
+    const AudioStreamInfo& audio_stream_info) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
-    return NULL;
+    return nullptr;
   }
 
-  AudioDecoder* audio_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      audio_decoder = AudioDecoderImpl<540>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<540>::Create(audio_stream_info);
     case 550:
     case 560:
-      audio_decoder = AudioDecoderImpl<560>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<560>::Create(audio_stream_info);
     case 571:
-      audio_decoder = AudioDecoderImpl<571>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<571>::Create(audio_stream_info);
     case 581:
-      audio_decoder = AudioDecoderImpl<581>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<581>::Create(audio_stream_info);
     case 591:
-      audio_decoder = AudioDecoderImpl<591>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<591>::Create(audio_stream_info);
     case 601:
-      audio_decoder = AudioDecoderImpl<601>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<601>::Create(audio_stream_info);
     case 611:
-      audio_decoder = AudioDecoderImpl<611>::Create(audio_stream_info);
-      break;
+      return AudioDecoderImpl<611>::Create(audio_stream_info);
     default:
-      SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
-                      << ffmpeg->specialization_version();
+      // Go to next step.
       break;
   }
-  return audio_decoder;
+  SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
+                  << ffmpeg->specialization_version();
+  return nullptr;
 }
 
 }  // namespace ffmpeg

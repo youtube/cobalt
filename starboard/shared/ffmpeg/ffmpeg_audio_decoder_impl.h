@@ -42,12 +42,10 @@ template <>
 class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
                                  private starboard::player::JobQueue::JobOwner {
  public:
-  explicit AudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
   ~AudioDecoderImpl() override;
 
-  // From: AudioDecoder
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
-  bool is_valid() const override;
+  static std::unique_ptr<AudioDecoder> Create(
+      const AudioStreamInfo& audio_stream_info);
 
   // From: starboard::player::filter::AudioDecoder
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
@@ -58,6 +56,8 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   void Reset() override;
 
  private:
+  explicit AudioDecoderImpl(const AudioStreamInfo& audio_stream_info);
+
   SbMediaAudioSampleType GetSampleType() const;
   SbMediaAudioFrameStorageType GetStorageType() const;
 
@@ -68,6 +68,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   // ultimately enqueued in decoded_audios_.
   void ProcessDecodedFrame(const InputBuffer& input_buffer,
                            const AVFrame& av_frame);
+  bool is_valid() const;
 
   static const int kMaxDecodedAudiosSize = 64;
 

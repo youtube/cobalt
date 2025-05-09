@@ -29,9 +29,9 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
   // Create an audio decoder for the currently loaded ffmpeg library.
-  static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
-  // Returns true if the audio decoder is initialized successfully.
-  virtual bool is_valid() const = 0;
+  // This method returns the instance, only when the created instance is valid.
+  static std::unique_ptr<AudioDecoder> Create(
+      const AudioStreamInfo& audio_stream_info);
 };
 
 }  // namespace ffmpeg

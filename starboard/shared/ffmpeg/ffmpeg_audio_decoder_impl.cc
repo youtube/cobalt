@@ -108,9 +108,14 @@ AudioDecoderImpl<FFMPEG>::~AudioDecoderImpl() {
 }
 
 // static
-AudioDecoder* AudioDecoderImpl<FFMPEG>::Create(
+std::unique_ptr<AudioDecoder> AudioDecoderImpl<FFMPEG>::Create(
     const AudioStreamInfo& audio_stream_info) {
-  return new AudioDecoderImpl<FFMPEG>(audio_stream_info);
+  auto audio_decoder = std::unique_ptr<AudioDecoderImpl<FFMPEG>>(
+      new AudioDecoderImpl<FFMPEG>(audio_stream_info));
+  if (!audio_decoder->is_valid()) {
+    return nullptr;
+  }
+  return audio_decoder;
 }
 
 void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,
@@ -131,7 +136,7 @@ void AudioDecoderImpl<FFMPEG>::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(input_buffers.size() == 1);
   SB_DCHECK(input_buffers[0]);
   SB_DCHECK(output_cb_);
-  SB_CHECK(codec_context_ != NULL);
+  SB_CHECK(codec_context_ != nullptr);
 
   Schedule(consumed_cb);
 

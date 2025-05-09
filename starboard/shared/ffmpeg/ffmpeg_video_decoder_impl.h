@@ -45,18 +45,13 @@ class VideoDecoderImpl<FFMPEG>;
 template <>
 class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
  public:
-  VideoDecoderImpl(SbMediaVideoCodec video_codec,
-                   SbPlayerOutputMode output_mode,
-                   SbDecodeTargetGraphicsContextProvider*
-                       decode_target_graphics_context_provider);
   ~VideoDecoderImpl() override;
 
-  // From: VideoDecoder
-  static VideoDecoder* Create(SbMediaVideoCodec video_codec,
-                              SbPlayerOutputMode output_mode,
-                              SbDecodeTargetGraphicsContextProvider*
-                                  decode_target_graphics_context_provider);
-  bool is_valid() const override;
+  static std::unique_ptr<VideoDecoder> Create(
+      SbMediaVideoCodec video_codec,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider*
+          decode_target_graphics_context_provider);
 
   // From: starboard::player::filter::VideoDecoder
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -101,6 +96,11 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
+  VideoDecoderImpl(SbMediaVideoCodec video_codec,
+                   SbPlayerOutputMode output_mode,
+                   SbDecodeTargetGraphicsContextProvider*
+                       decode_target_graphics_context_provider);
+
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
 
@@ -117,6 +117,8 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   // Returns false if the frame contains invalid data.
   bool ProcessDecodedFrame(const AVFrame& av_frame);
 
+  bool is_valid() const;
+
   FFMPEGDispatch* ffmpeg_;
 
   // |video_codec_| will be initialized inside ctor and won't be changed during
@@ -131,19 +133,19 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
 
   // The AV related classes will only be created and accessed on the decoder
   // thread.
-  AVCodecContext* codec_context_;
-  AVFrame* av_frame_;
+  AVCodecContext* codec_context_ = nullptr;
+  AVFrame* av_frame_ = nullptr;
 
-  bool stream_ended_;
-  bool error_occurred_;
+  bool stream_ended_ = false;
+  bool error_occurred_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  pthread_t decoder_thread_;
+  pthread_t decoder_thread_ = 0;
 
   // Decode-to-texture related state.
-  SbPlayerOutputMode output_mode_;
+  const SbPlayerOutputMode output_mode_;
 
-  SbDecodeTargetGraphicsContextProvider*
+  SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
 
   // If decode-to-texture is enabled, then we store the decode target texture

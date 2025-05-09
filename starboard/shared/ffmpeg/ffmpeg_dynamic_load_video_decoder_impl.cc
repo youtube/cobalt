@@ -27,53 +27,46 @@ namespace shared {
 namespace ffmpeg {
 
 // static
-VideoDecoder* VideoDecoder::Create(
+std::unique_ptr<VideoDecoder> VideoDecoder::Create(
     SbMediaVideoCodec video_codec,
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider*
         decode_target_graphics_context_provider) {
   FFMPEGDispatch* ffmpeg = FFMPEGDispatch::GetInstance();
   if (!ffmpeg || !ffmpeg->is_valid()) {
-    return NULL;
+    return nullptr;
   }
 
-  VideoDecoder* video_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
-      video_decoder = VideoDecoderImpl<540>::Create(
+      return VideoDecoderImpl<540>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 550:
     case 560:
-      video_decoder = VideoDecoderImpl<560>::Create(
+      return VideoDecoderImpl<560>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 571:
-      video_decoder = VideoDecoderImpl<571>::Create(
+      return VideoDecoderImpl<571>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 581:
-      video_decoder = VideoDecoderImpl<581>::Create(
+      return VideoDecoderImpl<581>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 591:
-      video_decoder = VideoDecoderImpl<591>::Create(
+      return VideoDecoderImpl<591>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 601:
-      video_decoder = VideoDecoderImpl<601>::Create(
+      return VideoDecoderImpl<601>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     case 611:
-      video_decoder = VideoDecoderImpl<611>::Create(
+      return VideoDecoderImpl<611>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
-      break;
     default:
-      SB_LOG(WARNING) << "Unsupported FFMPEG version "
-                      << ffmpeg->specialization_version();
+      // Go to next step.
       break;
   }
-  return video_decoder;
+  SB_LOG(WARNING) << "Unsupported FFMPEG version "
+                  << ffmpeg->specialization_version();
+  return nullptr;
 }
 }  // namespace ffmpeg
 }  // namespace shared
