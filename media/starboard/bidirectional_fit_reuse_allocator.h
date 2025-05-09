@@ -15,33 +15,75 @@
 #ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 #define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
-#include "starboard/common/reuse_allocator_base.h"
+#include <algorithm>
+
+#include "base/check.h"
+#include "base/logging.h"
+#include "starboard/common/allocator.h"
+#include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
+#include "starboard/types.h"
 
 namespace media {
 
 // This class uses first-fit allocation strategy to allocate memory block whose
 // size is greater than the |small_allocation_threshold|.  It uses last-fit
 // strategy to allocate memory block whose size is less than or equal to the
-// |small_allocation_threshold|.  This allows better fragmentation management.
+// |small_allocation_threshold| to reduce fragmentation.  Note that the size of
+// the memory block for an allocation may exceed the size requested, so an
+// allocation with a size close to |small_allocation_threshold| could be treated
+// as a large allocation.
 // If fragmentation is not an issue, FirstFitReuseAllocator might be a simpler
 // alternative.
 // Note that when using this class a significant |initial_capacity| should be
 // set as otherwise new allocations will almost always allocate from the front
 // of the fallback allocator.
-class BidirectionalFitReuseAllocator
-    : public starboard::common::ReuseAllocatorBase {
+template <typename ReuseAllocatorBase>
+class BidirectionalFitReuseAllocator : public ReuseAllocatorBase {
  public:
-  BidirectionalFitReuseAllocator(Allocator* fallback_allocator,
-                                 std::size_t initial_capacity,
-                                 std::size_t small_allocation_threshold,
-                                 std::size_t allocation_increment);
+  typedef typename ReuseAllocatorBase::FreeBlockSet::iterator FreeBlockIterator;
+  typedef typename ReuseAllocatorBase::FreeBlockSet::reverse_iterator
+      FreeBlockReverseiterator;
 
-  FreeBlockSet::iterator FindFreeBlock(std::size_t size,
-                                       std::size_t alignment,
-                                       FreeBlockSet::iterator begin,
-                                       FreeBlockSet::iterator end,
-                                       bool* allocate_from_front) override;
+  BidirectionalFitReuseAllocator(
+      starboard::common::Allocator* fallback_allocator,
+      std::size_t initial_capacity,
+      std::size_t small_allocation_threshold,
+      std::size_t allocation_increment)
+      : ReuseAllocatorBase(fallback_allocator,
+                           initial_capacity,
+                           allocation_increment),
+        small_allocation_threshold_(small_allocation_threshold) {}
+
+  FreeBlockIterator FindFreeBlock(std::size_t size,
+                                  std::size_t alignment,
+                                  FreeBlockIterator begin,
+                                  FreeBlockIterator end,
+                                  bool* allocate_from_front) override {
+    DCHECK(allocate_from_front);
+
+    *allocate_from_front = size > small_allocation_threshold_;
+
+    if (*allocate_from_front) {
+      // Start looking through the free list from the front.
+      for (FreeBlockIterator it = begin; it != end; ++it) {
+        if (it->CanFulfill(size, alignment)) {
+          return it;
+        }
+      }
+    }
+
+    // Start looking through the free list from the back.
+    FreeBlockReverseiterator rbegin(end);
+    FreeBlockReverseiterator rend(begin);
+    for (FreeBlockReverseiterator it = rbegin; it != rend; ++it) {
+      if (it->CanFulfill(size, alignment)) {
+        return --it.base();
+      }
+    }
+
+    return end;
+  }
 
  private:
   std::size_t small_allocation_threshold_;

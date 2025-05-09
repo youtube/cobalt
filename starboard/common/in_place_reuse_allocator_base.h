@@ -31,12 +31,11 @@ namespace common {
 // TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
 //                             enabled.
 
-// The base class of allocators designed to accommodate cases where the memory
-// allocated may not be efficient or safe to access via the CPU.  It solves
-// this problem by maintaining all allocation meta data is outside of the
-// allocated memory.  It is passed a fallback allocator that it can request
-// additional memory from as needed.
-class ReuseAllocatorBase : public Allocator {
+// The base class of memory-pool based allocators, where the underlying memory
+// pool can be efficiently and safely accessed by the CPU, so the allocation
+// metadata can be kept alongside the allocated memory.  It is passed a fallback
+// allocator that it can request additional memory from as needed.
+class InPlaceReuseAllocatorBase : public Allocator {
  public:
   void* Allocate(size_t size) override;
   void* Allocate(size_t size, size_t alignment) override;
@@ -44,11 +43,12 @@ class ReuseAllocatorBase : public Allocator {
   // Marks the memory block as being free and it will then become recyclable
   void Free(void* memory) override;
 
-  size_t GetCapacity() const override { return capacity_; }
-  size_t GetAllocated() const override { return total_allocated_; }
+  size_t GetCapacity() const override { return capacity_in_bytes_; }
+  size_t GetAllocated() const override { return total_allocated_in_bytes_; }
 
   bool CapacityExceeded() const {
-    return max_capacity_ && (capacity_ > max_capacity_);
+    return max_capacity_in_bytes_ &&
+           (capacity_in_bytes_ > max_capacity_in_bytes_);
   }
 
   void PrintAllocations(bool align_allocated_size,
@@ -56,18 +56,32 @@ class ReuseAllocatorBase : public Allocator {
 
   bool TryFree(void* memory);
 
-  size_t max_capacity() const { return max_capacity_; }
+  size_t max_capacity() const { return max_capacity_in_bytes_; }
 
  protected:
+  // The metadata of an allocated block stored at the very beginning of the
+  // block when it's allocated.  It natually maintains a double linked list to
+  // allow traverse through all allocated blocks.
+  struct BlockMetadata {
+    const InPlaceReuseAllocatorBase* signature;
+    intptr_t fallback_index;
+    intptr_t size;
+    BlockMetadata* previous;
+    BlockMetadata* next;
+  };
+
   class MemoryBlock {
    public:
     MemoryBlock() = default;
-    MemoryBlock(int fallback_allocation_index, void* address, size_t size)
+    MemoryBlock(intptr_t fallback_allocation_index, void* address, size_t size)
         : fallback_allocation_index_(fallback_allocation_index),
           address_(address),
           size_(size) {}
     ~MemoryBlock() { SB_DCHECK(fallback_allocation_index_ >= 0); }
 
+    intptr_t fallback_allocation_index() const {
+      return fallback_allocation_index_;
+    }
     void* address() const {
       SB_DCHECK(fallback_allocation_index_ >= 0);
       return address_;
@@ -110,9 +124,7 @@ class ReuseAllocatorBase : public Allocator {
                   MemoryBlock* free) const;
 
    private:
-    // TODO: b/369245553 - Cobalt: Optimize memory usage for bookkeeping
-    // as there can be ~8000 or more allocations during playback.
-    int fallback_allocation_index_ = -1;
+    intptr_t fallback_allocation_index_ = -1;
     void* address_ = nullptr;
     size_t size_ = 0;
   };
@@ -120,11 +132,11 @@ class ReuseAllocatorBase : public Allocator {
   // Freelist sorted by address.
   typedef std::set<MemoryBlock> FreeBlockSet;
 
-  ReuseAllocatorBase(Allocator* fallback_allocator,
-                     size_t initial_capacity,
-                     size_t allocation_increment,
-                     size_t max_capacity = 0);
-  ~ReuseAllocatorBase() override;
+  InPlaceReuseAllocatorBase(Allocator* fallback_allocator,
+                            size_t initial_capacity,
+                            size_t allocation_increment,
+                            size_t max_capacity = 0);
+  ~InPlaceReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
   // class which free block to take.  It returns |end| if no suitable free
@@ -139,17 +151,26 @@ class ReuseAllocatorBase : public Allocator {
                                                bool* allocate_from_front) = 0;
 
  private:
-  // Map from pointers we returned to the user, back to memory blocks.
-  typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
+  // Pointer and size of the block allocated from the fallback allocator.
+  struct FallbackAllocation {
+    void* address;
+    size_t size;
+  };
 
   FreeBlockSet::iterator ExpandToFit(size_t size, size_t alignment);
 
-  void AddAllocatedBlock(void* address, const MemoryBlock& block);
+  void AddAllocatedBlock(const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);
   void RemoveFreeBlock(FreeBlockSet::iterator it);
 
-  AllocatedBlockMap allocated_blocks_;
+  BlockMetadata* allocated_block_head_ = nullptr;
   FreeBlockSet free_blocks_;
+
+  // The free operations are batched, so it can be freed by discarding all
+  // allocated blocks (i.e. setting `allocated_block_head_` to nullptr) when all
+  // blocks are freed.  This is much faster than individually freeing thousands
+  // of blocks.
+  std::vector<void*> pending_frees_;
 
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
@@ -158,17 +179,20 @@ class ReuseAllocatorBase : public Allocator {
 
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
-  const size_t max_capacity_;
+  const size_t max_capacity_in_bytes_;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
-  std::vector<void*> fallback_allocations_;
+  std::vector<FallbackAllocation> fallback_allocations_;
 
   // How much we have allocated from the fallback allocator.
-  size_t capacity_;
+  size_t capacity_in_bytes_ = 0;
 
-  // How much has been allocated from us.
-  size_t total_allocated_;
+  // How many bytes has been allocated from us.
+  size_t total_allocated_in_bytes_ = 0;
+
+  // How many allocations has been allocated from us.
+  size_t total_allocated_blocks_ = 0;
 };
 
 }  // namespace common
