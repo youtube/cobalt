@@ -15,14 +15,15 @@
 template("modular_executable") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
-    group(original_target_name) {
-      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-      deps = [ ":${original_target_name}_copy" ]
-    }
+    shared_library(original_target_name) {
+      forward_variables_from(invoker, "*")
+      write_runtime_deps =
+          "$root_build_dir/${original_target_name}.runtime_deps"
 
-    shared_library("${original_target_name}_library") {
-      forward_variables_from(invoker, "*", [ "configs" ])
-      configs += invoker.configs
+      if (!defined(data_deps)) {
+        data_deps = []
+      }
+      data_deps += [ ":${original_target_name}_copy" ]
     }
 
     copy("${original_target_name}_copy") {
@@ -43,6 +44,9 @@ template("modular_executable") {
       forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
 
       sources = [ "//$starboard_path/starboard_loader.cc" ]
+      if (use_asan) {
+        sources += [ "//$starboard_path/sanitizer_options.cc" ]
+      }
 
       configs += [ "//starboard/build/config:starboard_implementation" ]
       defines = [ "SB_LOADER_MODULE=\"$original_target_name\"" ]
@@ -51,14 +55,11 @@ template("modular_executable") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      deps = [
-        ":${original_target_name}_library($default_toolchain)",
-        "//starboard:starboard_group",
-      ]
+      deps = [ "//starboard:starboard_group" ]
     }
   }
 }
 
 set_defaults("modular_executable") {
-  configs = []
+  configs = default_shared_library_configs
 }
