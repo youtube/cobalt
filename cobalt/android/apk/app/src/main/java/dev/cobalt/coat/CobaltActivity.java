@@ -17,7 +17,6 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -28,7 +27,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -45,7 +43,6 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -228,11 +225,13 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    // Set to overlay video mode.
-    mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
-
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
+    // Set to overlay video mode, where
+    // ContentViewRenderView::SetCurrentWebContents() in launchShell()
+    // ensures |compositor_| is created, so it is safe to
+    // setOverlayVideoMode() after WebContents is created.
+    mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
     getStarboardBridge().setWebContents(getActiveWebContents());
@@ -371,21 +370,11 @@ public abstract class CobaltActivity extends Activity {
 
     videoSurfaceView = new VideoSurfaceView(this);
 
-    videoSurfaceView.setBackgroundColor(getThemeColorPrimary(this));
+    // TODO: b/408279606 - Set this to app theme primary color once we fix
+    // error with it being unresolvable.
+    videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-  }
-
-  private static int getThemeColorPrimary(final Context context) {
-    try {
-      final TypedValue value = new TypedValue();
-      if (context.getTheme().resolveAttribute(R.attr.colorPrimary, value, true)) {
-        return value.data;
-      }
-    } catch (NullPointerException e) {
-      Log.w(TAG, "Unable to get application context theme.");
-    }
-    return Color.TRANSPARENT;
   }
 
   /**
@@ -430,7 +419,6 @@ public abstract class CobaltActivity extends Activity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
-  @UsedByNative
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
