@@ -160,6 +160,9 @@ interface StarboardRendererExtension {
   // cobalt::media::mojom::VideoGeometryChangeSubscriber
   OnVideoGeometryChange(gfx.mojom.Rect rect);
 
+  // Acquire frame from SbPlayer.
+  Render() => (VideoFrame? video_frame);
+
   // Pass CommandBufferId to StarboardRendererWrapper.
   OnGpuChannelTokenReady(CommandBufferId? command_buffer_id);
 };
