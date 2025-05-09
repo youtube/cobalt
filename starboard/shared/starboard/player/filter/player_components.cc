@@ -19,6 +19,7 @@
 
 #include "starboard/common/command_line.h"
 #include "starboard/common/media.h"
+#include "starboard/common/player.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
@@ -153,7 +154,7 @@ std::string PlayerComponents::Factory::CreationParameters::ToString() const {
     ss << ", samples_per_second=" << audio_stream_info().samples_per_second;
     ss << ", bits_per_sample=" << audio_stream_info().bits_per_sample;
   } else {
-    ss << "audio_codec=None";
+    ss << "audio_codec=none";
   }
 
   if (video_codec() != kSbMediaVideoCodecNone) {
@@ -162,27 +163,16 @@ std::string PlayerComponents::Factory::CreationParameters::ToString() const {
     ss << ", max_video_capabilities=\"" << max_video_capabilities() << "\"";
     ss << ", frame_width=" << video_stream_info().frame_width;
     ss << ", frame_height=" << video_stream_info().frame_height;
-    ss << ", output_mode=";
-    switch (output_mode_) {
-      case kSbPlayerOutputModeDecodeToTexture:
-        ss << "DecodeToTexture";
-        break;
-      case kSbPlayerOutputModePunchOut:
-        ss << "PunchOut";
-        break;
-      default:
-        ss << "Invalid";
-        break;
-    }
+    ss << ", output_mode=" << GetPlayerOutputModeName(output_mode_);
     ss << ", max_video_input_size=" << max_video_input_size_;
     ss << ", has_decode_target_graphics_context_provider="
        << (decode_target_graphics_context_provider_ != nullptr);
   } else {
-    ss << ", video_codec=None";
+    ss << ", video_codec=none";
   }
 
   ss << ", drm_system="
-     << (drm_system_ == kSbDrmSystemInvalid ? "Invalid" : "Valid");
+     << (drm_system_ == kSbDrmSystemInvalid ? "invalid" : "valid");
   ss << "}";
   return ss.str();
 }

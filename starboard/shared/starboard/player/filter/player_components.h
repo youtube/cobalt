@@ -223,8 +223,7 @@ class PlayerComponents {
 inline std::ostream& operator<<(
     std::ostream& os,
     const PlayerComponents::Factory::CreationParameters& params) {
-  os << params.ToString();
-  return os;
+  return os << params.ToString();
 }
 
 }  // namespace filter
