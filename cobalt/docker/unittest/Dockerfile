@@ -3,7 +3,9 @@ ARG BASE_IMAGE_SHA=sha256:be15f84c44c4ee68b4f187128f0278df1b0f424c04fb5f08b09896
 FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
+# ffmpeg: for starboard media unit tests. b/416734554.
 RUN apt-get update && apt-get install -y \
+    ffmpeg \
     jq \
     libasound2 \
     libdbus-1-3 \
