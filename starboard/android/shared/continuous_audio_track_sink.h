@@ -73,6 +73,11 @@ class ContinuousAudioTrackSink
   int64_t GetFramesDurationUs(int frames) const;
 
   Type* const type_;
+
+  // libdl handle for aaudio symbols.
+  typedef std::unique_ptr<void, int (*)(void*)> DlUniquePtr;
+  DlUniquePtr libaaudio_dl_handle_;
+
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;
