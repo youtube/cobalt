@@ -162,12 +162,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           video_decoder->reset(ffmpeg_video_decoder.release());
         } else {
+          const char* codec_name =
+              GetMediaVideoCodecName(creation_parameters.video_codec());
           SB_LOG(ERROR) << "Failed to create video decoder for codec "
-                        << GetMediaVideoCodecName(
-                               creation_parameters.video_codec());
+                        << codec_name;
           *error_message = FormatString(
-              "Failed to create video decoder for codec %s.",
-              GetMediaVideoCodecName(creation_parameters.video_codec()));
+              "Failed to create video decoder for codec %s.", codec_name);
           return false;
         }
       }
