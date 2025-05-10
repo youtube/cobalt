@@ -19,11 +19,13 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "third_party/abseil-cpp/absl/log/die_if_null.h"
 
 namespace starboard {
 namespace android {
@@ -61,6 +63,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     bool is_web_audio,
     void* context)
     : type_(type),
+      libaaudio_dl_handle_(LoadAAudioSymbols(), dlclose),
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
@@ -78,6 +81,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
               preferred_buffer_size_in_bytes,
               /*tunnel_mode_audio_session_id=*/-1,
               is_web_audio) {
+  SB_DCHECK(libaaudio_dl_handle_ != nullptr);
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);

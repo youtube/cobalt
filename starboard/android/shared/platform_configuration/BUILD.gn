@@ -19,6 +19,7 @@ config("platform_configuration") {
     "EGL",
     "GLESv2",
     "OpenSLES",
+    "aaudio",
     "android",
     "log",
     "mediandk",
