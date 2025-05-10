@@ -15,108 +15,41 @@ namespace starboard::android::shared {
 // Anonymous namespace prevents external linkage of local aaudio symbols.
 namespace {  // NOLINT
 
-using PFAAudio_createStreamBuilder = aaudio_result_t (*)(AAudioStreamBuilder**);
-PFAAudio_createStreamBuilder AAudio_createStreamBuilder;
-
 // Define AAudioStreamBuilder function signatures.
 
-using PFAAudioStreamBuilder_delete = int32_t (*)(AAudioStreamBuilder*);
-PFAAudioStreamBuilder_delete AAudioStreamBuilder_delete;
+#define DEFINE_METHOD(api_name)             \
+  using PF##api_name = decltype(&api_name); \
+  PF##api_name api_name;
 
-using PFAAudioStreamBuilder_openStream =
-    aaudio_result_t (*)(AAudioStreamBuilder* builder, AAudioStream**);
-PFAAudioStreamBuilder_openStream AAudioStreamBuilder_openStream;
+DEFINE_METHOD(AAudio_createStreamBuilder);
 
-using PFAAudioStreamBuilder_setBufferCapacityInFrames =
-    void (*)(AAudioStreamBuilder*, int32_t);
-PFAAudioStreamBuilder_setBufferCapacityInFrames
-    AAudioStreamBuilder_setBufferCapacityInFrames;
+DEFINE_METHOD(AAudioStreamBuilder_delete);
+DEFINE_METHOD(AAudioStreamBuilder_openStream);
+DEFINE_METHOD(AAudioStreamBuilder_setBufferCapacityInFrames);
+DEFINE_METHOD(AAudioStreamBuilder_setDataCallback);
+DEFINE_METHOD(AAudioStreamBuilder_setDirection);
+DEFINE_METHOD(AAudioStreamBuilder_setErrorCallback);
+DEFINE_METHOD(AAudioStreamBuilder_setChannelCount);
+DEFINE_METHOD(AAudioStreamBuilder_setFormat);
+DEFINE_METHOD(AAudioStreamBuilder_setFramesPerDataCallback);
+DEFINE_METHOD(AAudioStreamBuilder_setPerformanceMode);
+DEFINE_METHOD(AAudioStreamBuilder_setSamplesPerFrame);
+DEFINE_METHOD(AAudioStreamBuilder_setSampleRate);
 
-using PFAAudioStreamBuilder_setDataCallback =
-    void (*)(AAudioStreamBuilder* builder,
-             AAudioStream_dataCallback callback,
-             void* userData);
-PFAAudioStreamBuilder_setDataCallback AAudioStreamBuilder_setDataCallback;
+DEFINE_METHOD(AAudioStream_close);
+DEFINE_METHOD(AAudioStream_getFormat);
+DEFINE_METHOD(AAudioStream_getFramesPerBurst);
+DEFINE_METHOD(AAudioStream_getPerformanceMode);
 
-using PFAAudioStreamBuilder_setDirection =
-    void (*)(AAudioStreamBuilder* builder, aaudio_direction_t direction);
-PFAAudioStreamBuilder_setDirection AAudioStreamBuilder_setDirection;
-
-using PFAAudioStreamBuilder_setErrorCallback =
-    void (*)(AAudioStreamBuilder* builder,
-             AAudioStream_errorCallback callback,
-             void* userData);
-PFAAudioStreamBuilder_setErrorCallback AAudioStreamBuilder_setErrorCallback;
-
-using PFAAudioStreamBuilder_setChannelCount = void (*)(AAudioStreamBuilder*,
-                                                       int32_t);
-PFAAudioStreamBuilder_setChannelCount AAudioStreamBuilder_setChannelCount;
-
-using PFAAudioStreamBuilder_setFormat = void (*)(AAudioStreamBuilder*, int32_t);
-PFAAudioStreamBuilder_setFormat AAudioStreamBuilder_setFormat;
-
-using PFAAudioStreamBuilder_setFramesPerDataCallback =
-    void (*)(AAudioStreamBuilder* builder, int32_t numFrames);
-PFAAudioStreamBuilder_setFramesPerDataCallback
-    AAudioStreamBuilder_setFramesPerDataCallback;
-
-using PFAAudioStreamBuilder_setPerformanceMode =
-    void (*)(AAudioStreamBuilder* builder, aaudio_performance_mode_t mode);
-PFAAudioStreamBuilder_setPerformanceMode AAudioStreamBuilder_setPerformanceMode;
-
-using PFAAudioStreamBuilder_setSamplesPerFrame = void (*)(AAudioStreamBuilder*,
-                                                          int32_t);
-PFAAudioStreamBuilder_setSamplesPerFrame AAudioStreamBuilder_setSamplesPerFrame;
-
-using PFAAudioStreamBuilder_setSampleRate = void (*)(AAudioStreamBuilder*,
-                                                     int32_t);
-PFAAudioStreamBuilder_setSampleRate AAudioStreamBuilder_setSampleRate;
-
-// Define AAudioStream function signatures.
-
-using PFAAudioStream_close = int32_t (*)(AAudioStream* stream);
-PFAAudioStream_close AAudioStream_close;
-
-using PFAAudioStream_getFormat = aaudio_format_t (*)(AAudioStream*);
-PFAAudioStream_getFormat AAudioStream_getFormat;
-
-using PFAAudioStream_getFramesPerBurst = int32_t (*)(AAudioStream* stream);
-PFAAudioStream_getFramesPerBurst AAudioStream_getFramesPerBurst;
-
-using PFAAudioStream_getPerformanceMode =
-    aaudio_performance_mode_t (*)(AAudioStream* stream);
-PFAAudioStream_getPerformanceMode AAudioStream_getPerformanceMode;
-
-using PFAAudioStream_getSampleRate = int32_t (*)(AAudioStream* stream);
-PFAAudioStream_getSampleRate AAudioStream_getSampleRate;
-
-using PFAAudioStream_getSamplesPerFrame = int32_t (*)(AAudioStream* stream);
-PFAAudioStream_getSamplesPerFrame AAudioStream_getSamplesPerFrame;
-
-using PFAAudioStream_getState = aaudio_stream_state_t (*)(AAudioStream* stream);
-PFAAudioStream_getState AAudioStream_getState;
-
-using PFAAudioStream_requestFlush = aaudio_result_t (*)(AAudioStream* stream);
-PFAAudioStream_requestFlush AAudioStream_requestFlush;
-
-using PFAAudioStream_requestPause = aaudio_result_t (*)(AAudioStream* stream);
-PFAAudioStream_requestPause AAudioStream_requestPause;
-
-using PFAAudioStream_requestStart = aaudio_result_t (*)(AAudioStream* stream);
-PFAAudioStream_requestStart AAudioStream_requestStart;
-
-using PFAAudioStream_requestStop = aaudio_result_t (*)(AAudioStream* stream);
-PFAAudioStream_requestStop AAudioStream_requestStop;
-
-using PFAAudioStream_waitForStateChange =
-    aaudio_result_t (*)(AAudioStream* stream,
-                        aaudio_stream_state_t inputState,
-                        aaudio_stream_state_t* nextState,
-                        int64_t timeoutNanoseconds);
-PFAAudioStream_waitForStateChange AAudioStream_waitForStateChange;
-
-using PFAAudio_convertResultToText = const char* (*)(aaudio_result_t);
-PFAAudio_convertResultToText AAudio_convertResultToText;
+DEFINE_METHOD(AAudioStream_getSampleRate);
+DEFINE_METHOD(AAudioStream_getSamplesPerFrame);
+DEFINE_METHOD(AAudioStream_getState);
+DEFINE_METHOD(AAudioStream_requestFlush);
+DEFINE_METHOD(AAudioStream_requestPause);
+DEFINE_METHOD(AAudioStream_requestStart);
+DEFINE_METHOD(AAudioStream_requestStop);
+DEFINE_METHOD(AAudioStream_waitForStateChange);
+DEFINE_METHOD(AAudio_convertResultToText);
 
 // Loads required AAudio symbols.
 //
