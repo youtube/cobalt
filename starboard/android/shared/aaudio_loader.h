@@ -11,6 +11,7 @@
 
 // Define AAudio function signatures.
 
+namespace starboard::android::shared {
 // Anonymous namespace prevents external linkage of local aaudio symbols.
 namespace {  // NOLINT
 
@@ -46,6 +47,10 @@ using PFAAudioStreamBuilder_setErrorCallback =
              AAudioStream_errorCallback callback,
              void* userData);
 PFAAudioStreamBuilder_setErrorCallback AAudioStreamBuilder_setErrorCallback;
+
+using PFAAudioStreamBuilder_setChannelCount = void (*)(AAudioStreamBuilder*,
+                                                       int32_t);
+PFAAudioStreamBuilder_setChannelCount AAudioStreamBuilder_setChannelCount;
 
 using PFAAudioStreamBuilder_setFormat = void (*)(AAudioStreamBuilder*, int32_t);
 PFAAudioStreamBuilder_setFormat AAudioStreamBuilder_setFormat;
@@ -110,6 +115,9 @@ using PFAAudioStream_waitForStateChange =
                         int64_t timeoutNanoseconds);
 PFAAudioStream_waitForStateChange AAudioStream_waitForStateChange;
 
+using PFAAudio_convertResultToText = const char* (*)(aaudio_result_t);
+PFAAudio_convertResultToText AAudio_convertResultToText;
+
 // Loads required AAudio symbols.
 //
 // @return libdl handle, nullptr on failure
@@ -134,13 +142,13 @@ void* LoadAAudioSymbols() {
   SB_LOG(INFO) << "Loaded method " #name;
 
   LOAD_AAUDIO_FUNCTION(AAudio_createStreamBuilder);
-  // return dl_handle;
 
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_delete);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setBufferCapacityInFrames);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setDataCallback);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setDirection);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setErrorCallback);
+  LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setChannelCount);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setFormat);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setFramesPerDataCallback);
   LOAD_AAUDIO_FUNCTION(AAudioStreamBuilder_setPerformanceMode);
@@ -162,6 +170,8 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestStop);
   LOAD_AAUDIO_FUNCTION(AAudioStream_waitForStateChange);
 
+  LOAD_AAUDIO_FUNCTION(AAudio_convertResultToText);
+
 #undef LOAD_AAUDIO_FUNCTION
 
   SB_LOG(INFO) << "Successfully loaded AAudio symbols";
@@ -169,5 +179,5 @@ void* LoadAAudioSymbols() {
 }
 
 }  // namespace
-
+}  // namespace starboard::android::shared
 #endif  // STARBOARD_ANDROID_SHARED_AAUDIO_LOADER_H_
