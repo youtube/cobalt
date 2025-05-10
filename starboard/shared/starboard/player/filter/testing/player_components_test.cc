@@ -80,7 +80,7 @@ class PlayerComponentsTest
   void SetUp() override {
 #if defined(SKIP_PROPRIETARY_CODEC_TESTS)
     if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
-            audio_filename_)) {
+            audio_filename_.c_str())) {
       GTEST_SKIP() << "Skipping proprietary-audio related tests.";
     }
 #endif
