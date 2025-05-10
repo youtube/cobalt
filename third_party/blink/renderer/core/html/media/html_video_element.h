@@ -34,6 +34,12 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "third_party/blink/public/platform/web_media_player_client.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+
 namespace blink {
 
 class ImageBitmapOptions;
@@ -160,6 +166,18 @@ class CORE_EXPORT HTMLVideoElement final
 
   VideoWakeLock* wake_lock_for_tests() const { return wake_lock_; }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state);
+
+  // getMaxVideoCapabilities overrides the function in web_media_player_client.h to allow
+  // other cc/h files to access the max_video_capabilities_ variable.
+  std::string getMaxVideoCapabilities() const override { return max_video_capabilities_.Ascii(); }
+
+  // getWTFMaxVideoCapabilities returns a WTF::String to allow Web Platforms to get the 
+  // max_video_capabilities_ variable.
+  String getWTFStringMaxVideoCapabilities() const { return max_video_capabilities_; }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  protected:
   // EventTarget overrides.
   void AddedEventListener(const AtomicString& event_type,
@@ -248,6 +266,10 @@ class CORE_EXPORT HTMLVideoElement final
   // Used to fulfill blink::Image requests (CreateImage(),
   // GetSourceImageForCanvas(), etc). Created on demand.
   std::unique_ptr<CanvasResourceProvider> resource_provider_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  String max_video_capabilities_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink
