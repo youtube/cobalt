@@ -453,7 +453,9 @@ public abstract class CobaltActivity extends Activity {
     super.onStop();
 
     WebContents webContents = getActiveWebContents();
+
     if (webContents != null) {
+      webContents.updateWebContentsVisibility(Visibility.HIDDEN);
       webContents.onHide();
     }
 
