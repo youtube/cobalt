@@ -78,6 +78,7 @@ runs:
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
                 stdbuf -i0 -o0 -e0 ./"${test_binary_path}" \
+                --gtest_repeat=10 \
                 --test-launcher-shard-index=${{ matrix.shard }} \
                 --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
                 --gtest_output="xml:${xml_path}" \
