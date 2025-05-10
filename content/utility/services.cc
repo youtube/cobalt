@@ -382,7 +382,11 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
   services.Add(RunDataDecoder);
   services.Add(RunStorageService);
   services.Add(RunTracing);
+  // Ideally the whole VideoCapture service would be gated behind a Chrome
+  // build flag. Until that happens, at least don't run it on Cobalt.
+#if !BUILDFLAG(IS_COBALT)
   services.Add(RunVideoCapture);
+#endif
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING) && BUILDFLAG(IS_CHROMEOS)
   services.Add(RunShapeDetectionService);

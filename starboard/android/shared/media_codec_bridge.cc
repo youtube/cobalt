@@ -181,7 +181,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
                   << ".";
-    return nullptr;
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   JNIEnv* env = AttachCurrentThread();
@@ -286,7 +286,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     *error_message =
         FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
                      !!j_media_crypto);
-    return nullptr;
+    return std::unique_ptr<MediaCodecBridge>();
   }
 
   JNIEnv* env = AttachCurrentThread();
