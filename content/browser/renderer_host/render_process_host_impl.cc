@@ -222,9 +222,11 @@
 #include "content/browser/font_service.h"  // nogncheck
 #include "third_party/blink/public/mojom/memory_usage_monitor_linux.mojom.h"  // nogncheck
 
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "content/browser/media/video_encode_accelerator_provider_launcher.h"
 #include "content/public/browser/stable_video_decoder_factory.h"
 #include "media/mojo/mojom/video_encode_accelerator.mojom.h"
+#endif
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -1276,7 +1278,8 @@ class RenderProcessHostImpl::IOThreadHostImpl : public mojom::ChildProcessHost {
       ConnectToFontService(std::move(font_receiver));
       return;
     }
-
+#endif
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     if (base::FeatureList::IsEnabled(media::kUseOutOfProcessVideoEncoding)) {
       if (auto r =
               receiver.As<media::mojom::VideoEncodeAcceleratorProvider>()) {
@@ -1295,7 +1298,7 @@ class RenderProcessHostImpl::IOThreadHostImpl : public mojom::ChildProcessHost {
         return;
       }
     }
-#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+#endif
 
 #if BUILDFLAG(IS_WIN)
     if (auto r = receiver.As<mojom::FontCacheWin>()) {
@@ -1360,10 +1363,10 @@ class RenderProcessHostImpl::IOThreadHostImpl : public mojom::ChildProcessHost {
   std::unique_ptr<service_manager::BinderRegistry> binders_;
   mojo::Receiver<mojom::ChildProcessHost> receiver_{this};
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   mojo::Remote<media::mojom::VideoEncodeAcceleratorProviderFactory>
       video_encode_accelerator_factory_remote_;
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif
 };
 
 // static
@@ -2186,7 +2189,7 @@ void RenderProcessHostImpl::ReinitializeLogging(
 }
 #endif  // BUILDFLAG(IS_CHROMEOS_ASH)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
 void RenderProcessHostImpl::CreateStableVideoDecoder(
     mojo::PendingReceiver<media::stable::mojom::StableVideoDecoder> receiver) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
@@ -2202,7 +2205,7 @@ void RenderProcessHostImpl::CreateStableVideoDecoder(
   stable_video_decoder_factory_remote_->CreateStableVideoDecoder(
       std::move(receiver));
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif
 
 void RenderProcessHostImpl::DelayProcessShutdown(
     const base::TimeDelta& subframe_shutdown_timeout,
@@ -4912,9 +4915,9 @@ void RenderProcessHostImpl::ResetIPC() {
   coordinator_connector_receiver_.reset();
   tracing_registration_.reset();
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   stable_video_decoder_factory_remote_.reset();
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif
 
   // Destroy all embedded CompositorFrameSinks.
   embedded_frame_sink_provider_.reset();

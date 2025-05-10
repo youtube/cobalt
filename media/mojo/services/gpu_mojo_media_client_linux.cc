@@ -24,9 +24,11 @@ VideoDecoderType GetPreferredLinuxDecoderImplementation() {
     return VideoDecoderType::kUnknown;
   }
 
+#if BUILDFLAG(ALLOW_OOP_VIDEO_DECODER)
   if (IsOutOfProcessVideoDecodingEnabled()) {
     return VideoDecoderType::kOutOfProcess;
   }
+#endif
 
   // If direct video decoder is disabled, revert to using the VDA
   // implementation.
