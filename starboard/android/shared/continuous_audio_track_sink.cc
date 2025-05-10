@@ -26,6 +26,7 @@
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 #include "third_party/abseil-cpp/absl/log/die_if_null.h"
 
 namespace starboard {
@@ -48,6 +49,23 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
 
+#define LOG_ON_ERROR(op)                                                  \
+  do {                                                                    \
+    aaudio_result_t result = (op);                                        \
+    if (result != AAUDIO_OK) {                                            \
+      SB_LOG(ERROR) << #op << ": " << AAudio_convertResultToText(result); \
+    }                                                                     \
+  } while (0)
+
+#define RETURN_ON_ERROR(op, ...)                                          \
+  do {                                                                    \
+    aaudio_result_t result = (op);                                        \
+    if (result != AAUDIO_OK) {                                            \
+      SB_LOG(ERROR) << #op << ": " << AAudio_convertResultToText(result); \
+      return __VA_ARGS__;                                                 \
+    }                                                                     \
+  } while (0)
+
 // --- Audio Configuration ---
 constexpr int32_t kSampleRate = 48'000;  // Common sample rate
 constexpr float kAmplitude = 0.3f;
@@ -61,8 +79,7 @@ struct SinePlayerData {
   double phaseIncrement = 0.0;
 };
 
-AAudioStream* audioStream = nullptr;  // Global pointer to the AAudio stream
-SinePlayerData sinePlayerData;        // Global instance of our player data
+SinePlayerData sinePlayerData;  // Global instance of our player data
 
 aaudio_data_callback_result_t dataCallback(AAudioStream* stream,
                                            void* userData,
@@ -93,29 +110,39 @@ aaudio_data_callback_result_t dataCallback(AAudioStream* stream,
 void errorCallback(AAudioStream* stream,
                    void* userData,
                    aaudio_result_t error) {
-  SB_LOG(ERROR) << "AAudio error callback received: "
-                << AAudio_convertResultToText(error) << error;
-
-  if (error == AAUDIO_ERROR_DISCONNECTED) {
-    SB_LOG(ERROR)
-        << "AAudio stream disconnected! The stream is no longer valid.";
-    return;
-  }
-
   SB_LOG(ERROR) << "An AAudio error occurred: "
                 << AAudio_convertResultToText(error);
 }
 
-bool startSinewavePlayback() {
-  AAudioStreamBuilder* builder = nullptr;
-  aaudio_result_t result = AAudio_createStreamBuilder(&builder);
-  if (result != AAUDIO_OK || builder == nullptr) {
-    SB_LOG(ERROR) << "Failed to create AAudioStreamBuilder: "
-                  << AAudio_convertResultToText(result);
-    return false;
-  }
+class AudioStream {
+ public:
+  static std::unique_ptr<AudioStream> Create(int sample_rate,
+                                             int channel_count,
+                                             aaudio_format_t format);
 
-  // Configure the stream builder
+  ~AudioStream();
+
+  bool Play();
+  bool Stop();
+
+ private:
+  explicit AudioStream(AAudioStream* stream) : stream_(stream) {}
+
+  AAudioStream* const stream_;
+};
+
+AudioStream::~AudioStream() {
+  LOG_ON_ERROR(AAudioStream_close(stream_));
+}
+
+std::unique_ptr<AudioStream> AudioStream::Create(int sample_rate,
+                                                 int channel_count,
+                                                 aaudio_format_t format) {
+  AAudioStreamBuilder* builder = nullptr;
+  RETURN_ON_ERROR(AAudio_createStreamBuilder(&builder), nullptr);
+  absl::Cleanup cleanup = [builder] {
+    LOG_ON_ERROR(AAudioStreamBuilder_delete(builder));
+  };
   AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
   AAudioStreamBuilder_setPerformanceMode(builder,
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
@@ -129,75 +156,37 @@ bool startSinewavePlayback() {
       builder, errorCallback, nullptr);  // No specific userData for error cb
 
   SB_LOG(INFO) << "Opening AAudio stream...";
-  result = AAudioStreamBuilder_openStream(builder, &audioStream);
-  AAudioStreamBuilder_delete(builder);  // Builder is no longer needed
+  AAudioStream* stream;
+  RETURN_ON_ERROR(AAudioStreamBuilder_openStream(builder, &stream), nullptr);
 
-  if (result != AAUDIO_OK || audioStream == nullptr) {
-    SB_LOG(ERROR) << "Failed to open AAudio stream: "
-                  << AAudio_convertResultToText(result);
-    if (audioStream) {
-      AAudioStream_close(audioStream);
-      audioStream = nullptr;
-    }
-    return false;
-  }
+  return std::unique_ptr<AudioStream>(new AudioStream(stream));
+}
 
-  // Get the actual sample rate from the opened stream (it might differ from
-  // preferred)
-  int32_t actualSampleRate = AAudioStream_getSampleRate(audioStream);
-  if (actualSampleRate <=
-      0) {  // Should not happen with a successfully opened stream
-    SB_LOG(ERROR) << "Failed to get valid sample rate from stream: "
-                  << actualSampleRate;
-    AAudioStream_close(audioStream);
-    audioStream = nullptr;
-    return false;
-  }
-  SB_LOG(INFO) << "sample rate=" << actualSampleRate;
+bool AudioStream::Play() {
+  int32_t actualSampleRate = AAudioStream_getSampleRate(stream_);
+  SB_DCHECK(actualSampleRate > 0);
 
   // Calculate phase increment based on the actual sample rate
   sinePlayerData.phaseIncrement = 2.0 * M_PI * kSineHz / actualSampleRate;
   sinePlayerData.phase = 0.0;  // Reset phase before starting
 
   SB_LOG(INFO) << "AAudio stream opened: sample_rate=" << actualSampleRate
-               << ", channel count="
-               << AAudioStream_getChannelCount(audioStream)
-               << ", audio format=" << AAudioStream_getFormat(audioStream);
+               << ", channel count=" << AAudioStream_getChannelCount(stream_)
+               << ", audio format=" << AAudioStream_getFormat(stream_);
 
   SB_LOG(INFO) << "Requesting AAudio stream start...";
-  result = AAudioStream_requestStart(audioStream);
-  if (result != AAUDIO_OK) {
-    SB_LOG(ERROR) << "Failed to start AAudio stream: "
-                  << AAudio_convertResultToText(result);
-    AAudioStream_close(audioStream);  // Clean up
-    audioStream = nullptr;
-    return false;
-  }
+  RETURN_ON_ERROR(AAudioStream_requestStart(stream_), false);
 
   SB_LOG(INFO) << "AAudio stream started successfully.";
   return true;
 }
 
-void stopSinewavePlayback() {
-  if (audioStream != nullptr) {
-    SB_LOG(INFO) << "Requesting AAudio stream stop...";
-    aaudio_result_t result = AAudioStream_requestStop(audioStream);
-    if (result != AAUDIO_OK) {
-      SB_LOG(ERROR) << "Failed to request stop for AAudio stream: "
-                    << AAudio_convertResultToText(result);
-    }
+bool AudioStream::Stop() {
+  SB_LOG(INFO) << "Requesting AAudio stream stop...";
+  RETURN_ON_ERROR(AAudioStream_requestStop(stream_), false);
 
-    SB_LOG(INFO) << "Closing AAudio stream...";
-    result = AAudioStream_close(audioStream);
-    if (result != AAUDIO_OK) {
-      SB_LOG(ERROR) << "Failed to close AAudio stream: "
-                    << AAudio_convertResultToText(result);
-    }
-    audioStream = nullptr;  // Mark the stream as closed/invalid
-    SB_LOG(INFO) << "AAudio stream stopped and closed.";
-  } else {
-    SB_LOG(INFO) << "No active audio stream to stop.";
-  }
+  SB_LOG(INFO) << "AAudio stream stopped and closed.";
+  return true;
 }
 }  // namespace
 
@@ -296,17 +285,19 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int frames_in_audio_track = 0;
 
   SB_LOG(INFO) << "ContinuousAudioTrackSink thread started.";
+  {
+    auto stream = AudioStream::Create(kSampleRate, kChannelCount, kAudioFormat);
+    SB_DCHECK(stream != nullptr);
 
-  SB_LOG(INFO) << "Starting sine wave";
-  if (startSinewavePlayback()) {
-    SB_LOG(INFO) << "Sine wave playback started. duration(sec)="
-                 << kPlaybackSecs;
+    SB_DCHECK(stream->Play());
 
     usleep(kPlaybackSecs * 1'000'000);
 
     SB_LOG(INFO) << "Playback duration reached. Stopping sine wave.";
-    stopSinewavePlayback();
-    SB_LOG(INFO) << "Playback stopped";
+
+    SB_DCHECK(stream->Stop());
+
+    SB_LOG(INFO) << "Stopped sine wave.";
   }
 
   int64_t last_playback_head_event_at = -1;  // microseconds
