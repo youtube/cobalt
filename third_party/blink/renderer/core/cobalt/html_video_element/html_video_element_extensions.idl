@@ -14,7 +14,7 @@
 //
 // This interface mirrors the setMaxVideoCapabilities function defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.30/cobalt/dom/html_video_element.idl
-// Documentation for this implementation can be seen from b/132612288.
+// More information about the original implementation can be seen at b/132612288.
 //
 // Non standard interface used for Cobalt only.
 [
@@ -22,15 +22,18 @@
     LegacyNoInterfaceObject
 ] partial interface HTMLVideoElement {
 
-    // Sets a maximum video features contract. This communicates to the platform
-    // that the web app will not provide a video stream with features exceeding the
-    // maximums described by this function.  This can enable the platform to optimize
-    // playback pipeline for, say, a low quality video stream if it knows that it
-    // will never adapt to a higher quality stream. This function must be called
-    // *before* the src attribute is set on the element, otherwise an
-    // InvalidStateError exception is raised. The format of the string passed in
-    // is the same as the format for the string passed in to
-    // HTMLMediaElement.canPlayType().
+    // maxVideoCapabilities keeps track of the maximum video resolution an
+    // HTMLVideoElement node can have. This attribute only has a setter
+    // and getter associated with it. An example of what this attribute may
+    // look like would be: ‘width=1920; height=1080; framerate=15;’.
+    // If this value is an empty string but the src attribute is set,
+    // it is assumed that the HTMLVideoElement is the main video.
+    //
+    // This attribute communicates to the platform that the web app will not provide a
+    // video stream with features exceeding the maximums described by this attribute.
+    // This can enable the platform to optimize playback pipeline, for, say, a low quality
+    // video stream if it knows that it will never adapt to a higher quality stream.
     [RaisesException] void setMaxVideoCapabilities(DOMString max_video_capabilities);
-    DOMString getMaxVideoCapabilities();
+    DOMString maxVideoCapabilities();
+
 };

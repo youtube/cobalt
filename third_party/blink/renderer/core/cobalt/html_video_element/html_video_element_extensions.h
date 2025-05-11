@@ -30,11 +30,17 @@ class CORE_EXPORT HTMLVideoElementExtensions final {
   STATIC_ONLY(HTMLVideoElementExtensions);
 
  public:
+  // setMaxVideoCapabilities sets a maximum video features contract.
+  // The setter function must be called *before* the src
+  // attribute is set on the element, otherwise an InvalidStateError
+  // exception is raised. The format of the string passed in
+  // is the same as the format for the string passed in to
+  // HTMLMediaElement.canPlayType().
   static void setMaxVideoCapabilities(HTMLVideoElement& video_element,
                                       const String& max_video_capabilities,
                                       ExceptionState& exception_state);
 
-  static String getMaxVideoCapabilities(const HTMLVideoElement& video_element);
+  static String maxVideoCapabilities(const HTMLVideoElement& video_element);
 };
 
 }  // namespace blink

@@ -28,7 +28,7 @@ void HTMLVideoElementExtensions::setMaxVideoCapabilities(
                                         exception_state);
 }
 
-String HTMLVideoElementExtensions::getMaxVideoCapabilities(
+String HTMLVideoElementExtensions::maxVideoCapabilities(
     const HTMLVideoElement& video_element) {
   return video_element.getWTFStringMaxVideoCapabilities();
 }

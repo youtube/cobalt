@@ -29,3 +29,10 @@ if (use_starboard_media) {
     "memory_info/memory_info_extensions.h",
   ]
 }
+
+blink_core_tests_cobalt = []
+
+if (use_starboard_media) {
+  blink_core_tests_cobalt +=
+      [ "html_video_element/html_video_element_extensions_test.cc" ]
+}

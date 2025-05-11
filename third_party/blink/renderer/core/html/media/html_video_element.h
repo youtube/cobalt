@@ -39,7 +39,6 @@
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
-
 namespace blink {
 
 class ImageBitmapOptions;
