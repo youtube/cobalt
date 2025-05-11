@@ -44,12 +44,15 @@ DEFINE_METHOD(AAudioStream_getPerformanceMode);
 DEFINE_METHOD(AAudioStream_getSampleRate);
 DEFINE_METHOD(AAudioStream_getSamplesPerFrame);
 DEFINE_METHOD(AAudioStream_getState);
+DEFINE_METHOD(AAudioStream_getTimestamp);
+DEFINE_METHOD(AAudioStream_getXRunCount);
 DEFINE_METHOD(AAudioStream_requestFlush);
 DEFINE_METHOD(AAudioStream_requestPause);
 DEFINE_METHOD(AAudioStream_requestStart);
 DEFINE_METHOD(AAudioStream_requestStop);
 DEFINE_METHOD(AAudioStream_waitForStateChange);
 DEFINE_METHOD(AAudio_convertResultToText);
+DEFINE_METHOD(AAudio_convertStreamStateToText);
 
 // Loads required AAudio symbols.
 //
@@ -97,6 +100,8 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_getSampleRate);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getSamplesPerFrame);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getState);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_getTimestamp);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_getXRunCount);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestFlush);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestPause);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestStart);
@@ -104,6 +109,7 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_waitForStateChange);
 
   LOAD_AAUDIO_FUNCTION(AAudio_convertResultToText);
+  LOAD_AAUDIO_FUNCTION(AAudio_convertStreamStateToText);
 
 #undef LOAD_AAUDIO_FUNCTION
 
