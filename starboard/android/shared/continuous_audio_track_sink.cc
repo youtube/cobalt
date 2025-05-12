@@ -188,20 +188,40 @@ class AudioStream {
   std ::optional<int64_t> GetTimestamp(int64_t* frames_consumed_at_us) const {
     int64_t frame_position;
     int64_t time_ns;
+
+    static int count = 0;
+    count++;
+    bool log = count % 10 == 0;
+
+    *frames_consumed_at_us = CurrentMonotonicTime();
+    return AAudioStream_getFramesWritten(stream_);
+
+#if 0
+    if (log) {
+      SB_LOG(INFO) << "frames written="
+                   << AAudioStream_getFramesWritten(stream_)
+                   << ", state=" << GetStateName();
+    }
+
     aaudio_result_t result = AAudioStream_getTimestamp(
         stream_, CLOCK_MONOTONIC, &frame_position, &time_ns);
     if (result != AAUDIO_OK) {
-      SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
-                      << AAudio_convertResultToText(result);
+      if (log) {
+        SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
+                        << AAudio_convertResultToText(result);
+      }
       return std::nullopt;
     }
 
     *frames_consumed_at_us = time_ns / 1000;
     return frame_position;
+#endif
   }
+
   std::string GetStateName() const {
     return GetStreamStateString(AAudioStream_getState(stream_));
   }
+  void WaitForState(aaudio_stream_state_t target_state);
 
  private:
   explicit AudioStream(AAudioStream* stream) : stream_(stream) {}
@@ -217,6 +237,10 @@ std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
                                                  int channel_count,
                                                  int sample_rate,
                                                  int buffer_frames) {
+  if (buffer_frames > kMaxFramesPerBurst * 2) {
+    SB_LOG(INFO) << "buffer_frames is limited";
+    buffer_frames = kMaxFramesPerBurst * 2;
+  }
   SB_LOG(INFO) << __func__ << " format=" << AudioFormatString(format)
                << ", channel_count=" << channel_count
                << ", sample_rate=" << sample_rate
@@ -233,7 +257,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
   AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
   AAudioStreamBuilder_setSampleRate(builder, sample_rate);
   AAudioStreamBuilder_setChannelCount(builder, channel_count);
-  AAudioStreamBuilder_setFormat(builder, kAudioFormat);
+  AAudioStreamBuilder_setFormat(builder, format);
   AAudioStreamBuilder_setBufferCapacityInFrames(builder, buffer_frames);
 
   // `AAudioStreamBuilder_setDataCallback(builder, dataCallback,
@@ -263,10 +287,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
   return std::unique_ptr<AudioStream>(new AudioStream(stream));
 }
 
-bool AudioStream::Play() {
-  SB_LOG(INFO) << __func__ << " >";
-  RETURN_ON_ERROR(AAudioStream_requestStart(stream_), false);
-
+void AudioStream::WaitForState(aaudio_stream_state_t target_state) {
   // Wait for the stream to enter the STARTED state.
   aaudio_stream_state_t new_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
   aaudio_stream_state_t last_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
@@ -287,13 +308,18 @@ bool AudioStream::Play() {
       SB_LOG(INFO) << "State changed: " << GetStreamStateString(last_state)
                    << " -> " << GetStreamStateString(new_state);
     }
-    if (new_state == AAUDIO_STREAM_STATE_STARTED) {
-      SB_LOG(INFO) << "Stream started successfully.";
+    if (new_state == target_state) {
+      SB_LOG(INFO) << "transition complete";
       break;
     }
 
     usleep(sleep_interval_ms * 1'000);
   }
+}
+
+bool AudioStream::Play() {
+  SB_LOG(INFO) << __func__ << " >";
+  RETURN_ON_ERROR(AAudioStream_requestStart(stream_), false);
 
   SB_LOG(INFO) << __func__ << " <";
   return true;
@@ -313,16 +339,13 @@ bool AudioStream::PauseAndFlush() {
 }
 
 int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
-  aaudio_result_t result = AAudioStream_write(stream_, buffer, frames_to_write,
-                                              /*timeoutNanoseconds=*/0);
+  const int kWriteTimeout = 10'000'000;  // 100ms
+  aaudio_result_t result =
+      AAudioStream_write(stream_, buffer, frames_to_write, kWriteTimeout);
   if (result < 0) {
     SB_LOG(FATAL) << "AAudioStream_write failed: "
                   << AAudio_convertResultToText(result);
     return 0;
-  }
-  if (result != frames_to_write) {
-    SB_LOG(INFO) << "Partially write: frames_written=" << result
-                 << ", frames_to_write=" << frames_to_write;
   }
   return result;
 }
@@ -412,17 +435,20 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
-  int pending_start = false;
   int frames_to_prime = stream_->GetFramesPerBurst();
 
+  int count = 0;
   while (!quit_) {
+    count++;
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
 
     if (auto head_us = stream_->GetTimestamp(&frames_consumed_at);
         head_us.has_value() && was_playing) {
       playback_head_position = *head_us;
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+      SB_DCHECK(playback_head_position >= last_playback_head_position)
+          << ": playback_head_position=" << playback_head_position
+          << ", last_playback_head_position=" << last_playback_head_position;
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -469,25 +495,15 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      pending_start = false;
       stream_->Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
 
-      if (frames_in_audio_track < frames_to_prime) {
-        SB_LOG(INFO) << "Need to prime: frames_to_prime=" << frames_to_prime
-                     << ", frames_in_audio_track=" << frames_in_audio_track;
-        pending_start = true;
-      } else {
-        LOG_ELAPSED(stream_->Play());
-      }
+      LOG_ELAPSED(stream_->Play());
     }
 
     if (!is_playing || frames_in_buffer == 0) {
-      SB_LOG(INFO) << "Wait for 10 msec: is_playing="
-                   << (is_playing ? "true" : "false")
-                   << ", frames_in_buffer=" << frames_in_buffer;
       usleep(10'000);
       continue;
     }
@@ -523,10 +539,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
       }
-      SB_LOG(INFO) << "Nothing to write: frames_in_buffer=" << frames_in_buffer
-                   << ", frames_in_audio_track=" << frames_in_audio_track
-                   << ", offset_in_frames=" << offset_in_frames
-                   << ", expected_written_frames=" << expected_written_frames;
+
       usleep(10'000);
       continue;
     }
@@ -559,14 +572,6 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
     frames_in_audio_track += written_frames;
-    SB_LOG(INFO) << "frames_in_audio_track=" << frames_in_audio_track
-                 << ", frames_to_prime=" << frames_to_prime;
-    if (pending_start && frames_in_audio_track >= frames_to_prime) {
-      SB_LOG(INFO) << "Start now after priming: frames_in_audio_track="
-                   << frames_in_audio_track;
-      LOG_ELAPSED(stream_->Play());
-      pending_start = false;
-    }
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
