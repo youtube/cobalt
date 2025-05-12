@@ -593,6 +593,18 @@ public class WebContentsImpl
         WebContentsImplJni.get().collapseSelection(mNativeWebContentsAndroid);
     }
 
+    @Override
+    public void onFreeze() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onFreeze(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onResume() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onResume(mNativeWebContentsAndroid);
+    }
+
     private @Nullable SelectionPopupControllerImpl getSelectionPopupController() {
         return SelectionPopupControllerImpl.fromWebContents(this);
     }
@@ -1330,6 +1342,10 @@ public class WebContentsImpl
         void collapseSelection(long nativeWebContentsAndroid);
 
         void setPrimaryMainFrameImportance(long nativeWebContentsAndroid, int importance);
+
+        void onFreeze(long nativeWebContentsAndroid);
+
+        void onResume(long nativeWebContentsAndroid);
 
         void suspendAllMediaPlayers(long nativeWebContentsAndroid);
 
