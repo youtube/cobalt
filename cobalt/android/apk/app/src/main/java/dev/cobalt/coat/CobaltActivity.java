@@ -371,6 +371,9 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // document.onresume event
+      webContents.onResume();
+      // visibility:visible event
       webContents.onShow();
     }
   }
@@ -382,7 +385,10 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // visibility:hidden event
       webContents.onHide();
+      // document.onfreeze event
+      webContents.onFreeze();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
