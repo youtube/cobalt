@@ -79,7 +79,7 @@ mojom("mojom") {
   }
 
   if (is_cobalt && use_starboard_media) {
-    sources += [ "starboard/starboard_renderer_config.mojom" ]
+    sources += [ "starboard/starboard_media_types.mojom" ]
   }
 
   public_deps = [
@@ -748,6 +748,16 @@ mojom("mojom") {
           },
         ]
         traits_headers = [ "//media/base/ipc/media_param_traits_macros.h" ]
+      },
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRenderingMode"
+            cpp = "::media::StarboardRenderingMode"
+          },
+        ]
+        traits_headers = [ "starboard/starboard_rendering_mode_mojom_traits.h" ]
+        traits_public_deps = [ "//media" ]
       },
     ]
   }

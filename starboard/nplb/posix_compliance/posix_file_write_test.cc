@@ -16,6 +16,7 @@
 // for the tests to operate on.
 
 #include <fcntl.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include <string>
@@ -158,7 +159,7 @@ TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
 
   file = open(filename.c_str(), O_RDONLY);
   ASSERT_GE(file, 0) << strerror(errno);
-  struct stat info;
+  struct stat info {};
   result = fstat(file, &info);
   EXPECT_TRUE(result == 0);
   EXPECT_EQ(0, info.st_size);
@@ -191,7 +192,8 @@ TYPED_TEST(PosixFileWriteTest, BasicPwrite) {
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
   char read_buffer[128] = {0};
-  ssize_t bytes_read = pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  const ssize_t bytes_read =
+      pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
   ASSERT_GE(bytes_read, static_cast<ssize_t>(offset2 + write_size2));
   EXPECT_STREQ("Hello\0World", read_buffer);  // Expect null termination after
                                               // "Hello" due to initial zeroing
@@ -215,13 +217,14 @@ TYPED_TEST(PosixFileWriteTest, PwriteBeyondEndOfFile) {
   ASSERT_EQ(static_cast<ssize_t>(write_size), bytes_pwritten);
   EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
 
-  struct stat info;
+  struct stat info {};
   ASSERT_EQ(0, fstat(file, &info));
   EXPECT_EQ(static_cast<off_t>(offset + write_size),
             info.st_size);  // File should be extended
 
   char read_buffer[128] = {0};
-  ssize_t bytes_read = pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  const ssize_t bytes_read =
+      pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
   ASSERT_EQ(static_cast<ssize_t>(offset + write_size), bytes_read);
   EXPECT_EQ(
       '\0',
@@ -285,6 +288,87 @@ TYPED_TEST(PosixFileWriteTest, PwriteZeroLength) {
   EXPECT_EQ(close(file), 0);
 }
 
+TYPED_TEST(PosixFileWriteTest, BasicWritev) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+  const int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  std::string data1 = "Hello, ";
+  std::string data2 = "World!";
+  std::string data3 = " 123";
+
+  const struct iovec iov[3] = {
+      {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
+      {.iov_base = const_cast<char*>(data2.c_str()), .iov_len = data2.size()},
+      {.iov_base = const_cast<char*>(data3.c_str()), .iov_len = data3.size()}};
+
+  const ssize_t bytes_written = writev(file, iov, 3);
+  EXPECT_NE(bytes_written, -1) << "writev() failed: " << strerror(errno);
+  ASSERT_EQ(static_cast<ssize_t>(data1.size() + data2.size() + data3.size()),
+            bytes_written);
+
+  char read_buffer[20] = {0};
+  const ssize_t bytes_read =
+      pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  ASSERT_EQ(bytes_written, bytes_read) << strerror(errno);
+  EXPECT_STREQ("Hello, World! 123", read_buffer);
+
+  EXPECT_EQ(close(file), 0) << "close failed: " << strerror(errno);
+}
+
+TYPED_TEST(PosixFileWriteTest, WritevPartial) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+  const int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  std::string data1 = "First";
+  std::string data2 = "Second";
+  std::string data3 = "Third";
+
+  const struct iovec iov[3] = {
+      {.iov_base = const_cast<char*>(data1.c_str()), .iov_len = data1.size()},
+      {.iov_base = const_cast<char*>(data2.c_str()), .iov_len = data2.size()},
+      {.iov_base = const_cast<char*>(data3.c_str()), .iov_len = data3.size()}};
+
+  const ssize_t bytes_written =
+      writev(file, iov, 2);  // Write only the first two.
+  EXPECT_NE(bytes_written, -1) << "writev() failed: " << strerror(errno);
+  ASSERT_EQ(static_cast<ssize_t>(data1.size() + data2.size()), bytes_written);
+
+  char read_buffer[20] = {0};
+  const ssize_t bytes_read =
+      pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  ASSERT_EQ(bytes_written, bytes_read) << strerror(errno);
+  EXPECT_STREQ("FirstSecond", read_buffer);
+
+  EXPECT_EQ(close(file), 0) << "close failed: " << strerror(errno);
+}
+
+TYPED_TEST(PosixFileWriteTest, WritevEmpty) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+  const int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  struct iovec iov[1];
+  iov[0].iov_base = nullptr;
+  iov[0].iov_len = 0;
+
+  const ssize_t bytes_written = writev(file, iov, 1);
+  EXPECT_NE(bytes_written, -1) << "writev() failed: " << strerror(errno);
+  EXPECT_EQ(0, bytes_written);
+
+  struct stat info {};
+  ASSERT_EQ(0, fstat(file, &info)) << strerror(errno);
+  EXPECT_EQ(0, info.st_size);
+
+  EXPECT_EQ(close(file), 0) << "close failed: " << strerror(errno);
+}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

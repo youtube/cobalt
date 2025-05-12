@@ -47,6 +47,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
@@ -328,6 +329,18 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_mutexattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
+  map_["pthread_mutexattr_gettype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_gettype);
+  map_["pthread_mutexattr_getpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_getpshared);
+  map_["pthread_mutexattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
+  map_["pthread_mutexattr_settype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
+  map_["pthread_mutexattr_setpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
   map_["pthread_self"] =
@@ -349,6 +362,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
   map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
+  map_["writev"] = reinterpret_cast<const void*>(&__abi_wrap_writev);
 
   REGISTER_SYMBOL(vswprintf);
 
