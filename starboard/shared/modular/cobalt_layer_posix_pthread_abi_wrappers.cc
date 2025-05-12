@@ -248,10 +248,27 @@ int pthread_mutexattr_destroy(pthread_mutexattr_t* attr) {
   return __abi_wrap_pthread_mutexattr_destroy(attr);
 }
 
+int __abi_wrap_pthread_mutexattr_gettype(const pthread_mutexattr_t* __restrict,
+                                         int* __restrict);
+
+int pthread_mutexattr_gettype(const pthread_mutexattr_t* __restrict attr,
+                              int* __restrict type) {
+  return __abi_wrap_pthread_mutexattr_gettype(attr, type);
+}
+
 int __abi_wrap_pthread_mutexattr_settype(pthread_mutexattr_t* attr, int type);
 
 int pthread_mutexattr_settype(pthread_mutexattr_t* attr, int type) {
   return __abi_wrap_pthread_mutexattr_settype(attr, type);
+}
+
+int __abi_wrap_pthread_mutexattr_getpshared(
+    const pthread_mutexattr_t* __restrict,
+    int* __restrict);
+
+int pthread_mutexattr_getpshared(const pthread_mutexattr_t* __restrict attr,
+                                 int* __restrict pshared) {
+  return __abi_wrap_pthread_mutexattr_getpshared(attr, pshared);
 }
 
 int __abi_wrap_pthread_mutexattr_setpshared(pthread_mutexattr_t* attr,

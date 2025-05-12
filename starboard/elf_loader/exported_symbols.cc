@@ -329,6 +329,18 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_mutexattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
+  map_["pthread_mutexattr_gettype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_gettype);
+  map_["pthread_mutexattr_getpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_getpshared);
+  map_["pthread_mutexattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
+  map_["pthread_mutexattr_settype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
+  map_["pthread_mutexattr_setpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
   map_["pthread_self"] =

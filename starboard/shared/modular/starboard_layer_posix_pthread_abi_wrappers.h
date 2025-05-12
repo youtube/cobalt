@@ -147,9 +147,15 @@ SB_EXPORT int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
 SB_EXPORT int __abi_wrap_pthread_mutexattr_init(musl_pthread_mutexattr_t* attr);
 SB_EXPORT int __abi_wrap_pthread_mutexattr_destroy(
     musl_pthread_mutexattr_t* attr);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_gettype(
+    const musl_pthread_mutexattr_t* __restrict,
+    int* __restrict);
 SB_EXPORT int __abi_wrap_pthread_mutexattr_settype(
     musl_pthread_mutexattr_t* attr,
     int type);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_getpshared(
+    const musl_pthread_mutexattr_t* __restrict,
+    int* __restrict);
 SB_EXPORT int __abi_wrap_pthread_mutexattr_setpshared(
     musl_pthread_mutexattr_t* attr,
     int pshared);
