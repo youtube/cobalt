@@ -32,27 +32,35 @@ namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-//  derived from AV_VERSION_INT(a, b, c)   ((a)<<16 | (b)<<8 | (c))
-//  https://github.com/FFmpeg/FFmpeg/blob/master/doc/APIchanges#L1981
-constexpr int kAVCodecSupportsAvFrameAlloc = 3616101;
-constexpr int kAVCodecSupportsAvcodecFreeContext = 3620708;
-// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
-// AV_VERSION_INT(52, 8, 0)
-constexpr int kAVUtilSupportsBufferCreate = 3409920;
+inline constexpr int AvVersionInt(int major, int minor, int micro) {
+  return (major << 16) | (minor << 8) | micro;
+}
 
-// https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L195
+// TODO: b/416893567 - Replace hard-coded constant with AvVersionInt once review
+// is completed.
+
+//  derived from AV_VERSION_INT(a, b, c)   ((a)<<16 | (b)<<8 | (c))
+// http://go/ffmpeg-api-changes#L1264
+constexpr int kAVCodecSupportsAvFrameAlloc = AvVersionInt(55, 45, 101);
+
+// http://go/ffmpeg-api-changes#L2455
+constexpr int kAVCodecSupportsAvcodecFreeContext = AvVersionInt(55, 63, 100);
+
+// https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
+constexpr int kAVUtilSupportsBufferCreate = AvVersionInt(52, 8, 0);
+
+// http://go/ffmpeg-api-changes#L195
 // avcodec_decode_audio4 and avcodec_decode_video2 replaced by
 // avcodec_receive_frame()
 //
 // The APIs were removed in this change:
 // https://github.com/FFmpeg/FFmpeg/commit/7c1f347b184b6738abdc22fdcda40baa9f932522#diff-76418b674d0db8d5027d2e1e325dbe9b92b65b09d9f20cdd305ad14b0e46562d
 // (note the values in libavcodec/version.h)
-// AV_VERSION_INT(58, 137, 100)
-constexpr int kAVCodecHasUniformDecodeAPI = 3836260;
+constexpr int kAVCodecHasUniformDecodeAPI = AvVersionInt(58, 137, 100);
 
-// https://github.com/FFmpeg/FFmpeg/blob/70d25268c21cbee5f08304da95be1f647c630c15/doc/APIchanges#L86
+// http://go/ffmpeg-api-changes#L86
 // no longer required
-constexpr int kAVFormatDoesNotHaveRegisterAll = 3936356;
+constexpr int kAVFormatDoesNotHaveRegisterAll = AvVersionInt(58, 9, 100);
 
 class FFMPEGDispatch {
  public:
