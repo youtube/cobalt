@@ -36,6 +36,10 @@
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "third_party/musl/src/starboard/internal/hwcap_impl.h"
+#endif
+
 using ui::PlatformEventSourceStarboard;
 
 namespace {
@@ -104,8 +108,9 @@ void SbEventHandle(const SbEvent* event) {
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();
       g_platform_event_source = new PlatformEventSourceStarboard();
-      // TODO: (cobalt b/392613336) Initialize the musl hardware capabilities.
-      // init_musl_hwcap();
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      init_musl_hwcap();
+#endif
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
 
@@ -117,8 +122,9 @@ void SbEventHandle(const SbEvent* event) {
       g_exit_manager = new base::AtExitManager();
       g_content_main_delegate = new cobalt::CobaltMainDelegate();
       g_platform_event_source = new PlatformEventSourceStarboard();
-      // TODO: (cobalt b/392613336 Initialize the musl hardware capabilities.
-      // init_musl_hwcap();
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      init_musl_hwcap();
+#endif
       InitCobalt(data->argument_count,
                  const_cast<const char**>(data->argument_values), data->link);
       break;
