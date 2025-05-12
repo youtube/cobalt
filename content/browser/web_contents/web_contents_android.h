@@ -98,6 +98,13 @@ class CONTENT_EXPORT WebContentsAndroid {
 
   void ResumeLoadingCreatedWebContents(JNIEnv* env);
 
+<<<<<<< HEAD
+=======
+  void OnHide(JNIEnv* env);
+  void OnShow(JNIEnv* env);
+  void OnFreeze(JNIEnv* env);
+  void OnResume(JNIEnv* env);
+>>>>>>> 12f70003265 (Add freeze and resume events on suspend/resume (#5613))
   void SetImportance(JNIEnv* env, jint importance);
   void SuspendAllMediaPlayers(JNIEnv* env);
   void SetAudioMuted(JNIEnv* env, jboolean mute);
