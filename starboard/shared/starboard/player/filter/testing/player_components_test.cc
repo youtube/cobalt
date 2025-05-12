@@ -78,13 +78,6 @@ class PlayerComponentsTest
   }
 
   void SetUp() override {
-#if defined(SKIP_PROPRIETARY_CODEC_TESTS)
-    if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
-            audio_filename_.c_str())) {
-      GTEST_SKIP() << "Skipping proprietary-audio related tests.";
-    }
-#endif
-
     if (audio_filename_.length() > 0) {
       audio_reader_.reset(new VideoDmpReader(
           audio_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
