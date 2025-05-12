@@ -207,7 +207,6 @@ ExportedSymbols::ExportedSymbols() {
   // POSIX APIs
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
-  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -228,7 +227,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
-  REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
@@ -338,6 +336,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
   map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
+  map_["opendir"] = reinterpret_cast<const void*>(&__abi_wrap_opendir);
+  map_["closedir"] = reinterpret_cast<const void*>(&__abi_wrap_closedir);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
   map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
