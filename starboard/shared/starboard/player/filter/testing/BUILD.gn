@@ -17,12 +17,6 @@ if (current_toolchain == starboard_toolchain) {
     # build_loader = false
     testonly = true
 
-    # TODO(b/384819454): Make these test cases work and re-enable associated
-    # tests.
-    if (target_platform == "linux-x64x11") {
-      defines = [ "SKIP_PROPRIETARY_CODEC_TESTS" ]
-    }
-
     sources = [
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",

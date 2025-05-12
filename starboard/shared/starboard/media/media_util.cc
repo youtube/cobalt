@@ -442,14 +442,6 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second) {
   return frames * 1'000'000LL / std::max(samples_per_second, 1);
 }
 
-bool IsProprietaryAudioCodec(const char* file_name) {
-  const auto file_name_as_string = std::string(file_name);
-  return (file_name_as_string.find("heaac") != std::string::npos) ||
-         (file_name_as_string.find("_aac") != std::string::npos) ||
-         (file_name_as_string.find("_ec3") != std::string::npos) ||
-         (file_name_as_string.find("_ac3") != std::string::npos);
-}
-
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared
