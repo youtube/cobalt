@@ -478,6 +478,14 @@ void WebContentsAndroid::OnShow(JNIEnv* env) {
   web_contents_->WasShown();
 }
 
+void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+  web_contents_->SetPageFrozen(true);
+}
+
+void WebContentsAndroid::OnResume(JNIEnv* env) {
+  web_contents_->SetPageFrozen(false);
+}
+
 void WebContentsAndroid::SetImportance(JNIEnv* env,
                                        jint primary_main_frame_importance) {
   web_contents_->SetPrimaryMainFrameImportance(
