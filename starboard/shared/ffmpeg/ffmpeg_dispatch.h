@@ -41,16 +41,13 @@ inline constexpr int AvVersionInt(int major, int minor, int micro) {
 
 //  derived from AV_VERSION_INT(a, b, c)   ((a)<<16 | (b)<<8 | (c))
 // http://go/ffmpeg-api-changes#L1264
-constexpr int kAVCodecSupportsAvFrameAlloc = 3616101;
-static_assert(kAVCodecSupportsAvFrameAlloc == AvVersionInt(55, 45, 101));
+constexpr int kAVCodecSupportsAvFrameAlloc = AvVersionInt(55, 45, 101);
 
 // http://go/ffmpeg-api-changes#L2455
-constexpr int kAVCodecSupportsAvcodecFreeContext = 3620708;
-static_assert(kAVCodecSupportsAvcodecFreeContext == AvVersionInt(55, 63, 100));
+constexpr int kAVCodecSupportsAvcodecFreeContext = AvVersionInt(55, 63, 100);
 
 // https://github.com/libav/libav/blob/8e401dbe90cc77b1f3067a917d9fa48cefa3fcdb/libavutil/version.h
-constexpr int kAVUtilSupportsBufferCreate = 3409920;
-static_assert(kAVUtilSupportsBufferCreate == AvVersionInt(52, 8, 0));
+constexpr int kAVUtilSupportsBufferCreate = AvVersionInt(52, 8, 0);
 
 // http://go/ffmpeg-api-changes#L195
 // avcodec_decode_audio4 and avcodec_decode_video2 replaced by
@@ -59,13 +56,11 @@ static_assert(kAVUtilSupportsBufferCreate == AvVersionInt(52, 8, 0));
 // The APIs were removed in this change:
 // https://github.com/FFmpeg/FFmpeg/commit/7c1f347b184b6738abdc22fdcda40baa9f932522#diff-76418b674d0db8d5027d2e1e325dbe9b92b65b09d9f20cdd305ad14b0e46562d
 // (note the values in libavcodec/version.h)
-constexpr int kAVCodecHasUniformDecodeAPI = 3836260;
-static_assert(kAVCodecHasUniformDecodeAPI == AvVersionInt(58, 137, 100));
+constexpr int kAVCodecHasUniformDecodeAPI = AvVersionInt(58, 137, 100);
 
 // http://go/ffmpeg-api-changes#L86
 // no longer required
-constexpr int kAVFormatDoesNotHaveRegisterAll = 3803492;
-static_assert(kAVFormatDoesNotHaveRegisterAll == AvVersionInt(58, 9, 100));
+constexpr int kAVFormatDoesNotHaveRegisterAll = AvVersionInt(58, 9, 100);
 
 class FFMPEGDispatch {
  public:
