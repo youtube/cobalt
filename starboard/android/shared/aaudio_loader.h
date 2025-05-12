@@ -39,8 +39,8 @@ DEFINE_METHOD(AAudioStreamBuilder_setSampleRate);
 DEFINE_METHOD(AAudioStream_close);
 DEFINE_METHOD(AAudioStream_getFormat);
 DEFINE_METHOD(AAudioStream_getFramesPerBurst);
+DEFINE_METHOD(AAudioStream_getFramesWritten);
 DEFINE_METHOD(AAudioStream_getPerformanceMode);
-
 DEFINE_METHOD(AAudioStream_getSampleRate);
 DEFINE_METHOD(AAudioStream_getSamplesPerFrame);
 DEFINE_METHOD(AAudioStream_getState);
@@ -96,6 +96,7 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_close);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFormat);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesPerBurst);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesWritten);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getPerformanceMode);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getSampleRate);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getSamplesPerFrame);
