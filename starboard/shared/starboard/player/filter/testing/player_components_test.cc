@@ -78,6 +78,7 @@ class PlayerComponentsTest
   }
 
   void SetUp() override {
+<<<<<<< HEAD
 #if defined(SKIP_PROPRIETARY_CODEC_TESTS)
     if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
             audio_filename_)) {
@@ -85,6 +86,8 @@ class PlayerComponentsTest
     }
 #endif
 
+=======
+>>>>>>> 30b4226a8e1 (Install ffmpeg on unittest image and re-enable unittests (#5717))
     if (audio_filename_.length() > 0) {
       audio_reader_.reset(new VideoDmpReader(
           audio_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
