@@ -153,6 +153,9 @@ std::string GetStreamStateString(aaudio_stream_state_t state) {
   return AAudio_convertStreamStateToText(state);
 }
 
+// 200 msec @ 48'000 Hz.
+constexpr int kMaxFramesPerBurst = 48 * 200;
+
 }  // namespace
 
 class AudioStream {
@@ -171,11 +174,18 @@ class AudioStream {
   int32_t GetUnderrunCount() const {
     return AAudioStream_getXRunCount(stream_);
   }
+
   int32_t GetFramesPerBurst() const {
-    return AAudioStream_getFramesPerBurst(stream_);
+    int frames_per_burst = AAudioStream_getFramesPerBurst(stream_);
+    if (frames_per_burst > kMaxFramesPerBurst) {
+      SB_LOG(INFO) << "Limit frames_per_burst: " << frames_per_burst << " -> "
+                   << kMaxFramesPerBurst;
+      frames_per_burst = kMaxFramesPerBurst;
+    }
+    return frames_per_burst;
   }
 
-  int64_t GetTimestamp(int64_t* frames_consumed_at_us) const {
+  std ::optional<int64_t> GetTimestamp(int64_t* frames_consumed_at_us) const {
     int64_t frame_position;
     int64_t time_ns;
     aaudio_result_t result = AAudioStream_getTimestamp(
@@ -183,8 +193,7 @@ class AudioStream {
     if (result != AAUDIO_OK) {
       SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
                       << AAudio_convertResultToText(result);
-      *frames_consumed_at_us = CurrentMonotonicTime();
-      return 0;
+      return std::nullopt;
     }
 
     *frames_consumed_at_us = time_ns / 1000;
@@ -311,6 +320,10 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
                   << AAudio_convertResultToText(result);
     return 0;
   }
+  if (result != frames_to_write) {
+    SB_LOG(INFO) << "Partially write: frames_written=" << result
+                 << ", frames_to_write=" << frames_to_write;
+  }
   return result;
 }
 
@@ -399,13 +412,16 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
+  int pending_start = false;
+  int frames_to_prime = stream_->GetFramesPerBurst();
 
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
 
-    if (was_playing) {
-      playback_head_position = stream_->GetTimestamp(&frames_consumed_at);
+    if (auto head_us = stream_->GetTimestamp(&frames_consumed_at);
+        head_us.has_value() && was_playing) {
+      playback_head_position = *head_us;
       SB_DCHECK(playback_head_position >= last_playback_head_position);
 
       int frames_consumed =
@@ -453,14 +469,25 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
+      pending_start = false;
       stream_->Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      LOG_ELAPSED(stream_->Play());
+
+      if (frames_in_audio_track < frames_to_prime) {
+        SB_LOG(INFO) << "Need to prime: frames_to_prime=" << frames_to_prime
+                     << ", frames_in_audio_track=" << frames_in_audio_track;
+        pending_start = true;
+      } else {
+        LOG_ELAPSED(stream_->Play());
+      }
     }
 
     if (!is_playing || frames_in_buffer == 0) {
+      SB_LOG(INFO) << "Wait for 10 msec: is_playing="
+                   << (is_playing ? "true" : "false")
+                   << ", frames_in_buffer=" << frames_in_buffer;
       usleep(10'000);
       continue;
     }
@@ -496,7 +523,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
       }
-
+      SB_LOG(INFO) << "Nothing to write: frames_in_buffer=" << frames_in_buffer
+                   << ", frames_in_audio_track=" << frames_in_audio_track
+                   << ", offset_in_frames=" << offset_in_frames
+                   << ", expected_written_frames=" << expected_written_frames;
       usleep(10'000);
       continue;
     }
@@ -529,6 +559,14 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
     frames_in_audio_track += written_frames;
+    SB_LOG(INFO) << "frames_in_audio_track=" << frames_in_audio_track
+                 << ", frames_to_prime=" << frames_to_prime;
+    if (pending_start && frames_in_audio_track >= frames_to_prime) {
+      SB_LOG(INFO) << "Start now after priming: frames_in_audio_track="
+                   << frames_in_audio_track;
+      LOG_ELAPSED(stream_->Play());
+      pending_start = false;
+    }
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
