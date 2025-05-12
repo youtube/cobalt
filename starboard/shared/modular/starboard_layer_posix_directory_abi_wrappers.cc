@@ -83,30 +83,30 @@ int __abi_wrap_closedir(musl_dir* musl_directory) {
   return closedir(directory);
 }
 
-struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
+struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp) {
   // readdir segfaults if any of those parameters are missing.
   SB_CHECK(dirp);
-
-  static thread_local struct musl_dirent g_musl_results;
-  memset(&g_musl_results, 0, sizeof(g_musl_results));
+  SB_CHECK(dirp->dir);
+  SB_CHECK(dirp->musl_dir_entry);
 
   struct dirent* result_platform = nullptr;  // Type from platform toolchain.
-  result_platform = readdir(dirp);
+  result_platform = readdir(dirp->dir);
   if (!result_platform) {
     return nullptr;
   }
 
+  memset(dirp->musl_dir_entry, 0, sizeof(musl_dirent));
 #if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
-  g_musl_results.d_ino = result_platform->d_ino;
-  g_musl_results.d_off = result_platform->d_off;
+  dirp->musl_dir_entry->d_ino = result_platform->d_ino;
+  dirp->musl_dir_entry->d_off = result_platform->d_off;
 #endif
-  g_musl_results.d_reclen = result_platform->d_reclen;
-  g_musl_results.d_type = result_platform->d_type;
+  dirp->musl_dir_entry->d_reclen = result_platform->d_reclen;
+  dirp->musl_dir_entry->d_type = result_platform->d_type;
 
-  memset(g_musl_results.d_name, 0, sizeof(g_musl_results.d_name));
-  constexpr auto minlen =
-      std::min(sizeof(g_musl_results.d_name), sizeof(result_platform->d_name));
-  memcpy(g_musl_results.d_name, result_platform->d_name, minlen);
+  memset(dirp->musl_dir_entry->d_name, 0, sizeof(dirp->musl_dir_entry->d_name));
+  constexpr auto minlen = std::min(sizeof(dirp->musl_dir_entry->d_name),
+                                   sizeof(result_platform->d_name));
+  memcpy(dirp->musl_dir_entry->d_name, result_platform->d_name, minlen);
 
-  return &g_musl_results;
+  return dirp->musl_dir_entry;
 }
