@@ -198,6 +198,7 @@ use_epoll = is_linux || is_chromeos || is_android
 # base compilation units to be linked in where they wouldn't have otherwise.
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
+if(current_toolchain != starboard_toolchain) {
 component("base") {
   sources = [
     "allocator/allocator_check.cc",
@@ -2500,7 +2501,7 @@ component("base") {
     ]
   }
 }
-
+}
 # Build flags for Control Flow Integrity
 # https://www.chromium.org/developers/testing/control-flow-integrity
 buildflag_header("cfi_buildflags") {

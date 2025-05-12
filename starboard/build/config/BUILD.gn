@@ -209,7 +209,7 @@ config("starboard") {
     if (sb_evergreen_compatible_use_libunwind) {
       defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
     }
-
+    print("includes")
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 

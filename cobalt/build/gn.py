@@ -54,6 +54,7 @@ _COBALT_LINUX_PLATFORMS = [
     'linux-x64x11',
     'linux-x64x11-modular',
     'linux-x64x11-no-starboard',
+    'raspi-2',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
@@ -97,11 +98,8 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
-  try:
-    subprocess.check_call(gn_command)
-  except subprocess.CalledProcessError:
-    # A subprocess failed, so don't log the python traceback.
-    raise SystemExit(1)  # pylint: disable=raise-missing-from
+  subprocess.check_call(gn_command)
+
 
 
 def parse_args():
