@@ -170,6 +170,7 @@ test("nplb") {
     "posix_compliance/posix_thread_is_equal_test.cc",
     "posix_compliance/posix_thread_join_test.cc",
     "posix_compliance/posix_thread_local_value_test.cc",
+    "posix_compliance/posix_thread_mutexattr_test.cc",
     "posix_compliance/posix_thread_set_name_test.cc",
     "posix_compliance/posix_thread_sleep_test.cc",
     "posix_compliance/posix_thread_yield_test.cc",
