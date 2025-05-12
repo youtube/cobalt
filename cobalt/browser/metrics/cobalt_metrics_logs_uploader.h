@@ -47,12 +47,14 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
     return weak_factory_.GetWeakPtr();
   }
 
-  void setOnUploadComplete(
+  // Virtual for overriding in tests.
+  virtual void setOnUploadComplete(
       const ::metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
     on_upload_complete_ = on_upload_complete;
   }
 
-  void SetMetricsListener(
+  // Virtual for overriding in tests.
+  virtual void SetMetricsListener(
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
  private:
