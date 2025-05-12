@@ -71,8 +71,6 @@ TEST(PosixDirectoryReaddirTest, SunnyDay) {
 
     const char* entry_name = entry.data();
 
-    // SbDirectoryEntry just contains the last component of the absolute path to
-    // the file, but ScopedRandomFile::filename() returns the full path.
     std::string filename;
     filename += directory_name;
     filename += kSbFileSepChar;
@@ -92,6 +90,28 @@ TEST(PosixDirectoryReaddirTest, SunnyDay) {
   EXPECT_EQ(0, names_to_find.size());
 
   EXPECT_TRUE(closedir(directory) == 0);
+}
+
+TEST(PosixDirectoryReaddirTest, SunnyDayTwoFiles) {
+  std::string path1 = GetTempDir();
+  EXPECT_FALSE(path1.empty());
+  FileExists(path1.c_str());
+  DIR* directory1 = opendir(path1.c_str());
+  EXPECT_TRUE(directory1 != NULL);
+
+  std::string path2 = GetTempDir();
+  EXPECT_FALSE(path2.empty());
+  FileExists(path2.c_str());
+  DIR* directory2 = opendir(path2.c_str());
+  EXPECT_TRUE(directory2 != NULL);
+
+  struct dirent* dirent1 = readdir(directory1);
+  struct dirent* dirent2 = readdir(directory2);
+
+  EXPECT_NE(dirent1->d_name, dirent2->d_name);
+
+  EXPECT_TRUE(closedir(directory1) == 0);
+  EXPECT_TRUE(closedir(directory2) == 0);
 }
 
 TEST(PosixDirectoryReaddirTest, SunnyDayStaticContent) {
