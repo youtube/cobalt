@@ -25,46 +25,45 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+static void CheckFileCanOpen(const std::string& filename, int flags) {
+  const bool success = starboard::FileCanOpen(filename.c_str(), flags);
+  EXPECT_TRUE(success) << "FileCanOpen(" << filename << ", flags=" << flags
+                       << ") failed unexpectedly.";
+}
+
+static void CheckFileCanNotOpen(const std::string& filename, int flags) {
+  const bool success = starboard::FileCanOpen(filename.c_str(), flags);
+  EXPECT_FALSE(success) << "FileCanOpen(" << filename << ", flags=" << flags
+                        << ") succeeded unexpectedly.";
+}
+
 TEST(PosixFileCanOpenTest, NonExistingFileFails) {
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 
-  bool result = starboard::FileCanOpen(filename.c_str(), O_RDONLY);
-  EXPECT_FALSE(result);
-
-  result =
-      starboard::FileCanOpen(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY);
-  EXPECT_FALSE(result);
-
-  result = starboard::FileCanOpen(filename.c_str(), O_CREAT | O_RDWR);
-  EXPECT_FALSE(result);
+  CheckFileCanNotOpen(filename, O_RDONLY);
+  CheckFileCanNotOpen(filename, O_CREAT | O_EXCL | O_WRONLY);
+  CheckFileCanNotOpen(filename, O_CREAT | O_RDWR);
 }
 
 TEST(PosixFileCanOpenTest, ExistingFileSucceeds) {
   ScopedRandomFile random_file;
   const std::string& filename = random_file.filename();
 
-  bool result = starboard::FileCanOpen(filename.c_str(), O_RDONLY);
-  EXPECT_TRUE(result);
-
-  result =
-      starboard::FileCanOpen(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY);
-  EXPECT_TRUE(result);
-
-  result = starboard::FileCanOpen(filename.c_str(), O_CREAT | O_RDWR);
-  EXPECT_TRUE(result);
+  CheckFileCanOpen(filename, O_RDONLY);
+  CheckFileCanOpen(filename, O_CREAT | O_EXCL | O_WRONLY);
+  CheckFileCanOpen(filename, O_CREAT | O_RDWR);
 }
 
 TEST(PosixFileCanOpenTest, NonExistingStaticContentFileFails) {
   std::string directory_path = GetFileTestsDataDir();
   std::string missing_file = directory_path + kSbFileSepChar + "missing_file";
-  EXPECT_FALSE(starboard::FileCanOpen(missing_file.c_str(), O_RDONLY));
+  CheckFileCanNotOpen(missing_file, O_RDONLY);
 }
 
 TEST(PosixFileCanOpenTest, ExistingStaticContentFileSucceeds) {
   for (auto path : GetFileTestsFilePaths()) {
-    EXPECT_TRUE(starboard::FileCanOpen(path.c_str(), O_RDONLY))
-        << "Can't open: " << path;
+    CheckFileCanOpen(path, O_RDONLY);
   }
 }
 
