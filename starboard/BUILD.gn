@@ -191,6 +191,11 @@ source_set("starboard_headers_only") {
   ]
 }
 
+print("host tc", host_toolchain)
+
+print("sb tc", starboard_toolchain)
+
+print("cobalt tc", cobalt_toolchain)
 # TODO: b/374302273 - Fix starboard implementation to not emit these compiler warnings.
 config("hacky_wnos") {
   cflags = [
@@ -199,7 +204,7 @@ config("hacky_wnos") {
     # Disable errors for the warning till the Android NDK r19 is fixed.
     # The warning is trigger when compiling .c files and complains for
     # "-stdlib=libc++" which is added by the NDK.
-    "-Wno-error=unused-command-line-argument",
+    # "-Wno-error=unused-command-line-argument",
 
     # Don"t warn about register variables (in base and net)
     "-Wno-deprecated-register",
