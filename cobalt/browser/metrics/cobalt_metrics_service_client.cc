@@ -35,16 +35,25 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     PrefService* local_state)
     : metrics_state_manager_(state_manager),
       synthetic_trial_registry_(synthetic_trial_registry),
-      local_state_(local_state),
-      log_uploader_(std::make_unique<CobaltMetricsLogUploader>()),
-      log_uploader_weak_ptr_(log_uploader_->GetWeakPtr()) {
+      local_state_(local_state) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  metrics_service_ = std::make_unique<metrics::MetricsService>(
-      metrics_state_manager_.get(), this, local_state_.get());
+  metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
+                                                  this, local_state_.get());
+  log_uploader_ = CreateLogUploaderInternal();
+  log_uploader_weak_ptr_ = log_uploader_->GetWeakPtr();
+}
+
+std::unique_ptr<metrics::MetricsService>
+CobaltMetricsServiceClient::CreateMetricsServiceInternal(
+    metrics::MetricsStateManager* state_manager,
+    metrics::MetricsServiceClient* client,
+    PrefService* local_state) {
+  return std::make_unique<metrics::MetricsService>(state_manager, client,
+                                                   local_state);
 }
 
 // static
@@ -147,6 +156,9 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
   // done_callback when done else the uploader will never get invoked.
   std::move(done_callback).Run();
 
+  OnApplicationNotIdleInternal();
+}
+void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
   // MetricsService will shut itself down if the app doesn't periodically tell
   // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
   // sessions for LR can happen for extended periods of time with no action by
@@ -174,10 +186,15 @@ CobaltMetricsServiceClient::CreateUploader(
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // CreateUploader() should never be called more than once.
+  // Uploader should already be initialized early in construction.
   CHECK(log_uploader_);
   log_uploader_->setOnUploadComplete(on_upload_complete);
   return std::move(log_uploader_);
+}
+
+std::unique_ptr<CobaltMetricsLogUploader>
+CobaltMetricsServiceClient::CreateLogUploaderInternal() {
+  return std::make_unique<CobaltMetricsLogUploader>();
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
