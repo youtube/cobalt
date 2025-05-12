@@ -470,7 +470,7 @@ config("compiler") {
   # Linux-specific compiler flags setup.
   # ------------------------------------
   if (use_gold) {
-    ldflags += [ "-fuse-ld=gold" ]
+    # ldflags += [ "-fuse-ld=gold" ]
     if (!is_android) {
       # On Android, this isn't needed.  gcc in the NDK knows to look next to
       # it with -fuse-ld=gold, and clang gets a --gcc-toolchain flag passed
@@ -485,11 +485,10 @@ config("compiler") {
         # https://groups.google.com/a/chromium.org/group/chromium-dev/browse_thread/thread/281527606915bb36
         # Only apply this to the target linker, since the host
         # linker might not be gold, but isn't used much anyway.
-        "-Wl,--threads",
-        "-Wl,--thread-count=4",
+        # "-Wl,--threads",
+        # "-Wl,--thread-count=4",
       ]
     }
-
     # TODO(thestig): Make this flag work with GN.
     #if (!is_official_build && !is_chromeos && !(is_asan || is_lsan || is_tsan || is_msan)) {
     #  ldflags += [
@@ -499,7 +498,7 @@ config("compiler") {
   }
 
   if (use_icf && (!is_apple || use_lld)) {
-    ldflags += [ "-Wl,--icf=all" ]
+    # ldflags += [ "-Wl,--icf=all" ]
   }
 
   if (is_linux || is_chromeos) {
@@ -617,7 +616,7 @@ config("compiler") {
     } else {
       # The gcc bots are currently using GCC 9, which is not new enough to
       # support "c++20"/"gnu++20".
-      cflags_cc += [ "-std=${standard_prefix}++2a" ]
+      # cflags_cc += [ "-std=${standard_prefix}++2a" ]
     }
   } else if (is_win) {
     cflags_c += [ "/std:c11" ]
