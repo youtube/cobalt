@@ -213,7 +213,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
-  REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
@@ -233,6 +232,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -265,6 +265,7 @@ ExportedSymbols::ExportedSymbols() {
     map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
   }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
+  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
@@ -349,7 +350,6 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
-  map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
