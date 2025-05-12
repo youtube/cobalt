@@ -101,6 +101,18 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   void Initialize();
 
  private:
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
+      metrics::MetricsStateManager* state_manager,
+      metrics::MetricsServiceClient* client,
+      PrefService* local_state);
+
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal();
+
+  // Virtual to be overridden in tests.
+  virtual void OnApplicationNotIdleInternal();
+
   const raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 
   const raw_ptr<PrefService> local_state_;
