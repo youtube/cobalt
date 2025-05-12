@@ -26,20 +26,27 @@ namespace nplb {
 namespace {
 
 bool FileExists(const char* path) {
-  struct stat info;
+  struct stat info {};
   return stat(path, &info) == 0;
 }
 
 bool DirectoryExists(const char* path) {
-  struct stat info;
+  struct stat info {};
   return stat(path, &info) == 0 && S_ISDIR(info.st_mode);
 }
 
 TEST(PosixFileDeleteTest, SunnyDayDeleteExistingFile) {
   ScopedRandomFile file;
 
-  EXPECT_TRUE(FileExists(file.filename().c_str()));
-  EXPECT_TRUE(unlink(file.filename().c_str()) == 0);
+  const std::string& filename = file.filename();
+
+  EXPECT_TRUE(FileExists(filename.c_str()))
+      << "File should exist before deletion: " << filename;
+  const int unlink_result = unlink(filename.c_str());
+  EXPECT_EQ(unlink_result, 0) << "unlink failed for file: " << filename
+                              << " with error: " << strerror(errno);
+  EXPECT_FALSE(FileExists(filename.c_str()))
+      << "File should not exist after deletion: " << filename;
 }
 
 TEST(PosixFileDeleteTest, SunnyDayDeleteExistingDirectory) {
@@ -47,17 +54,29 @@ TEST(PosixFileDeleteTest, SunnyDayDeleteExistingDirectory) {
 
   const std::string& path = file.filename();
 
-  EXPECT_FALSE(FileExists(path.c_str()));
-  EXPECT_TRUE(mkdir(path.c_str(), 0700) == 0 || DirectoryExists(path.c_str()));
-  EXPECT_TRUE(DirectoryExists(path.c_str()));
-  EXPECT_TRUE(rmdir(path.c_str()) == 0);
+  EXPECT_FALSE(FileExists(path.c_str()))
+      << "File should not exist before directory creation: " << path;
+  const int mkdir_result = mkdir(path.c_str(), 0700);
+  EXPECT_EQ(mkdir_result, 0) << "mkdir failed for directory: " << path
+                             << " with error: " << strerror(errno);
+  EXPECT_TRUE(DirectoryExists(path.c_str()))
+      << "Directory should exist after creation: " << path;
+  const int rmdir_result = rmdir(path.c_str());
+  EXPECT_EQ(rmdir_result, 0) << "rmdir failed for directory: " << path
+                             << " with error: " << strerror(errno);
+  EXPECT_FALSE(DirectoryExists(path.c_str()))
+      << "Directory should not exist after deletion: " << path;
 }
 
 TEST(PosixFileDeleteTest, RainyDayNonExistentDirErrors) {
   ScopedRandomFile file(ScopedRandomFile::kDontCreate);
+  const std::string& path = file.filename();
 
-  EXPECT_FALSE(FileExists(file.filename().c_str()));
-  EXPECT_TRUE(rmdir(file.filename().c_str()));
+  EXPECT_FALSE(FileExists(path.c_str()))
+      << "File should not exist before rmdir: " << path;
+  const int rmdir_result = rmdir(path.c_str());
+  EXPECT_NE(rmdir_result, 0)
+      << "rmdir should have failed for non-existent directory: " << path;
 }
 
 }  // namespace
