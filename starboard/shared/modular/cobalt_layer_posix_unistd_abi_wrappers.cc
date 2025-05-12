@@ -27,16 +27,4 @@ off_t __abi_wrap_lseek(int fildes, off_t offset, int whence);
 off_t lseek(int fildes, off_t offset, int whence) {
   return __abi_wrap_lseek(fildes, offset, whence);
 }
-
-ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte);
-
-ssize_t read(int fildes, void* buf, size_t nbyte) {
-  return __abi_wrap_read(fildes, buf, nbyte);
-}
-
-ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte);
-
-ssize_t write(int fildes, const void* buf, size_t nbyte) {
-  return __abi_wrap_write(fildes, buf, nbyte);
-}
 }
