@@ -606,6 +606,18 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         WebContentsImplJni.get().collapseSelection(mNativeWebContentsAndroid);
     }
 
+    @Override
+    public void onFreeze() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onFreeze(mNativeWebContentsAndroid);
+    }
+
+    @Override
+    public void onResume() {
+        checkNotDestroyed();
+        WebContentsImplJni.get().onResume(mNativeWebContentsAndroid);
+    }
+
     private SelectionPopupControllerImpl getSelectionPopupController() {
         return SelectionPopupControllerImpl.fromWebContents(this);
     }
@@ -1310,6 +1322,10 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
         void selectAll(long nativeWebContentsAndroid);
 
         void collapseSelection(long nativeWebContentsAndroid);
+
+        void onFreeze(long nativeWebContentsAndroid);
+
+        void onResume(long nativeWebContentsAndroid);
 
         void setImportance(long nativeWebContentsAndroid, int importance);
 

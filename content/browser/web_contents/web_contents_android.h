@@ -98,6 +98,8 @@ class CONTENT_EXPORT WebContentsAndroid {
 
   void ResumeLoadingCreatedWebContents(JNIEnv* env);
 
+  void OnFreeze(JNIEnv* env);
+  void OnResume(JNIEnv* env);
   void SetImportance(JNIEnv* env, jint importance);
   void SuspendAllMediaPlayers(JNIEnv* env);
   void SetAudioMuted(JNIEnv* env, jboolean mute);
