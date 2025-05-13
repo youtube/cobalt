@@ -27,7 +27,7 @@ class PlatformScreenStarboard : public PlatformScreen {
 
   ~PlatformScreenStarboard() override;
 
-  void InitScreen(const gfx::Rect& window_bounds);
+  void InitScreen();
 
   const std::vector<display::Display>& GetAllDisplays() const override;
 
