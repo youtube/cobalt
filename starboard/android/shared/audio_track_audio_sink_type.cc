@@ -283,11 +283,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      SB_LOG(bridge_.Pause());
+      LOG_ELAPSED(bridge_.Pause());
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      SB_LOG(bridge_.Play());
+      LOG_ELAPSED(bridge_.Play());
     }
 
     if (!is_playing || frames_in_buffer == 0) {
