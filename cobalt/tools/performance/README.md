@@ -32,6 +32,15 @@ The monitoring script has various args that you can use to customize a few diffe
                data and the resulting graphs.
   * help     - Display a list of command options and the script's usage
 
+It defaults to a test YouTube video and sampling rate. So, you will
+need to specify those if you want something specific.
+
+Below is a simple usage command:
+
+```
+vpython3 $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
+```
+
 ### Pylint
 
 Like all other python scripts in open source, they should follow the
@@ -44,7 +53,7 @@ to ensure conformance to this is to run the pylinter provided by
 #### Usage
 
 ```
-python3 $HOME/chromium/tools/depot_tools/pylint_main.py cobalt/tools/performance/android_monitor.py
+python3 $HOME/chromium/tools/depot_tools/pylint_main.py $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
 ```
 
 ### Troubleshooting
