@@ -145,7 +145,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/system_request_focus.cc",
     "//starboard/shared/stub/system_request_reveal.cc",
     "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
-    "aaudio_loader.h",
     "accessibility_extension.cc",
     "accessibility_extension.h",
     "accessibility_get_caption_settings.cc",
@@ -155,6 +154,8 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
+    "audio_stream.cc",
+    "audio_stream.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "asset_manager.cc",

@@ -21,6 +21,7 @@
 #include <functional>
 #include <string>
 
+#include "starboard/android/shared/audio_stream.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -34,8 +35,6 @@
 namespace starboard {
 namespace android {
 namespace shared {
-
-class AudioStream;
 
 class ContinuousAudioTrackSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
@@ -75,10 +74,6 @@ class ContinuousAudioTrackSink
   int64_t GetFramesDurationUs(int frames) const;
 
   Type* const type_;
-
-  // libdl handle for aaudio symbols.
-  typedef std::unique_ptr<void, int (*)(void*)> DlUniquePtr;
-  DlUniquePtr libaaudio_dl_handle_;
 
   const int channels_;
   const int sampling_frequency_hz_;
