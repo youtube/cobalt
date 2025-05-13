@@ -82,7 +82,6 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<PlatformWindow> CreatePlatformWindow(
       PlatformWindowDelegate* delegate,
       PlatformWindowInitProperties properties) override {
-    initial_window_size_ = properties.bounds;
     return std::make_unique<PlatformWindowStarboard>(delegate,
                                                      properties.bounds);
   }
@@ -104,9 +103,7 @@ class OzonePlatformStarboard : public OzonePlatform {
   // observer recursion into display::Screen from inside CreateScreen.
   void InitScreen(PlatformScreen* screen) override {
     auto platform_screen = static_cast<PlatformScreenStarboard*>(screen);
-    // NOTE(b/410834483) we can initialize the screen with the window size
-    // because for Cobalt we assume that window size is also screen size.
-    platform_screen->InitScreen(initial_window_size_);
+    platform_screen->InitScreen();
   }
 
   std::unique_ptr<InputMethod> CreateInputMethod(
@@ -160,9 +157,6 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
-
-  // Used to initialize the PlatformScreen within the InitScreen() method later.
-  gfx::Rect initial_window_size_;
 };
 
 }  // namespace
