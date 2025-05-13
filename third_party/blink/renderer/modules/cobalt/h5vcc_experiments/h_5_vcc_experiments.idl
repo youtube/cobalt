@@ -45,6 +45,8 @@ interface H5vccExperiments {
   // or feature param.
   OverrideState getFeature(DOMString feature_name);
 
-  DOMString getFeatureParam(DOMString feature_param_name);
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getFeatureParam(DOMString feature_param_name);
+  // DOMString getFeatureParam(DOMString feature_param_name);
 
 };

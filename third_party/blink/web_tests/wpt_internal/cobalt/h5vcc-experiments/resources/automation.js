@@ -17,6 +17,7 @@ function h5vcc_experiments_tests(func, name, properties) {
       await func(test, mockH5vccExperiments);
     } finally {
       mockH5vccExperiments.stop();
+      console.log('!!CALLING MOCKH5VCCEXPERIMENTS RESET');
       mockH5vccExperiments.reset();
     }
     }, name, properties);
