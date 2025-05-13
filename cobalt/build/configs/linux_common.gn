@@ -111,8 +111,3 @@ enable_ppapi = false
 
 # Disable D-Bus
 use_dbus = false
-
-# Override from build/config/sysroot.gni
-# We want to avoid adding the sysroot and bringing in unneeded
-# dependencies in cobalt.
-use_sysroot = false
