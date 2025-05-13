@@ -21,10 +21,10 @@ int __abi_wrap_readdir_r(musl_dir* dirp,
                          struct musl_dirent* musl_entry,
                          struct musl_dirent** musl_result) {
   // readdir_r segfaults if any of those parameters are missing.
-  SB_CHECK(dirp);
-  SB_CHECK(dirp->dir);
-  SB_CHECK(musl_entry);
-  SB_CHECK(musl_result);
+  if (!dirp || !dirp->dir || !musl_entry || !musl_result) {
+    errno = EBADF;
+    return -1;
+  }
 
   struct dirent entry = {0};  // The type from platform toolchain.
   struct dirent* result = nullptr;
@@ -52,7 +52,8 @@ int __abi_wrap_readdir_r(musl_dir* dirp,
 }
 
 struct musl_dir* __abi_wrap_opendir(const char* name) {
-  if (name == nullptr) {
+  if (!name) {
+    errno = ENOENT;
     return nullptr;
   }
 
@@ -61,18 +62,27 @@ struct musl_dir* __abi_wrap_opendir(const char* name) {
     return nullptr;
   }
 
-  musl_dir* musl_directory = (musl_dir*)malloc(sizeof(musl_dir));
+  musl_dir* musl_directory = (musl_dir*)calloc(1, sizeof(musl_dir));
+  if (!musl_directory) {
+    errno = ENOMEM;
+    return nullptr;
+  }
   musl_directory->dir = directory;
 
-  musl_dirent* musl_dir_entry = (musl_dirent*)malloc(sizeof(musl_dirent));
-  memset(musl_dir_entry, 0, sizeof(musl_dirent));
+  musl_dirent* musl_dir_entry = (musl_dirent*)calloc(1, sizeof(musl_dirent));
+  if (!musl_dir_entry) {
+    errno = ENOMEM;
+    free(musl_directory);
+    return nullptr;
+  }
   musl_directory->musl_dir_entry = musl_dir_entry;
 
   return musl_directory;
 }
 
 int __abi_wrap_closedir(musl_dir* musl_directory) {
-  if (musl_directory == nullptr) {
+  if (!musl_directory) {
+    errno = EBADF;
     return -1;
   }
 
@@ -84,13 +94,13 @@ int __abi_wrap_closedir(musl_dir* musl_directory) {
 }
 
 struct musl_dirent* __abi_wrap_readdir(musl_dir* dirp) {
-  // readdir segfaults if any of those parameters are missing.
-  SB_CHECK(dirp);
-  SB_CHECK(dirp->dir);
-  SB_CHECK(dirp->musl_dir_entry);
+  // readdir fails if any of those parameters are missing.
+  if (!dirp || !dirp->dir || !dirp->musl_dir_entry) {
+    errno = EBADF;
+    return nullptr;
+  }
 
-  struct dirent* result_platform = nullptr;  // Type from platform toolchain.
-  result_platform = readdir(dirp->dir);
+  struct dirent* result_platform = readdir(dirp->dir);
   if (!result_platform) {
     return nullptr;
   }

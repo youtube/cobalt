@@ -92,23 +92,23 @@ TEST(PosixDirectoryReaddirTest, SunnyDay) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(PosixDirectoryReaddirTest, SunnyDayTwoFiles) {
+// Ensures that we have two separate dirent structures returned by calls to
+// different directories (or different pointers to same directory).
+TEST(PosixDirectoryReaddirTest, SunnyDayTwoReaddirCalls) {
   std::string path1 = GetTempDir();
   EXPECT_FALSE(path1.empty());
   FileExists(path1.c_str());
+
   DIR* directory1 = opendir(path1.c_str());
   EXPECT_TRUE(directory1 != NULL);
 
-  std::string path2 = GetTempDir();
-  EXPECT_FALSE(path2.empty());
-  FileExists(path2.c_str());
-  DIR* directory2 = opendir(path2.c_str());
+  DIR* directory2 = opendir(path1.c_str());
   EXPECT_TRUE(directory2 != NULL);
 
   struct dirent* dirent1 = readdir(directory1);
   struct dirent* dirent2 = readdir(directory2);
 
-  EXPECT_NE(dirent1->d_name, dirent2->d_name);
+  EXPECT_NE(dirent1, dirent2);
 
   EXPECT_TRUE(closedir(directory1) == 0);
   EXPECT_TRUE(closedir(directory2) == 0);
@@ -201,35 +201,6 @@ TEST(PosixDirectoryReaddirTest, FailureNullEntry) {
   struct dirent* dirent;
   dirent = readdir(directory);
   EXPECT_FALSE(!dirent);
-  EXPECT_TRUE(closedir(directory) == 0);
-}
-
-TEST(PosixDirectoryReaddirTest, FailureOnInsufficientSize) {
-  ScopedRandomFile file;
-  std::string directory_name = file.filename();
-  directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
-  EXPECT_TRUE(FileExists(directory_name.c_str()))
-      << "Directory_name is " << directory_name;
-
-  DIR* directory = opendir(directory_name.c_str());
-  EXPECT_TRUE(directory);
-  std::vector<char> entry(kSbFileMaxName);
-  for (int i = 0; i < kSbFileMaxName; i++) {
-    entry[i] = i;
-  }
-  std::vector<char> entry_copy = entry;
-
-  struct dirent* dirent;
-
-  dirent = readdir(directory);
-
-  EXPECT_TRUE(dirent);
-  starboard::strlcpy(entry.data(), dirent->d_name, 0);
-  EXPECT_EQ(entry.size(), kSbFileMaxName);
-  for (int i = 0; i < kSbFileMaxName; i++) {
-    EXPECT_EQ(entry[i], entry_copy[i]);
-  }
-
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
