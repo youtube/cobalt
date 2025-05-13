@@ -31,10 +31,11 @@ namespace cobalt {
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
-    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    std::unique_ptr<variations::SyntheticTrialRegistry>
+        synthetic_trial_registry,
     PrefService* local_state)
     : metrics_state_manager_(state_manager),
-      synthetic_trial_registry_(synthetic_trial_registry),
+      synthetic_trial_registry_(std::move(synthetic_trial_registry)),
       local_state_(local_state) {
   DETACH_FROM_THREAD(thread_checker_);
 }
@@ -59,13 +60,14 @@ CobaltMetricsServiceClient::CreateMetricsServiceInternal(
 // static
 std::unique_ptr<CobaltMetricsServiceClient> CobaltMetricsServiceClient::Create(
     metrics::MetricsStateManager* state_manager,
-    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    std::unique_ptr<variations::SyntheticTrialRegistry>
+        synthetic_trial_registry,
     PrefService* local_state) {
   // Perform two-phase initialization so that `client->metrics_service_` only
   // receives pointers to fully constructed objects.
   std::unique_ptr<CobaltMetricsServiceClient> client(
-      new CobaltMetricsServiceClient(state_manager, synthetic_trial_registry,
-                                     local_state));
+      new CobaltMetricsServiceClient(
+          state_manager, std::move(synthetic_trial_registry), local_state));
   client->Initialize();
 
   return client;
