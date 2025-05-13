@@ -18,9 +18,9 @@
     ImplementedAs=MemoryInfoExtensions, Exposed=Window,
     LegacyNoInterfaceObject
 ] partial interface MemoryInfo {
-    // The following fields expose the memory used by media SourceBuffers
+    // The following getters expose the memory used by media SourceBuffers
     // in bytes.
-    readonly attribute unsigned long long mediaSourceSizeLimit;
-    readonly attribute unsigned long long totalMediaSourceSize;
-    readonly attribute unsigned long long usedMediaSourceMemorySize;
+    unsigned long long getMediaSourceMaximumMemoryCapacity();
+    unsigned long long getMediaSourceCurrentMemoryCapacity();
+    unsigned long long getMediaSourceTotalAllocatedMemory();
 };
