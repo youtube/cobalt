@@ -288,6 +288,16 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  if (audio_read_in_progress_ || video_read_in_progress_) {
+    constexpr TimeDelta kDelay = base::Milliseconds(50);
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::StartPlayingFrom,
+                       weak_factory_.GetWeakPtr(), time),
+        kDelay);
+    return;
+  }
+
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
   StoreMediaTime(time);
@@ -414,9 +424,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::set_paint_video_hole_frame_callback(
-    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+void StarboardRenderer::SetStarboardRendererCallbacks(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+  update_starboard_rendering_mode_cb_ =
+      std::move(update_starboard_rendering_mode_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
@@ -507,6 +520,21 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+    switch (output_mode) {
+      case kSbPlayerOutputModeDecodeToTexture:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kDecodeToTexture);
+        break;
+      case kSbPlayerOutputModePunchOut:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kPunchOut);
+        break;
+      case kSbPlayerOutputModeInvalid:
+        NOTREACHED() << "Invalid SbPlayer output mode";
+        break;
+    }
+
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }

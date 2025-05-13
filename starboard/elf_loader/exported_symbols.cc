@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <malloc.h>
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
@@ -46,6 +47,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
@@ -211,19 +213,26 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
-  REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(malloc_usable_size);
   REGISTER_SYMBOL(mkdir);
+  REGISTER_SYMBOL(mkdtemp);
+  REGISTER_SYMBOL(mkostemp);
+  REGISTER_SYMBOL(mkstemp);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(pread);
+  REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -256,6 +265,7 @@ ExportedSymbols::ExportedSymbols() {
     map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
   }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
+  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
@@ -320,6 +330,18 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_mutexattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
+  map_["pthread_mutexattr_gettype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_gettype);
+  map_["pthread_mutexattr_getpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_getpshared);
+  map_["pthread_mutexattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
+  map_["pthread_mutexattr_settype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
+  map_["pthread_mutexattr_setpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
   map_["pthread_self"] =
@@ -328,7 +350,6 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
-  map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
@@ -340,6 +361,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
+  map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
+  map_["writev"] = reinterpret_cast<const void*>(&__abi_wrap_writev);
 
   REGISTER_SYMBOL(vswprintf);
 

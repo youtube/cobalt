@@ -1419,6 +1419,10 @@ source_set("unit_tests") {
   sources += rebase_path(blink_core_tests_workers, "", "workers")
   sources += rebase_path(blink_core_tests_xml, "", "xml")
   sources += rebase_path(blink_core_tests_xmlhttprequest, "", "xmlhttprequest")
+  
+  if (is_cobalt){ 
+    sources += rebase_path(blink_core_tests_cobalt, "", "cobalt")
+  }
 
   configs += [
     ":blink_core_pch",

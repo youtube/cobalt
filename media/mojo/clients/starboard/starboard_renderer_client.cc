@@ -157,6 +157,28 @@ void StarboardRendererClient::PaintVideoHoleFrame(const gfx::Size& size) {
       video_overlay_factory_->CreateFrame(size));
 }
 
+void StarboardRendererClient::UpdateStarboardRenderingMode(
+    const StarboardRenderingMode mode) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  rendering_mode_ = mode;
+  switch (rendering_mode_) {
+    case StarboardRenderingMode::kPunchOut:
+      // StarboardRenderingMode::kPunchOut doesn't update video
+      // frame via VideoRendererSink::RenderCallback::Render().
+      // The video frame is handled by Sbplayer, and render to its
+      // surface directly.
+      break;
+    case StarboardRenderingMode::kDecodeToTexture:
+      // StarboardRenderingMode::kDecodeToTexture needs to update
+      // video frame via VideoRendererSink::RenderCallback::Render().
+      // TODO(b/375070492): implement decode-to-texture mode.
+      break;
+    case StarboardRenderingMode::kInvalid:
+      NOTREACHED() << "Invalid SbPlayer output mode";
+      break;
+  }
+}
+
 void StarboardRendererClient::OnVideoGeometryChange(
     const gfx::RectF& rect_f,
     gfx::OverlayTransform /* transform */) {

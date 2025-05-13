@@ -112,6 +112,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'listen',
     'lseek',
     'malloc',
+    'madvise',
     'posix_memalign',
     'recv',
     'recvfrom',
@@ -160,6 +161,12 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pthread_mutex_lock',
     'pthread_mutex_unlock',
     'pthread_mutex_trylock',
+    'pthread_mutexattr_destroy',
+    'pthread_mutexattr_init',
+    'pthread_mutexattr_gettype',
+    'pthread_mutexattr_getpshared',
+    'pthread_mutexattr_settype',
+    'pthread_mutexattr_setpshared',
     'pthread_once',
     'pthread_self',
     'pthread_getspecific',
@@ -173,6 +180,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'opendir',
     'closedir',
     'readdir_r',
+    'malloc_usable_size',
 ]
 
 

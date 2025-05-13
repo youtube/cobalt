@@ -56,6 +56,14 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     return mojo_buffer;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer with MojoRenderer. This increases
+  // ref-count of DecoderBuffer to ensure it is not released
+  // before MojoRenderer has it.
+  mojo_buffer->address = reinterpret_cast<uint64_t>(&input);
+  input.AddRef();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   mojo_buffer->is_end_of_stream = false;
   mojo_buffer->timestamp = input.timestamp();
   mojo_buffer->duration = input.duration();
@@ -75,6 +83,7 @@ TypeConverter<media::mojom::DecoderBufferPtr, media::DecoderBuffer>::Convert(
     mojo_buffer->decrypt_config =
         media::mojom::DecryptConfig::From(*input.decrypt_config());
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(dalecurtis): We intentionally do not serialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their
@@ -91,6 +100,15 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
   if (input->is_end_of_stream)
     return media::DecoderBuffer::CreateEOSBuffer();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Reuse the existing DecoderBuffer to avoid allocating
+  // a new DecoderBuffer. Note that DecoderBuffer is released
+  // here as its ref-count was increased manually to ensure
+  // media thread won't release it before MojoRenderer has it.
+  scoped_refptr<media::DecoderBuffer> buffer(
+      reinterpret_cast<media::DecoderBuffer*>(input->address));
+  buffer->Release();
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   scoped_refptr<media::DecoderBuffer> buffer(
       new media::DecoderBuffer(input->data_size));
 
@@ -109,6 +127,7 @@ TypeConverter<scoped_refptr<media::DecoderBuffer>,
   media::DecoderBuffer::DiscardPadding discard_padding(input->front_discard,
                                                        input->back_discard);
   buffer->set_discard_padding(discard_padding);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // TODO(dalecurtis): We intentionally do not deserialize the data section of
   // the DecoderBuffer here; this must instead be done by clients via their

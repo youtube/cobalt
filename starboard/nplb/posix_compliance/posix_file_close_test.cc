@@ -23,8 +23,19 @@ namespace nplb {
 namespace {
 
 TEST(PosixFileCloseTest, CloseInvalidFails) {
-  int fd = -1;
-  EXPECT_FALSE(close(fd) == 0);
+  constexpr int kInvalidFD = -1;
+
+  const int result = close(kInvalidFD);
+  EXPECT_NE(result, 0) << "close() with an invalid fd should not succeed";
+  constexpr int kExpectedFailure = -1;
+  EXPECT_EQ(result, kExpectedFailure)
+      << "close() with an invalid fd should "
+      << "return " << kExpectedFailure << " but returned " << result;
+  EXPECT_EQ(errno, EBADF) << "Expected errno to be EBADF (" << EBADF
+                          << ") after attempting to close(" << kInvalidFD
+                          << ") "
+                          << "for an invalid file descriptor, but got " << errno
+                          << " (" << strerror(errno) << ").";
 }
 
 }  // namespace

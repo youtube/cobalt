@@ -193,9 +193,7 @@ void InterfaceFactoryImpl::CreateMediaFoundationRenderer(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void InterfaceFactoryImpl::CreateStarboardRenderer(
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
+    const StarboardRendererConfig& config,
     mojo::PendingReceiver<mojom::Renderer> receiver,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
@@ -205,8 +203,7 @@ void InterfaceFactoryImpl::CreateStarboardRenderer(
   auto renderer = mojo_media_client_->CreateStarboardRenderer(
       frame_interfaces_.get(),
       base::SingleThreadTaskRunner::GetCurrentDefault(),
-      std::move(media_log_remote), overlay_plane_id,
-      audio_write_duration_local, audio_write_duration_remote,
+      std::move(media_log_remote), config,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
   if (!renderer) {

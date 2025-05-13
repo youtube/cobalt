@@ -24,11 +24,3 @@ int __abi_wrap_ftruncate(int fildes, musl_off_t length) {
 musl_off_t __abi_wrap_lseek(int fildes, musl_off_t offset, int whence) {
   return static_cast<off_t>(lseek(fildes, static_cast<off_t>(offset), whence));
 }
-
-ssize_t __abi_wrap_read(int fildes, void* buf, size_t nbyte) {
-  return read(fildes, buf, nbyte);
-}
-
-ssize_t __abi_wrap_write(int fildes, const void* buf, size_t nbyte) {
-  return write(fildes, buf, nbyte);
-}

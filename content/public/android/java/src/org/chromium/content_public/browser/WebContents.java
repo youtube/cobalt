@@ -261,6 +261,16 @@ public interface WebContents extends Parcelable {
     void onShow();
 
     /**
+     * To be called when freeze event is exepcted.
+     */
+    void onFreeze();
+
+    /**
+     * To be called when resume event is exepcted.
+     */
+    void onResume();
+
+    /**
      * ChildProcessImportance on Android allows controls of the renderer process bindings
      * independent of visibility. Note this does not affect importance of subframe processes
      * or main frames processeses for non-primary pages.

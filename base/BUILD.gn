@@ -984,12 +984,6 @@ component("base") {
     ]
   }
 
-  if (is_starboard) {
-    sources += [
-      "message_loop/message_pump_ui_starboard.cc",
-      "message_loop/message_pump_ui_starboard.h",
-    ]
-  }
   if (is_linux || is_chromeos) {
     sources += [
       "debug/proc_maps_linux.cc",
@@ -1048,10 +1042,6 @@ component("base") {
 
   if (is_apple) {
     deps += [ "//base/time/buildflags:buildflags" ]
-  }
-
-  if (is_starboard) {
-    deps += [ "//starboard($starboard_toolchain)" ]
   }
 
   if (build_rust_json_reader) {
@@ -1730,15 +1720,37 @@ component("base") {
     ]
   }
 
-  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (is_starboard) {
+    sources += [
+      "message_loop/message_pump_ui_starboard.cc",
+      "message_loop/message_pump_ui_starboard.h",
+    ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  }
+
   if (is_cobalt_hermetic_build) {
+    sources -= [
+      "debug/debugger_posix.cc",
+      "process/process_posix.cc",
+      "process/process_linux.cc",
+    ]
+    sources += [
+      "process/process_stubs.cc",
+      "starboard/debugger_starboard.cc",
+    ]
+  }
+
+  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (enable_cobalt_hermetic_hacks) {
     sources -= [
       #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
       # #include <linux/magic.h>
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
-      "process/process_linux.cc",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
@@ -1758,21 +1770,13 @@ component("base") {
     ]
     sources += [
       "process/process_metrics_posix_starboard_stub.cc",
-      "starboard/linker_stub.h"
+      "starboard/linker_stub.h",
     ]
-    all_dependent_configs += [ ":base_starboard_linker_stub" ]
-  }
 
-  if (is_cobalt && enable_cobalt_hermetic_hacks) {
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
-  }
 
-  if (is_starboard) {
-    deps += [
-      "//starboard:starboard_group",
-      "//starboard/common",
-    ]
+    all_dependent_configs += [ ":base_starboard_linker_stub" ]
   }
 
   # Windows.
@@ -5035,7 +5039,7 @@ source_set("partition_alloc_test_support") {
   }
 }
 
-if (is_cobalt_hermetic_build) {
+if (enable_cobalt_hermetic_hacks) {
   # TODO: b/413130400 - Cobalt: Remove this config 
   # after removing base/starboard/linker_stub.h
   config("base_starboard_linker_stub") {

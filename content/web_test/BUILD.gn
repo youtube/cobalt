@@ -42,6 +42,7 @@ mojom("web_test_common_mojom") {
       "//cobalt/browser/crash_annotator/public/mojom",
       # TODO(b/409786069): Add web tests for window.accessibility
       #"//cobalt/browser/h5vcc_accessibility/public/mojom",
+      "//cobalt/browser/h5vcc_experiments/public/mojom",
       "//cobalt/browser/h5vcc_runtime/public/mojom",
       "//cobalt/browser/h5vcc_system/public/mojom",
     ]

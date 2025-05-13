@@ -731,6 +731,19 @@ void HTMLVideoElement::AddedEventListener(
   HTMLMediaElement::AddedEventListener(event_type, registered_listener);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
+  String srcAttr = FastGetAttribute(html_names::kSrcAttr);
+  if (srcAttr != g_null_atom && srcAttr.length() > 0) {
+    exception_state.ThrowDOMException(
+      DOMExceptionCode::kInvalidStateError,
+      "Cannot set maximum capabilities after src is defined.");
+    return;
+  }
+  max_video_capabilities_ = max_video_capabilities.Ascii();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool HTMLVideoElement::IsRemotingInterstitialVisible() const {
   return remoting_interstitial_ && remoting_interstitial_->IsVisible();
 }

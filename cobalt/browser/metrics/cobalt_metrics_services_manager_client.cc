@@ -28,17 +28,16 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
 
-// TODO(cobalt, b/414617175): Make the initial enabled_state_provider_
-// constructor args configurable based on cached settings.
 CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
     PrefService* local_state)
     : enabled_state_provider_(
-          std::make_unique<CobaltEnabledStateProvider>(false, false)),
+          std::make_unique<CobaltEnabledStateProvider>(local_state)),
       local_state_(local_state) {
   DCHECK(local_state_);
 }
