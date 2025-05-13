@@ -45,7 +45,8 @@ CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
 std::unique_ptr<::metrics::MetricsServiceClient>
 CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
   auto metrics_service_client = CobaltMetricsServiceClient::Create(
-      GetMetricsStateManager(), new variations::SyntheticTrialRegistry(),
+      GetMetricsStateManager(),
+      std::make_unique<variations::SyntheticTrialRegistry>(),
       local_state_.get());
   metrics_service_client_ = metrics_service_client.get();
   return metrics_service_client;
