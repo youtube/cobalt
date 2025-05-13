@@ -12,12 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/config/sysroot.gni")
+_sysroot = "$target_sysroot_dir/debian_bullseye_amd64-sysroot"
+
 config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
   defines = []
-  ldflags = [ "-Wl,--error-limit=0" ]
+  ldflags = [
+    "-Wl,--error-limit=0",
+    "--sysroot=$_sysroot",
+  ]
 
   if (is_debug) {
     cflags += [ "-O0" ]
