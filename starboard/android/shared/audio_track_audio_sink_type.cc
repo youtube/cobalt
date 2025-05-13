@@ -201,6 +201,16 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
+int64_t MeasureElapsedMs(std::function<void()> method) {
+  int64_t start_us = CurrentMonotonicTime();
+  method();
+  int64_t end_us = CurrentMonotonicTime();
+  return (end_us - start_us) / 1'000;
+}
+
+#define LOG_ELAPSED(name, method) \
+  { SB_LOG(INFO) << name << " took " << MeasureElapsedMs(method) << " msec."; }
+
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
@@ -213,6 +223,326 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
 
   int last_playback_head_position = 0;
+
+  const int silence_frames =
+      std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
+  const int minimum_startup_frames = bridge_.GetStartThresholdInFrames();
+  SB_LOG(INFO) << "minimum startup_frames=" << minimum_startup_frames
+               << ", mininum_startup_frames(msec)="
+               << GetFramesDurationUs(minimum_startup_frames) / 1'000
+               << ", silice_frames=" << silence_frames
+               << ", silence_frames(msec)="
+               << GetFramesDurationUs(silence_frames) / 1'000;
+
+  std::vector<uint8_t> silence_bytes(
+      channels_ * GetBytesPerSample(sample_type_) * silence_frames);
+  std::function<void()> WriteFrames = [&] {
+    WriteData(env, silence_bytes.data(), silence_frames, 0);
+  };
+  std::function<void()> Cleanup = [&] {
+    bridge_.PauseAndFlush();
+    usleep(1'000'000);
+  };
+  std::function<void()> WriteMinimumStartupFrames = [&] {
+    for (int offset = 0; offset < minimum_startup_frames;
+         offset += silence_frames) {
+      int frames_to_write =
+          std::min(silence_frames, minimum_startup_frames - offset);
+      int frames_written =
+          WriteData(env, silence_bytes.data(), frames_to_write, 0);
+      if (frames_written < 0) {
+        SB_LOG(ERROR) << "Write failed: err=" << frames_written;
+        return;
+      }
+      offset += frames_written;
+      if (frames_to_write != frames_written) {
+        SB_LOG(INFO) << "Partilly wrote data: frames_to_write="
+                     << frames_to_write
+                     << ", frames_written=" << frames_written;
+        usleep(1'000);
+      }
+    }
+  };
+
+  std::function<int()> GetPlaybackHead = [&] {
+    int64_t _;
+    return bridge_.GetAudioTimestamp(&_, env);
+  };
+
+  std::function<void()> WaitUntilStartAndLog = [&] {
+    int last_head = GetPlaybackHead();
+    int64_t start_us = CurrentMonotonicTime();
+    int elapsed_ms = 0;
+    do {
+      usleep(10'000);
+      elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
+      if (elapsed_ms > 1'000) {
+        SB_LOG(INFO) << "playback head doesn't move: elapsed_ms=" << elapsed_ms;
+        return;
+      }
+    } while (GetPlaybackHead() == last_head);
+
+    int media_time_progress_ms =
+        GetFramesDurationUs(GetPlaybackHead() - last_head) / 1'000;
+    SB_LOG(INFO) << "Audio startup latency(msec)="
+                 << (elapsed_ms - media_time_progress_ms)
+                 << ", elapsed_ms=" << elapsed_ms
+                 << ", media_time_progress_ms=" << media_time_progress_ms;
+  };
+
+  // #define TEST_1
+  // #define TEST_2
+
+#if defined(TEST_1)
+  SB_LOG(INFO) << "Test #1.0: Initial play/pause";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  SB_LOG(INFO) << "Test #1.1: Call play after 200 msec";
+  LOG_ELAPSED("Wait(200 msec)", [&] { usleep(200'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  SB_LOG(INFO) << "Test #1.2: Call play after 400 msec";
+  LOG_ELAPSED("Wait(400 msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  SB_LOG(INFO) << "Test #1.3: Call play after 600 msec";
+  LOG_ELAPSED("Wait(600 msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  SB_LOG(INFO) << "Test #1.4: Call play after 800 msec";
+  LOG_ELAPSED("Wait(800 msec)", [&] { usleep(800'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  SB_LOG(INFO) << "Test #1.5: Call play after 1'000 msec";
+  LOG_ELAPSED("Wait(1,000 msec)", [&] { usleep(1'000'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  Cleanup();
+#endif
+
+#define TEST_1_1
+#if defined(TEST_1_1)
+  SB_LOG(INFO) << "Test #1.1: Prewarm/play/pause/delay/play";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 200 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(200 msec)", [&] { usleep(200'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 400 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(400 msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 600 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(600 msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 800 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(800 msec)", [&] { usleep(800'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 1,000 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(1,000 msec)", [&] { usleep(1'000'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+#endif
+
+#if defined(TEST_2)
+  SB_LOG(INFO) << "Test #2.1: WriteFrames immediately after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #2.2: WriteFrames 200 msec after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(200 msec)", [&] { usleep(200'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #2.3: WriteFrames 400 msec after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(400 msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #2.4: WriteFrames 600 msec after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(600 msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #2.5: WriteFrames 800 msec after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(800 msec)", [&] { usleep(800'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #2.6: WriteFrames 1,000 msec after Play()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(1,000 msec)", [&] { usleep(1'000'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+#endif
+
+#if 0
+  SB_LOG(INFO) << "Test #3.1: WriteFrame latency after Flush()";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #4.1: Prewarm before calling Play()";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #4.2: Prewarm before calling Play()";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Wait(1,000msec)", [&] { usleep(1'000'000); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #5.1: Play -> Write -> Gap -> Write";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Wait(400msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Wait(600msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Wait(800msec)", [&] { usleep(800'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #5.2: Play -> Write -> Pause -> Gap -> Write -> Play";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Wait(400msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  LOG_ELAPSED("Wait(600msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  Cleanup();
+#endif
+
+#if 0
+  SB_LOG(INFO) << "Test #6 Flush results";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(100msec)", [&] { usleep(100'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #6.1 Flush works synchronously";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(100msec)", [&] { usleep(100'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(20msec)", [&] { usleep(20'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+#endif
+
+#if 0
+  Cleanup();
+
+
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  WaitUntilStartAndLog();
+
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Write data again", [&] { WriteMinimumStartupFrames(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  WaitUntilStartAndLog();
+#endif
+
+#if defined(TEST_7)
+  SB_LOG(INFO) << "Test #7 AudioTimestamp after Flush doesn't move";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  WaitUntilStartAndLog();
+
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  WaitUntilStartAndLog();
+#endif
 
   while (!quit_) {
     int playback_head_position = 0;

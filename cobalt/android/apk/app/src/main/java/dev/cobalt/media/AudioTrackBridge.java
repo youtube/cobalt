@@ -251,6 +251,7 @@ public class AudioTrackBridge {
     }
     try {
       audioTrack.pause();
+      Log.i(TAG, "audio_track: state=" + audioTrack.getState());
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to pause audio track, error: %s", e.toString()));
     }
@@ -279,6 +280,8 @@ public class AudioTrackBridge {
       return;
     }
     audioTrack.flush();
+    Log.i(TAG, "audio_track: state=" + audioTrack.getState());
+
     // Reset the states to allow reuse of |audioTrack| after flush() is called.  This can reduce
     // switch latency for passthrough playbacks.
     avSyncHeader = null;
@@ -394,6 +397,7 @@ public class AudioTrackBridge {
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
         audioTimestamp.framePosition &= 0x7FFFFFFF;
       } else {
+        Log.i(TAG, "audio_track_audio_sink_type: getAudioTimestamp() returned false.");
         // Time stamps haven't been updated yet, assume playback hasn't started.
         audioTimestamp.framePosition = 0;
         audioTimestamp.nanoTime = System.nanoTime();
