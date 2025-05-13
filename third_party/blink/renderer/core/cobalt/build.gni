@@ -23,7 +23,16 @@ blink_core_sources_cobalt = [
 
 if (use_starboard_media) {
   blink_core_sources_cobalt += [
+    "html_video_element/html_video_element_extensions.cc",
+    "html_video_element/html_video_element_extensions.h",
     "memory_info/memory_info_extensions.cc",
     "memory_info/memory_info_extensions.h",
   ]
+}
+
+blink_core_tests_cobalt = []
+
+if (use_starboard_media) {
+  blink_core_tests_cobalt +=
+      [ "html_video_element/html_video_element_extensions_test.cc" ]
 }
