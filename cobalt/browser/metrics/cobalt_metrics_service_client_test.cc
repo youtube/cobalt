@@ -18,6 +18,7 @@
 #include <string>
 #include <utility>
 
+#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/mock_callback.h"
@@ -113,10 +114,11 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
  public:
   TestCobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
-      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
       PrefService* local_state)
       : CobaltMetricsServiceClient(state_manager,
-                                   synthetic_trial_registry,
+                                   std::move(synthetic_trial_registry),
                                    local_state) {}
 
   // Override internal factory for MetricsService
@@ -199,13 +201,15 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
         temp_dir_.GetPath(), metrics::StartupVisibility::kForeground);
     ASSERT_THAT(metrics_state_manager_, NotNull());
 
-    synthetic_trial_registry_ =
+    auto synthetic_trial_registry =
         std::make_unique<variations::SyntheticTrialRegistry>();
+    synthetic_trial_registry_ = synthetic_trial_registry.get();
 
     // Instantiate the test client and call Initialize to trigger mock creation.
     // This simulates the two-phase initialization of the static Create().
     client_ = std::make_unique<TestCobaltMetricsServiceClient>(
-        metrics_state_manager_.get(), synthetic_trial_registry_.get(), &prefs_);
+        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+        &prefs_);
     client_->CallInitialize();  // This will use the overridden factory methods.
 
     ASSERT_THAT(client_->mock_metrics_service(), NotNull());
@@ -219,7 +223,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   std::unique_ptr<base::ScopedPathOverride> path_override_;
   std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
-  std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
   std::unique_ptr<TestCobaltMetricsServiceClient> client_;
 };
 
