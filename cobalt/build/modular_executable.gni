@@ -15,15 +15,13 @@
 template("modular_executable") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
+    group("${original_target_name}_loader}") {
+      forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+      deps = [ ":${original_target_name}_copy" ]
+    }
+
     shared_library(original_target_name) {
       forward_variables_from(invoker, "*")
-      write_runtime_deps =
-          "$root_build_dir/${original_target_name}.runtime_deps"
-
-      if (!defined(data_deps)) {
-        data_deps = []
-      }
-      data_deps += [ ":${original_target_name}_copy" ]
     }
 
     copy("${original_target_name}_copy") {
@@ -35,7 +33,7 @@ template("modular_executable") {
           get_label_info(loader_target, "root_out_dir")
 
       sources = [ "${starboard_toolchain_out_dir}/${loader_target_output}" ]
-      outputs = [ "${root_out_dir}/${original_target_name}" ]
+      outputs = [ "${root_out_dir}/${loader_target_output}" ]
       deps = [ loader_target ]
     }
   } else if (current_toolchain == starboard_toolchain) {
@@ -55,7 +53,10 @@ template("modular_executable") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      deps = [ "//starboard:starboard_group" ]
+      deps = [
+        ":${original_target_name}($default_toolchain)",
+        "//starboard:starboard_group",
+      ]
     }
   }
 }
