@@ -8,6 +8,8 @@ permissions: read-all
 jobs:
   sync:
     runs-on: [self-hosted, chrobalt-linux-runner]
+    permissions:
+      contents: write
     strategy:
       fail-fast: false
       matrix:
@@ -33,8 +35,6 @@ jobs:
           git fetch --depth=1 upstream refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}
           git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
       - name: Apply and push diffs
-        permissions:
-          contents: write
         run: |
           if [ test -s chromium_diff.patch ]; then
             echo "Applying diff..."
