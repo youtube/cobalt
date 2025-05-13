@@ -35,6 +35,8 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+class AudioStream;
+
 class ContinuousAudioTrackSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
  public:
@@ -54,7 +56,7 @@ class ContinuousAudioTrackSink
       void* context);
   ~ContinuousAudioTrackSink() override;
 
-  bool IsAudioTrackValid() const { return bridge_.is_valid(); }
+  bool IsAudioTrackValid() const { return stream_ != nullptr; }
   bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
@@ -73,6 +75,11 @@ class ContinuousAudioTrackSink
   int64_t GetFramesDurationUs(int frames) const;
 
   Type* const type_;
+
+  // libdl handle for aaudio symbols.
+  typedef std::unique_ptr<void, int (*)(void*)> DlUniquePtr;
+  DlUniquePtr libaaudio_dl_handle_;
+
   const int channels_;
   const int sampling_frequency_hz_;
   const SbMediaAudioSampleType sample_type_;
@@ -84,7 +91,7 @@ class ContinuousAudioTrackSink
   const int64_t start_time_;  // microseconds
   void* const context_;
 
-  AudioTrackBridge bridge_;
+  std::unique_ptr<AudioStream> stream_;
 
   volatile bool quit_ = false;
   pthread_t audio_out_thread_ = 0;

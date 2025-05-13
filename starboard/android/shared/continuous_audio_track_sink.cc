@@ -19,11 +19,15 @@
 #include <string>
 #include <vector>
 
+#include <math.h>
+#include "starboard/android/shared/aaudio_loader.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
+#include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
+#include "third_party/abseil-cpp/absl/log/die_if_null.h"
 
 namespace starboard {
 namespace android {
@@ -44,7 +48,307 @@ static_assert(kSilenceFramesPerAppend <= kMaxFramesPerRequest);
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
+
+#define LOG_ELAPSED(op)                                                 \
+  do {                                                                  \
+    int64_t start = CurrentMonotonicTime();                             \
+    op;                                                                 \
+    int64_t end = CurrentMonotonicTime();                               \
+    SB_LOG(INFO) << #op << ": elapsed(msec)=" << (end - start) / 1'000; \
+  } while (0)
+
+#define LOG_ON_ERROR(op)                                                  \
+  do {                                                                    \
+    aaudio_result_t result = (op);                                        \
+    if (result != AAUDIO_OK) {                                            \
+      SB_LOG(ERROR) << #op << ": " << AAudio_convertResultToText(result); \
+    }                                                                     \
+  } while (0)
+
+#define RETURN_ON_ERROR(op, ...)                                          \
+  do {                                                                    \
+    aaudio_result_t result = (op);                                        \
+    if (result != AAUDIO_OK) {                                            \
+      SB_LOG(ERROR) << #op << ": " << AAudio_convertResultToText(result); \
+      return __VA_ARGS__;                                                 \
+    }                                                                     \
+  } while (0)
+
+constexpr float kAmplitude = 0.3f;
+constexpr float kSineHz = 440.0f;  // A4 note frequency
+constexpr aaudio_format_t kAudioFormat = AAUDIO_FORMAT_PCM_FLOAT;
+
+struct SinePlayerData {
+  double phase = 0.0;
+  double phaseIncrement = 0.0;
+};
+
+SinePlayerData sinePlayerData;  // Global instance of our player data
+
+aaudio_data_callback_result_t dataCallback(AAudioStream* stream,
+                                           void* userData,
+                                           void* audioData,
+                                           int32_t numFrames) {
+  auto* playerData = static_cast<SinePlayerData*>(userData);
+  auto* outputBuffer = static_cast<float*>(audioData);
+
+  for (int i = 0; i < numFrames; ++i) {
+    // Generate a sine wave sample
+    float sampleValue =
+        kAmplitude * sinf(static_cast<float>(playerData->phase));
+
+    // Write the sample to the output buffer (mono)
+    outputBuffer[i] = sampleValue;
+
+    // Increment phase for the next sample
+    playerData->phase += playerData->phaseIncrement;
+    // Wrap phase around 2*PI to maintain precision and correctness
+    if (playerData->phase >= 2.0 * M_PI) {
+      playerData->phase -= 2.0 * M_PI;
+    }
+  }
+  // Indicate that AAudio should continue calling this callback
+  return AAUDIO_CALLBACK_RESULT_CONTINUE;
+}
+
+void errorCallback(AAudioStream* stream,
+                   void* userData,
+                   aaudio_result_t error) {
+  SB_LOG(ERROR) << "An AAudio error occurred: "
+                << AAudio_convertResultToText(error);
+}
+
+aaudio_format_t GetAudioFormat(SbMediaAudioSampleType sample_type) {
+  switch (sample_type) {
+    case kSbMediaAudioSampleTypeFloat32:
+      return AAUDIO_FORMAT_PCM_FLOAT;
+    case kSbMediaAudioSampleTypeInt16Deprecated:
+      return AAUDIO_FORMAT_PCM_I16;
+    default:
+      SB_NOTREACHED();
+      return AAUDIO_FORMAT_PCM_FLOAT;
+  }
+}
+
+std::string AudioFormatString(aaudio_format_t format) {
+  switch (format) {
+    case AAUDIO_FORMAT_INVALID:
+      return "AAUDIO_FORMAT_INVALID";
+    case AAUDIO_FORMAT_UNSPECIFIED:
+      return "AAUDIO_FORMAT_UNSPECIFIED";
+    case AAUDIO_FORMAT_PCM_I16:
+      return "AAUDIO_FORMAT_PCM_I16";
+    case AAUDIO_FORMAT_PCM_FLOAT:
+      return "AAUDIO_FORMAT_PCM_FLOAT";
+    case AAUDIO_FORMAT_PCM_I24_PACKED:
+      return "AAUDIO_FORMAT_PCM_I24_PACKED";
+    case AAUDIO_FORMAT_PCM_I32:
+      return "AAUDIO_FORMAT_PCM_I32";
+    default:
+      return "UNKNOWN(" + std::to_string(static_cast<int>(format)) + ")";
+  }
+}
+
+std::string GetStreamStateString(aaudio_stream_state_t state) {
+  return AAudio_convertStreamStateToText(state);
+}
+
+// 200 msec @ 48'000 Hz.
+constexpr int kMaxFramesPerBurst = 48 * 200;
+
 }  // namespace
+
+class AudioStream {
+ public:
+  static std::unique_ptr<AudioStream> Create(aaudio_format_t format,
+                                             int channel_count,
+                                             int sample_rate,
+                                             int buffer_frames);
+  ~AudioStream();
+
+  bool Play();
+  bool Pause();
+  bool PauseAndFlush();
+  int32_t WriteFrames(const void* buffer, int frames_to_write);
+
+  int32_t GetUnderrunCount() const {
+    return AAudioStream_getXRunCount(stream_);
+  }
+
+  int32_t GetFramesPerBurst() const {
+    int frames_per_burst = AAudioStream_getFramesPerBurst(stream_);
+    if (frames_per_burst > kMaxFramesPerBurst) {
+      SB_LOG(INFO) << "Limit frames_per_burst: " << frames_per_burst << " -> "
+                   << kMaxFramesPerBurst;
+      frames_per_burst = kMaxFramesPerBurst;
+    }
+    return frames_per_burst;
+  }
+
+  std ::optional<int64_t> GetTimestamp(int64_t* frames_consumed_at_us) const {
+    int64_t frame_position;
+    int64_t time_ns;
+
+    static int count = 0;
+    count++;
+    bool log = count % 10 == 0;
+
+    *frames_consumed_at_us = CurrentMonotonicTime();
+    return AAudioStream_getFramesWritten(stream_);
+
+#if 0
+    if (log) {
+      SB_LOG(INFO) << "frames written="
+                   << AAudioStream_getFramesWritten(stream_)
+                   << ", state=" << GetStateName();
+    }
+
+    aaudio_result_t result = AAudioStream_getTimestamp(
+        stream_, CLOCK_MONOTONIC, &frame_position, &time_ns);
+    if (result != AAUDIO_OK) {
+      if (log) {
+        SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
+                        << AAudio_convertResultToText(result);
+      }
+      return std::nullopt;
+    }
+
+    *frames_consumed_at_us = time_ns / 1000;
+    return frame_position;
+#endif
+  }
+
+  std::string GetStateName() const {
+    return GetStreamStateString(AAudioStream_getState(stream_));
+  }
+  void WaitForState(aaudio_stream_state_t target_state);
+
+ private:
+  explicit AudioStream(AAudioStream* stream) : stream_(stream) {}
+
+  AAudioStream* const stream_;
+};
+
+AudioStream::~AudioStream() {
+  LOG_ON_ERROR(AAudioStream_close(stream_));
+}
+
+std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
+                                                 int channel_count,
+                                                 int sample_rate,
+                                                 int buffer_frames) {
+  if (buffer_frames > kMaxFramesPerBurst * 2) {
+    SB_LOG(INFO) << "buffer_frames is limited";
+    buffer_frames = kMaxFramesPerBurst * 2;
+  }
+  SB_LOG(INFO) << __func__ << " format=" << AudioFormatString(format)
+               << ", channel_count=" << channel_count
+               << ", sample_rate=" << sample_rate
+               << ", buffer_frames=" << buffer_frames;
+
+  AAudioStreamBuilder* builder = nullptr;
+  RETURN_ON_ERROR(AAudio_createStreamBuilder(&builder), nullptr);
+  absl::Cleanup cleanup = [builder] {
+    LOG_ON_ERROR(AAudioStreamBuilder_delete(builder));
+  };
+  AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
+  AAudioStreamBuilder_setPerformanceMode(builder,
+                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
+  AAudioStreamBuilder_setSampleRate(builder, sample_rate);
+  AAudioStreamBuilder_setChannelCount(builder, channel_count);
+  AAudioStreamBuilder_setFormat(builder, format);
+  AAudioStreamBuilder_setBufferCapacityInFrames(builder, buffer_frames);
+
+  // `AAudioStreamBuilder_setDataCallback(builder, dataCallback,
+  // &sinePlayerData);
+  AAudioStreamBuilder_setErrorCallback(
+      builder, errorCallback, nullptr);  // No specific userData for error cb
+
+  SB_LOG(INFO) << "Opening AAudio stream...";
+  AAudioStream* stream;
+  RETURN_ON_ERROR(AAudioStreamBuilder_openStream(builder, &stream), nullptr);
+
+  int32_t actual_sample_rate = AAudioStream_getSampleRate(stream);
+  SB_DCHECK(actual_sample_rate == sample_rate);
+  SB_LOG(INFO) << "AAudio stream opened: sample_rate=" << actual_sample_rate
+               << ", channel count=" << AAudioStream_getChannelCount(stream)
+               << ", audio format=" << AAudioStream_getFormat(stream)
+               << ", frames_per_burst="
+               << AAudioStream_getFramesPerBurst(stream)
+               << ", frames_per_burst(msec)="
+               << AAudioStream_getFramesPerBurst(stream) * 1000 /
+                      actual_sample_rate;
+
+  // Calculate phase increment based on the actual sample rate
+  sinePlayerData.phaseIncrement = 2.0 * M_PI * kSineHz / actual_sample_rate;
+  sinePlayerData.phase = 0.0;  // Reset phase before starting
+
+  return std::unique_ptr<AudioStream>(new AudioStream(stream));
+}
+
+void AudioStream::WaitForState(aaudio_stream_state_t target_state) {
+  // Wait for the stream to enter the STARTED state.
+  aaudio_stream_state_t new_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
+  aaudio_stream_state_t last_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
+  const int timeout_ms = 1'000;
+  const int sleep_interval_ms = 10;
+  const int64_t start_us = CurrentMonotonicTime();
+  while (true) {
+    int64_t elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
+    if (elapsed_ms > timeout_ms) {
+      SB_LOG(INFO) << "transition is not completed: elapsed(msec)="
+                   << elapsed_ms;
+      break;
+    }
+
+    last_state = new_state;
+    new_state = AAudioStream_getState(stream_);
+    if (new_state != last_state) {
+      SB_LOG(INFO) << "State changed: " << GetStreamStateString(last_state)
+                   << " -> " << GetStreamStateString(new_state);
+    }
+    if (new_state == target_state) {
+      SB_LOG(INFO) << "transition complete";
+      break;
+    }
+
+    usleep(sleep_interval_ms * 1'000);
+  }
+}
+
+bool AudioStream::Play() {
+  SB_LOG(INFO) << __func__ << " >";
+  RETURN_ON_ERROR(AAudioStream_requestStart(stream_), false);
+
+  SB_LOG(INFO) << __func__ << " <";
+  return true;
+}
+
+bool AudioStream::Pause() {
+  SB_LOG(INFO) << __func__ << " >";
+  RETURN_ON_ERROR(AAudioStream_requestPause(stream_), false);
+
+  SB_LOG(INFO) << __func__ << " <";
+  return true;
+}
+
+bool AudioStream::PauseAndFlush() {
+  SB_LOG(INFO) << __func__ << ": not implemented";
+  return false;
+}
+
+int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
+  const int kWriteTimeout = 10'000'000;  // 100ms
+  aaudio_result_t result =
+      AAudioStream_write(stream_, buffer, frames_to_write, kWriteTimeout);
+  if (result < 0) {
+    SB_LOG(FATAL) << "AAudioStream_write failed: "
+                  << AAudio_convertResultToText(result);
+    return 0;
+  }
+  return result;
+}
 
 ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     Type* type,
@@ -61,6 +365,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     bool is_web_audio,
     void* context)
     : type_(type),
+      libaaudio_dl_handle_(LoadAAudioSymbols(), dlclose),
       channels_(channels),
       sampling_frequency_hz_(sampling_frequency_hz),
       sample_type_(sample_type),
@@ -71,29 +376,17 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
       error_func_(error_func),
       start_time_(start_time),
       context_(context),
-      bridge_(kSbMediaAudioCodingTypePcm,
-              sample_type,
-              channels,
-              sampling_frequency_hz,
-              preferred_buffer_size_in_bytes,
-              /*tunnel_mode_audio_session_id=*/-1,
-              is_web_audio) {
+      stream_(AudioStream::Create(GetAudioFormat(sample_type),
+                                  channels,
+                                  sampling_frequency_hz,
+                                  preferred_buffer_size_in_bytes)) {
+  SB_DCHECK(libaaudio_dl_handle_ != nullptr);
+  SB_DCHECK(stream_ != nullptr);
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
   SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_;
-
-  if (!bridge_.is_valid()) {
-    // One of the cases that this may hit is when output happened to be switched
-    // to a device that doesn't support tunnel mode.
-    // TODO: Find a way to exclude the device from tunnel mode playback, to
-    //       avoid infinite loop in creating the audio sink on a device
-    //       claims to support tunnel mode but fails to create the audio sink.
-    // TODO: Currently this will be reported as a general decode error,
-    //       investigate if this can be reported as a capability changed error.
-    return;
-  }
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
@@ -142,21 +435,20 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
+  int frames_to_prime = stream_->GetFramesPerBurst();
 
+  int count = 0;
   while (!quit_) {
+    count++;
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
-      SB_LOG(INFO) << "Audio device changed, raising a capability changed "
-                      "error to restart playback.";
-      ReportError(true, "Audio device capability changed");
-      break;
-    }
 
-    if (was_playing) {
-      playback_head_position =
-          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+    if (auto head_us = stream_->GetTimestamp(&frames_consumed_at);
+        head_us.has_value() && was_playing) {
+      playback_head_position = *head_us;
+      SB_DCHECK(playback_head_position >= last_playback_head_position)
+          << ": playback_head_position=" << playback_head_position
+          << ", last_playback_head_position=" << last_playback_head_position;
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -203,11 +495,12 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      bridge_.Pause();
+      stream_->Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      bridge_.Play();
+
+      LOG_ELAPSED(stream_->Play());
     }
 
     if (!is_playing || frames_in_buffer == 0) {
@@ -295,30 +588,13 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     }
   }
 
-  bridge_.PauseAndFlush();
+  stream_->PauseAndFlush();
 }
 
 int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
                                         const void* buffer,
                                         int expected_written_frames) {
-  const int samples_to_write = expected_written_frames * channels_;
-  int samples_written = 0;
-  if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-    samples_written = bridge_.WriteSample(static_cast<const float*>(buffer),
-                                          samples_to_write, env);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    samples_written =
-        bridge_.WriteSample(static_cast<const uint16_t*>(buffer),
-                            samples_to_write, /*sync_time=*/0, env);
-  } else {
-    SB_NOTREACHED();
-  }
-  if (samples_written < 0) {
-    // Error code returned as negative value, like kAudioTrackErrorDeadObject.
-    return samples_written;
-  }
-  SB_DCHECK(samples_written % channels_ == 0);
-  return samples_written / channels_;
+  return stream_->WriteFrames(buffer, expected_written_frames);
 }
 
 void ContinuousAudioTrackSink::ReportError(bool capability_changed,
@@ -334,15 +610,15 @@ int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int frames) const {
 }
 
 void ContinuousAudioTrackSink::SetVolume(double volume) {
-  bridge_.SetVolume(volume);
+  SB_LOG(WARNING) << __func__ << ": not implemented: volume=" << volume;
 }
 
 int ContinuousAudioTrackSink::GetUnderrunCount() {
-  return bridge_.GetUnderrunCount();
+  return stream_->GetUnderrunCount();
 }
 
 int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
-  return bridge_.GetStartThresholdInFrames();
+  return stream_->GetFramesPerBurst();
 }
 
 }  // namespace shared
