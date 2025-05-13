@@ -74,43 +74,6 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
     }                                                                     \
   } while (0)
 
-constexpr float kAmplitude = 0.3f;
-constexpr float kSineHz = 440.0f;  // A4 note frequency
-constexpr aaudio_format_t kAudioFormat = AAUDIO_FORMAT_PCM_FLOAT;
-
-struct SinePlayerData {
-  double phase = 0.0;
-  double phaseIncrement = 0.0;
-};
-
-SinePlayerData sinePlayerData;  // Global instance of our player data
-
-aaudio_data_callback_result_t dataCallback(AAudioStream* stream,
-                                           void* userData,
-                                           void* audioData,
-                                           int32_t numFrames) {
-  auto* playerData = static_cast<SinePlayerData*>(userData);
-  auto* outputBuffer = static_cast<float*>(audioData);
-
-  for (int i = 0; i < numFrames; ++i) {
-    // Generate a sine wave sample
-    float sampleValue =
-        kAmplitude * sinf(static_cast<float>(playerData->phase));
-
-    // Write the sample to the output buffer (mono)
-    outputBuffer[i] = sampleValue;
-
-    // Increment phase for the next sample
-    playerData->phase += playerData->phaseIncrement;
-    // Wrap phase around 2*PI to maintain precision and correctness
-    if (playerData->phase >= 2.0 * M_PI) {
-      playerData->phase -= 2.0 * M_PI;
-    }
-  }
-  // Indicate that AAudio should continue calling this callback
-  return AAUDIO_CALLBACK_RESULT_CONTINUE;
-}
-
 void errorCallback(AAudioStream* stream,
                    void* userData,
                    aaudio_result_t error) {
@@ -153,8 +116,23 @@ std::string GetStreamStateString(aaudio_stream_state_t state) {
   return AAudio_convertStreamStateToText(state);
 }
 
+int64_t CurrentBoottimeNs() {
+  timespec now;
+  clock_gettime(CLOCK_BOOTTIME, &now);
+  return now.tv_sec * 1'000'000'000LL + now.tv_nsec;
+}
+
+int64_t SystemTimeGapUs() {
+  int64_t monotonic_us = CurrentMonotonicTime();
+  int64_t boottime_us = CurrentBoottimeNs() / 1'000;
+  int64_t gap_us = monotonic_us - boottime_us;
+  SB_LOG(INFO) << "Gap(us)=" << gap_us << ", Monotonic(us)=" << monotonic_us
+               << ", Boottime(us)=" << boottime_us;
+  return gap_us;
+}
+
 // 200 msec @ 48'000 Hz.
-constexpr int kMaxFramesPerBurst = 48 * 200;
+constexpr int kMaxFramesPerBurst = 48 * 20;
 
 }  // namespace
 
@@ -189,39 +167,30 @@ class AudioStream {
     int64_t frame_position;
     int64_t time_ns;
 
-    static int count = 0;
-    count++;
-    bool log = count % 10 == 0;
-
-    *frames_consumed_at_us = CurrentMonotonicTime();
-    return AAudioStream_getFramesWritten(stream_);
-
-#if 0
-    if (log) {
-      SB_LOG(INFO) << "frames written="
-                   << AAudioStream_getFramesWritten(stream_)
-                   << ", state=" << GetStateName();
+    static int64_t last_us = CurrentMonotonicTime();
+    int64_t now_us = CurrentMonotonicTime();
+    if (now_us - last_us < 1'000'000) {
+      return std::nullopt;
+    } else if (AAudioStream_getState(stream_) != AAUDIO_STREAM_STATE_STARTED) {
+      return std::nullopt;
     }
+    last_us = now_us;
 
     aaudio_result_t result = AAudioStream_getTimestamp(
         stream_, CLOCK_MONOTONIC, &frame_position, &time_ns);
     if (result != AAUDIO_OK) {
-      if (log) {
-        SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
-                        << AAudio_convertResultToText(result);
-      }
+      SB_LOG(WARNING) << "AAudioStream_getTimestamp failed: "
+                      << AAudio_convertResultToText(result);
       return std::nullopt;
     }
 
-    *frames_consumed_at_us = time_ns / 1000;
-    return frame_position;
-#endif
+    *frames_consumed_at_us = time_ns / 1'000;
+    return AAudioStream_getFramesWritten(stream_);
   }
 
   std::string GetStateName() const {
     return GetStreamStateString(AAudioStream_getState(stream_));
   }
-  void WaitForState(aaudio_stream_state_t target_state);
 
  private:
   explicit AudioStream(AAudioStream* stream) : stream_(stream) {}
@@ -237,10 +206,11 @@ std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
                                                  int channel_count,
                                                  int sample_rate,
                                                  int buffer_frames) {
-  if (buffer_frames > kMaxFramesPerBurst * 2) {
+  if (buffer_frames > kMaxFramesPerBurst) {
     SB_LOG(INFO) << "buffer_frames is limited";
-    buffer_frames = kMaxFramesPerBurst * 2;
+    buffer_frames = kMaxFramesPerBurst;
   }
+
   SB_LOG(INFO) << __func__ << " format=" << AudioFormatString(format)
                << ", channel_count=" << channel_count
                << ", sample_rate=" << sample_rate
@@ -280,41 +250,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(aaudio_format_t format,
                << AAudioStream_getFramesPerBurst(stream) * 1000 /
                       actual_sample_rate;
 
-  // Calculate phase increment based on the actual sample rate
-  sinePlayerData.phaseIncrement = 2.0 * M_PI * kSineHz / actual_sample_rate;
-  sinePlayerData.phase = 0.0;  // Reset phase before starting
-
   return std::unique_ptr<AudioStream>(new AudioStream(stream));
-}
-
-void AudioStream::WaitForState(aaudio_stream_state_t target_state) {
-  // Wait for the stream to enter the STARTED state.
-  aaudio_stream_state_t new_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
-  aaudio_stream_state_t last_state = AAUDIO_STREAM_STATE_UNINITIALIZED;
-  const int timeout_ms = 1'000;
-  const int sleep_interval_ms = 10;
-  const int64_t start_us = CurrentMonotonicTime();
-  while (true) {
-    int64_t elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
-    if (elapsed_ms > timeout_ms) {
-      SB_LOG(INFO) << "transition is not completed: elapsed(msec)="
-                   << elapsed_ms;
-      break;
-    }
-
-    last_state = new_state;
-    new_state = AAudioStream_getState(stream_);
-    if (new_state != last_state) {
-      SB_LOG(INFO) << "State changed: " << GetStreamStateString(last_state)
-                   << " -> " << GetStreamStateString(new_state);
-    }
-    if (new_state == target_state) {
-      SB_LOG(INFO) << "transition complete";
-      break;
-    }
-
-    usleep(sleep_interval_ms * 1'000);
-  }
 }
 
 bool AudioStream::Play() {
@@ -339,9 +275,8 @@ bool AudioStream::PauseAndFlush() {
 }
 
 int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
-  const int kWriteTimeout = 10'000'000;  // 100ms
-  aaudio_result_t result =
-      AAudioStream_write(stream_, buffer, frames_to_write, kWriteTimeout);
+  aaudio_result_t result = AAudioStream_write(stream_, buffer, frames_to_write,
+                                              /*timeoutNanoseconds=*/0);
   if (result < 0) {
     SB_LOG(FATAL) << "AAudioStream_write failed: "
                   << AAudio_convertResultToText(result);
