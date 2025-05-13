@@ -39,7 +39,7 @@ gfx::Rect GetWindowSizeFromCommandLine() {
   // TODO(b/416313825): This method is part of the workaround which derives the
   // screen size value from the command line. This is a temporary workaround and
   // should be removed when the proper fix is developed.
-  gfx::Rect bounds(gfx::Size(1, 1));
+  gfx::Rect bounds(gfx::Size(1920, 1080));
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
   if (command_line.HasSwitch(switches::kContentShellHostWindowSize)) {
