@@ -28,9 +28,4 @@ void HTMLVideoElementExtensions::setMaxVideoCapabilities(
                                         exception_state);
 }
 
-String HTMLVideoElementExtensions::maxVideoCapabilities(
-    const HTMLVideoElement& video_element) {
-  return video_element.getWTFStringMaxVideoCapabilities();
-}
-
 }  // namespace blink

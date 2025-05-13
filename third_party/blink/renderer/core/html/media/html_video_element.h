@@ -170,11 +170,9 @@ class CORE_EXPORT HTMLVideoElement final
 
   // getMaxVideoCapabilities overrides the function in web_media_player_client.h to allow
   // other cc/h files to access the max_video_capabilities_ variable.
-  std::string getMaxVideoCapabilities() const override { return max_video_capabilities_.Ascii(); }
+  std::string getMaxVideoCapabilities() const override { return max_video_capabilities_ ; }
 
-  // getWTFMaxVideoCapabilities returns a WTF::String to allow Web Platforms to get the 
-  // max_video_capabilities_ variable.
-  String getWTFStringMaxVideoCapabilities() const { return max_video_capabilities_; }
+  bool HasMaxVideoCapabilities() const { return !max_video_capabilities_.empty(); }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:
@@ -267,7 +265,7 @@ class CORE_EXPORT HTMLVideoElement final
   std::unique_ptr<CanvasResourceProvider> resource_provider_;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  String max_video_capabilities_;
+  std::string max_video_capabilities_;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

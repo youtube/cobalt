@@ -740,7 +740,7 @@ void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilit
       "Cannot set maximum capabilities after src is defined.");
     return;
   }
-  max_video_capabilities_ = max_video_capabilities;
+  max_video_capabilities_ = max_video_capabilities.Ascii();
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

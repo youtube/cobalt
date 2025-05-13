@@ -32,11 +32,10 @@ TEST(HTMLVideoElementExtensionsTest, canGetAndSetMaxVideoCapabilities) {
   V8TestingScope dummy_exception_state;
   HTMLVideoElement* video =
       MakeGarbageCollected<HTMLVideoElement>(dummy_page_holder->GetDocument());
-  ASSERT_EQ(HTMLVideoElementExtensions::maxVideoCapabilities(*video), String());
+  ASSERT_EQ(video->getMaxVideoCapabilities(), "");
   HTMLVideoElementExtensions::setMaxVideoCapabilities(
       *video, String("testString"), dummy_exception_state.GetExceptionState());
-  ASSERT_EQ(HTMLVideoElementExtensions::maxVideoCapabilities(*video),
-            String("testString"));
+  ASSERT_EQ(video->getMaxVideoCapabilities(), "testString");
 }
 
 }  // namespace blink
