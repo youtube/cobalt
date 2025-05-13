@@ -253,7 +253,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(
   AAudioStreamBuilder_setSampleRate(builder, sample_rate);
   AAudioStreamBuilder_setChannelCount(builder, channel_count);
   AAudioStreamBuilder_setFormat(builder, format);
-  AAudioStreamBuilder_setBufferCapacityInFrames(builder, buffer_frames);
+  // AAudioStreamBuilder_setBufferCapacityInFrames(builder, buffer_frames);
 
   AAudioStreamBuilder_setErrorCallback(builder, AudioStream::ErrorCallback,
                                        audio_stream_instance.get());
