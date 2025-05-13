@@ -1,0 +1,33 @@
+[cobalt]
+Copyright 2020 Comcast Cable Communications Management, LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+SPDX-License-Identifier: Apache-2.0
+
+This product includes software developed at Comcast (http://www.comcast.com/)
+
+The component may include material which is licensed under other licenses / copyrights as
+listed below. Your use of this material within the component is also subject to the terms and 
+conditions of these licenses. The LICENSE file contains the text of all the licenses which apply
+within this component.
+
+Copyright 2017 The Cobalt Authors. All Rights Reserved.
+Licensed under the Apache License, Version 2.0
+See https://cobalt.googlesource.com/cobalt/+/master/src/AUTHORS for the list of Cobalt authors.
+
+Code from ICU is:
+Copyright 2016-2023 Unicode, Inc.
+and
+Copyright (c) 1995-2016 International Business Machines Corporation and others
+All rights reserved.
+Licensed under UNICODE LICENSE V3 and the ICU License from https://github.com/unicode-org/icu/blob/main/LICENSE
