@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "failing_tests": [
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTest.*",
@@ -9,4 +10,7 @@
     "MaximumPlayerConfigurationExplorerTests*",
     "SbPlayerTest*"
   ]
+=======
+  "failing_tests": []
+>>>>>>> 85e6b6e1ff3 (Re-enable media unitttests, previously disabled due to missing ffmpeg. (#5677))
 }
