@@ -61,7 +61,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Factory function.
   static std::unique_ptr<CobaltMetricsServiceClient> Create(
       metrics::MetricsStateManager* state_manager,
-      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
       PrefService* local_state);
 
   // ::metrics::MetricsServiceClient:
@@ -94,7 +95,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
-      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
       PrefService* local_state);
 
   // Completes the two-phase initialization of CobaltMetricsServiceClient.
@@ -113,7 +115,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Virtual to be overridden in tests.
   virtual void OnApplicationNotIdleInternal();
 
-  const raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+  const std::unique_ptr<variations::SyntheticTrialRegistry>
+      synthetic_trial_registry_;
 
   const raw_ptr<PrefService> local_state_;
 
