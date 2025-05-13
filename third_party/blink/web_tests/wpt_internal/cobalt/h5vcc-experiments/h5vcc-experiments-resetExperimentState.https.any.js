@@ -10,3 +10,12 @@ h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
     assert_true(resetExperimentStateCalled);
   }
 }, 'exercises H5vccExperiments.resetExperimentState()');
+
+h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
+  let interceptor =
+    new MojoInterfaceInterceptor(mockH5vccExperiments.$interfaceName);
+  interceptor.oninterfacerequest = e => e.handle.close();
+  interceptor.start();
+  return promise_rejects_exactly(
+    t, 'Mojo connection error.', window.h5vcc.experiments.resetExperimentState());
+}, 'resetExperimentState() rejects when unimplemented due to pipe closure');
