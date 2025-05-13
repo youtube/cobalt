@@ -85,7 +85,7 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
       stream_(AudioStream::Create(sample_type,
                                   channels,
                                   sampling_frequency_hz,
-                                  preferred_buffer_size_in_bytes)) {
+                                  frames_per_channel)) {
   SB_DCHECK(stream_ != nullptr);
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
@@ -94,7 +94,9 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
   SB_LOG(INFO) << "Creating continuous audio sink: start_time=" << start_time_
                << ", frames_per_channel=" << frames_per_channel_
                << ", preferred_buffer_size_in_bytes="
-               << preferred_buffer_size_in_bytes;
+               << preferred_buffer_size_in_bytes << ", preferred_frames="
+               << (preferred_buffer_size_in_bytes /
+                   GetBytesPerSample(sample_type_) / channels_);
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);

@@ -63,13 +63,11 @@ class AudioStream {
   AAudioStream* stream_ = nullptr;
 
   std::vector<uint8_t> buffer_ = std::vector<uint8_t>(buffer_bytes_);
-  int write_offset_bytes_ = 0;
-  int read_offset_bytes_ = 0;
+  int write_offset_ = 0;
+  int read_offset_ = 0;
   int filled_bytes_ = 0;
 
   starboard::Mutex buffer_mutex_;
-  starboard::ConditionVariable buffer_not_full_cv_{buffer_mutex_};
-  starboard::ConditionVariable buffer_not_empty_cv_{buffer_mutex_};
 };
 
 }  // namespace starboard::android::shared
