@@ -39,6 +39,13 @@ void StubH5vccRuntimeImpl::GetAndClearInitialDeepLink(
   std::move(callback).Run("");
 }
 
+void StubH5vccRuntimeImpl::RenderToImage(const std::string& url,
+                                         uint32_t,
+                                         uint32_t,
+                                         RenderToImageCallback callback) {
+  std::move(callback).Run(std::vector<uint8_t>());
+}
+
 void StubH5vccRuntimeImpl::AddListener(
     mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener> listener) {}
 
