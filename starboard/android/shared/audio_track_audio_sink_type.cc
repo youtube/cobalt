@@ -74,15 +74,6 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
 
-#define LOG_ELAPSED(op)                                          \
-  do {                                                           \
-    int64_t start_us = CurrentMonotonicTime();                   \
-    op;                                                          \
-    int64_t end_us = CurrentMonotonicTime();                     \
-    int64_t elapsed_ms = (end_us - start_us) / 1'000;            \
-    SB_LOG(INFO) << #op << " took elapsed(msec)=" << elapsed_ms; \
-  } while (0);
-
 int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
   auto max_frames =
       kMaxDurationPerRequestInTunnelMode * sampling_frequency_hz / 1'000'000LL;
@@ -283,11 +274,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      LOG_ELAPSED(bridge_.Pause());
+      bridge_.Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      LOG_ELAPSED(bridge_.Play());
+      bridge_.Play();
     }
 
     if (!is_playing || frames_in_buffer == 0) {

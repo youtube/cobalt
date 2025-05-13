@@ -243,7 +243,6 @@ public class AudioTrackBridge {
       Log.i(TAG, String.format(Locale.US, "audioTrack.play() execution time(msec)=%d", (endTimeNs - startTimeNs) / 1_000_000));
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to play audio track, error: %s", e.toString()));
-      // Consider re-throwing or handling the error more specifically if needed.
     }
   }
 
