@@ -7,9 +7,12 @@ import {
 class MockH5vccExperiments {
   constructor() {
     this.interceptor_ =
-        new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
-    this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
+      new MojoInterfaceInterceptor(H5vccExperiments.$interfaceName);
     this.receiver_ = new H5vccExperimentsReceiver(this);
+    this.interceptor_.oninterfacerequest = e => {
+      this.receiver_.$.bindHandle(e.handle);
+    }
+    this.interceptor_.start();
     this.stub_result_ = new Map();
   }
 
@@ -23,23 +26,15 @@ class MockH5vccExperiments {
 
   reset() {
     this.stub_result_ = new Map();
-  }
-
-  bind(handle) {
-    this.receiver_.$.bindHandle(handle);
-  }
-
-  // Added for stubbing getFeature() and getFeatureParam() result in tests.
-  stubResult(key, value) {
-    this.stub_result_.set(key, value);
+    this.receiver_.$.close();
   }
 
   stubGetFeature(feature_name, stub_result) {
-    this.stubResult(feature_name, stub_result);
+    this.stub_result_.set(feature_name, stub_result);
   }
 
   stubGetFeatureParam(feature_param_name, stub_result) {
-    this.stubResult(feature_param_name, stub_result);
+    this.stub_result_.set(feature_param_name, stub_result)
   }
 
   getFeature(feature_name) {
@@ -50,12 +45,12 @@ class MockH5vccExperiments {
     return this.stub_result_.get(feature_param_name);
   }
 
-  resetExperimentState() {
-    return Promise.resolve();
+  async resetExperimentState() {
+    return;
   }
 
-  setExperimentState() {
-    return Promise.resolve();
+  async setExperimentState(experiment_config) {
+    return;
   }
 }
 
