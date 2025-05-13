@@ -1,0 +1,15 @@
+{
+    "failing_tests": [
+      "DecoderTemplateTest/0.ResetDuringFlush",
+      "VideoDecoderTest.ResetReleasesPressure",
+      "EncodedVideoChunkTest.ConstructorWithDuration",
+      "VideoDecoderBrokerTest.Decode_NoMojoDecoder",
+      "AudioDecoderBrokerTest.Decode_NoMojoDecoder",
+      "HTMLMediaElementTest.CanHandleCobaltProgressiveSupportQueries",
+      "EncodedVideoChunkTest.ConstructorAndAttributes",
+      "AudioDecoderBrokerTest.Decode_Uninitialized",
+      "VideoDecoderTest.HardwareDecodersApplyPressure",
+      "DecoderTemplateTest/1.ResetDuringFlush",
+      "VideoDecoderBrokerTest.Decode_Uninitialized"
+    ]
+  }

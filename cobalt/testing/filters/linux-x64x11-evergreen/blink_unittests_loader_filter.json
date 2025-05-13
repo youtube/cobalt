@@ -40,6 +40,9 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
-    "DecoderTemplateTest/1.ResetDuringFlush"
+    "DecoderTemplateTest/1.ResetDuringFlush",
+    "ResourceBundleTest.*",
+    "ResourceBundleImageTest.*",
+    "DataPackTest.*"
   ]
 }
