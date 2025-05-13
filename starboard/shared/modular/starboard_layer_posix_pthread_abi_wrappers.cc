@@ -454,6 +454,35 @@ int __abi_wrap_pthread_mutexattr_destroy(musl_pthread_mutexattr_t* attr) {
   return errno_to_musl_errno(ret);
 }
 
+int __abi_wrap_pthread_mutexattr_gettype(
+    const musl_pthread_mutexattr_t* __restrict attr,
+    int* __restrict type) {
+  int native_type;
+  const pthread_mutexattr_t* tmp = nullptr;
+  if (attr) {
+    tmp = CONST_PTHREAD_INTERNAL_MUTEX_ATTR(attr);
+  }
+  const int ret = pthread_mutexattr_gettype(tmp, &native_type);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_type) {
+    case PTHREAD_MUTEX_NORMAL:
+      *type = MUSL_PTHREAD_MUTEX_NORMAL;
+      break;
+    case PTHREAD_MUTEX_RECURSIVE:
+      *type = MUSL_PTHREAD_MUTEX_RECURSIVE;
+      break;
+    case PTHREAD_MUTEX_ERRORCHECK:
+      *type = MUSL_PTHREAD_MUTEX_ERRORCHECK;
+      break;
+    default:
+      *type = MUSL_PTHREAD_MUTEX_DEFAULT;
+  }
+  return 0;
+}
+
 int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
                                          int musl_type) {
   int type;
@@ -472,6 +501,27 @@ int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
   }
   int ret = pthread_mutexattr_settype(PTHREAD_INTERNAL_MUTEX_ATTR(attr), type);
   return errno_to_musl_errno(ret);
+}
+
+SB_EXPORT int __abi_wrap_pthread_mutexattr_getpshared(
+    const musl_pthread_mutexattr_t* __restrict attr,
+    int* __restrict pshared) {
+  int native_pshared;
+  const pthread_mutexattr_t* tmp = nullptr;
+  if (attr) {
+    tmp = CONST_PTHREAD_INTERNAL_MUTEX_ATTR(attr);
+  }
+
+  const int ret = pthread_mutexattr_getpshared(tmp, &native_pshared);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  *pshared = MUSL_PTHREAD_PROCESS_PRIVATE;
+  if (native_pshared == PTHREAD_PROCESS_SHARED) {
+    *pshared = MUSL_PTHREAD_PROCESS_SHARED;
+  }
+  return 0;
 }
 
 int __abi_wrap_pthread_mutexattr_setpshared(musl_pthread_mutexattr_t* attr,

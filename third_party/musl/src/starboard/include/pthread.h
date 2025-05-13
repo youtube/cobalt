@@ -236,7 +236,11 @@ int pthread_attr_getstack(const pthread_attr_t* __restrict,
                           size_t* __restrict);
 int pthread_mutexattr_init(pthread_mutexattr_t*);
 int pthread_mutexattr_destroy(pthread_mutexattr_t*);
+int pthread_mutexattr_gettype(const pthread_mutexattr_t* __restrict,
+                              int* __restrict);
 int pthread_mutexattr_settype(pthread_mutexattr_t*, int);
+int pthread_mutexattr_getpshared(const pthread_mutexattr_t* __restrict,
+                                 int* __restrict);
 int pthread_mutexattr_setpshared(pthread_mutexattr_t*, int);
 int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t*, int);
