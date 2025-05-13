@@ -20,7 +20,7 @@ on:
 
 concurrency:
   # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
-  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}
+  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
