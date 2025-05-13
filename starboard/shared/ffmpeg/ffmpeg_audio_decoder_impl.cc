@@ -112,10 +112,7 @@ std::unique_ptr<AudioDecoder> AudioDecoderImpl<FFMPEG>::Create(
     const AudioStreamInfo& audio_stream_info) {
   auto audio_decoder = std::unique_ptr<AudioDecoderImpl<FFMPEG>>(
       new AudioDecoderImpl<FFMPEG>(audio_stream_info));
-  if (!audio_decoder->is_valid()) {
-    return nullptr;
-  }
-  return audio_decoder;
+  return audio_decoder->is_valid() ? std::move(audio_decoder) : nullptr;
 }
 
 void AudioDecoderImpl<FFMPEG>::Initialize(const OutputCB& output_cb,

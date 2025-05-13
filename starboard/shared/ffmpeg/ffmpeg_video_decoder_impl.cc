@@ -132,10 +132,7 @@ std::unique_ptr<VideoDecoder> VideoDecoderImpl<FFMPEG>::Create(
   auto video_decoder =
       std::unique_ptr<VideoDecoderImpl<FFMPEG>>(new VideoDecoderImpl<FFMPEG>(
           video_codec, output_mode, decode_target_graphics_context_provider));
-  if (!video_decoder->is_valid()) {
-    return nullptr;
-  }
-  return video_decoder;
+  return video_decoder->is_valid() ? std::move(video_decoder) : nullptr;
 }
 
 void VideoDecoderImpl<FFMPEG>::Initialize(
