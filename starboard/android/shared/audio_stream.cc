@@ -76,8 +76,7 @@ void* LoadAAudioSymbols() {
     SB_LOG(ERROR) << "Unable to load method " #name;          \
     dlclose(dl_handle);                                       \
     return nullptr;                                           \
-  }                                                           \
-  SB_LOG(INFO) << "Loaded method " #name;
+  }
 
   LOAD_AAUDIO_FUNCTION(AAudio_createStreamBuilder);
 
@@ -196,9 +195,11 @@ constexpr int kStartThresholdFrames = 48 * 100;
 
 AudioStream::AudioStream(DlUniquePtr libaaudio_dl_handle,
                          int channel_count,
+                         int sample_rate,
                          SbMediaAudioSampleType sample_type,
                          int buffer_frames)
     : libaaudio_dl_handle_(std::move(libaaudio_dl_handle)),
+      sample_rate_(sample_rate),
       frame_bytes_([sample_type, channel_count]() -> int {
         switch (sample_type) {
           SB_DCHECK(channel_count > 0);
@@ -211,7 +212,13 @@ AudioStream::AudioStream(DlUniquePtr libaaudio_dl_handle,
             return 0;
         }
       }()),
-      buffer_bytes_(buffer_frames * frame_bytes_) {}
+      buffer_bytes_(buffer_frames * frame_bytes_) {
+  SB_LOG(INFO) << "Creating AudioStream: sample_rate=" << sample_rate
+               << ", channel_count=" << channel_count
+               << ", buffer_frames=" << buffer_frames
+               << ", frame_bytes=" << frame_bytes_
+               << ", buffer_bytes=" << buffer_bytes_;
+}
 
 AudioStream::~AudioStream() {
   if (stream_ == nullptr) {
@@ -239,7 +246,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(
 
   auto audio_stream_instance = std::unique_ptr<AudioStream>(
       new AudioStream(std::move(local_libaaudio_dl_handle), channel_count,
-                      sample_type, buffer_frames));
+                      sample_rate, sample_type, buffer_frames));
 
   AAudioStreamBuilder* builder = nullptr;
   RETURN_ON_ERROR(AAudio_createStreamBuilder(&builder), nullptr);
@@ -364,7 +371,10 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
   while (remaining_frames > 0) {
     const int available_space_bytes = buffer_bytes_ - filled_bytes_;
     if (available_space_bytes == 0) {
-      SB_LOG(WARNING) << __func__ << ": No space to write";
+      SB_LOG(WARNING) << __func__
+                      << ": No space to write: frames_in_ndk=" << frames_in_ndk_
+                      << ", frames_to_write=" << frames_to_write
+                      << ", buffer_frames=" << (buffer_bytes_ / frame_bytes_);
       break;
     }
 
@@ -403,7 +413,7 @@ aaudio_data_callback_result_t AudioStream::StaticDataCallback(
 
 aaudio_data_callback_result_t AudioStream::HandleDataCallback(
     void* audio_data,
-    int32_t num_frames) {
+    const int32_t num_frames) {
   uint8_t* output_buffer = static_cast<uint8_t*>(audio_data);
   const int bytes_requested = num_frames * frame_bytes_;
   int bytes_provided = 0;
@@ -444,6 +454,9 @@ aaudio_data_callback_result_t AudioStream::HandleDataCallback(
            bytes_requested - first_chunk_size);
   }
 
+  frames_written_ += num_frames;
+  last_written_at_us_ = CurrentMonotonicTime();
+
   read_offset_ = (read_offset_ + bytes_requested) % buffer_bytes_;
   filled_bytes_ -= bytes_requested;
 
@@ -469,6 +482,9 @@ int32_t AudioStream::GetFramesPerBurst() const {
 
 std ::optional<int64_t> AudioStream::GetTimestamp(
     int64_t* frames_consumed_at_us) const {
+  static int count = 0;
+  count++;
+
   int64_t frame_position;
   int64_t time_ns;
   if (!stream_) {
@@ -476,6 +492,9 @@ std ::optional<int64_t> AudioStream::GetTimestamp(
   }
 
   if (AAudioStream_getState(stream_) != AAUDIO_STREAM_STATE_STARTED) {
+    if (count % 100 == 0) {
+      SB_LOG(INFO) << __func__ << ": state=" << GetStateName();
+    }
     return std::nullopt;
   }
 
@@ -488,8 +507,27 @@ std ::optional<int64_t> AudioStream::GetTimestamp(
     return std::nullopt;
   }
 
-  *frames_consumed_at_us = time_ns / 1'000;
-  return AAudioStream_getFramesWritten(stream_);
+  int64_t consumed_at_us = time_ns / 1'000;
+  if (count % 1'000 == 0) {
+    int64_t consumed_start_ms =
+        (consumed_at_us / 1000) - (frame_position * 1000 / sample_rate_);
+    int64_t written_start_ms =
+        (last_written_at_us_ / 1000) - (frames_written_ * 1000 / sample_rate_);
+
+    SB_LOG(INFO) << "playback_consumed: gap(ms)="
+                 << (consumed_start_ms - written_start_ms)
+                 << ", consumed_at(msec)=" << (consumed_at_us / 1000)
+                 << ", frames_consumed=" << frame_position
+                 << ", written_at(msec)=" << (last_written_at_us_ / 1000)
+                 << ", frames_written=" << frames_written_;
+  }
+  SB_CHECK(frame_position <= frames_written_)
+      << ": frames_position=" << frame_position
+      << ", frames_written=" << frames_written_;
+  frames_in_ndk_ = frames_written_ - frame_position;
+
+  *frames_consumed_at_us = consumed_at_us;
+  return frame_position;
 }
 
 std::string AudioStream::GetStateName() const {

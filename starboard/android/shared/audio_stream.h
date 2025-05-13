@@ -37,6 +37,7 @@ class AudioStream {
 
   AudioStream(DlUniquePtr libaaudio_dl_handle,
               int channel_count,
+              int sample_rate,
               SbMediaAudioSampleType sample_type,
               int buffer_frames);
 
@@ -57,17 +58,21 @@ class AudioStream {
                                                    int32_t num_frames);
 
   const DlUniquePtr libaaudio_dl_handle_;
+  const int sample_rate_;
   const int frame_bytes_;
   const int buffer_bytes_;
 
   AAudioStream* stream_ = nullptr;
 
+  int64_t frames_written_ = 0;
+  int64_t last_written_at_us_ = 0;
+  mutable int frames_in_ndk_ = 0;
+
+  starboard::Mutex buffer_mutex_;
   std::vector<uint8_t> buffer_ = std::vector<uint8_t>(buffer_bytes_);
   int write_offset_ = 0;
   int read_offset_ = 0;
   int filled_bytes_ = 0;
-
-  starboard::Mutex buffer_mutex_;
 };
 
 }  // namespace starboard::android::shared
