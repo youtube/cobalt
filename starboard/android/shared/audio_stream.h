@@ -35,11 +35,10 @@ class AudioStream {
  private:
   using DlUniquePtr = std::unique_ptr<void, int (*)(void*)>;
 
-  // Constructor now takes audio format parameters for internal buffer setup.
   AudioStream(DlUniquePtr libaaudio_dl_handle,
               int channel_count,
               SbMediaAudioSampleType sample_type,
-              int buffer_capacity_in_frames);
+              int buffer_frames);
 
   void SetStream(AAudioStream* stream) { stream_ = stream; }
 
@@ -50,31 +49,27 @@ class AudioStream {
 
   // Static data callback function to be passed to AAudio.
   static aaudio_data_callback_result_t StaticDataCallback(AAudioStream* stream,
-                                                          void* userData,
-                                                          void* audioData,
-                                                          int32_t numFrames);
+                                                          void* user_data,
+                                                          void* audio_data,
+                                                          int32_t num_frames);
   // Instance method to handle the data callback.
-  aaudio_data_callback_result_t HandleDataCallback(void* audioData,
-                                                   int32_t numFrames);
+  aaudio_data_callback_result_t HandleDataCallback(void* audio_data,
+                                                   int32_t num_frames);
 
-  DlUniquePtr libaaudio_dl_handle_;
+  const DlUniquePtr libaaudio_dl_handle_;
+  const int frame_bytes_;
+  const int buffer_bytes_;
+
   AAudioStream* stream_ = nullptr;
 
-  // Internal buffer for data callback
-  std::vector<uint8_t> internal_buffer_;
-  size_t buffer_capacity_bytes_ = 0;
-  size_t frame_size_bytes_ = 0;
-  size_t write_offset_bytes_ = 0;
-  size_t read_offset_bytes_ = 0;
-  size_t filled_bytes_ = 0;
+  std::vector<uint8_t> buffer_ = std::vector<uint8_t>(buffer_bytes_);
+  int write_offset_bytes_ = 0;
+  int read_offset_bytes_ = 0;
+  int filled_bytes_ = 0;
 
   starboard::Mutex buffer_mutex_;
   starboard::ConditionVariable buffer_not_full_cv_{buffer_mutex_};
   starboard::ConditionVariable buffer_not_empty_cv_{buffer_mutex_};
-
-  int channel_count_ = 0;
-  SbMediaAudioSampleType sample_type_ = kSbMediaAudioSampleTypeInt16Deprecated;
-  int bytes_per_sample_ = 0;
 };
 
 }  // namespace starboard::android::shared

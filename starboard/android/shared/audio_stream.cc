@@ -199,26 +199,21 @@ constexpr int kStartThresholdFrames = 48 * 100;
 AudioStream::AudioStream(DlUniquePtr libaaudio_dl_handle,
                          int channel_count,
                          SbMediaAudioSampleType sample_type,
-                         int buffer_capacity_in_frames)
+                         int buffer_frames)
     : libaaudio_dl_handle_(std::move(libaaudio_dl_handle)),
-      stream_(nullptr),
-      channel_count_(channel_count),
-      sample_type_(sample_type) {
-  if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-    bytes_per_sample_ = sizeof(float);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    bytes_per_sample_ = sizeof(int16_t);
-  } else {
-    SB_LOG(FATAL) << "Unsupported sample type: " << sample_type_;
-    bytes_per_sample_ = 0;  // Should not reach here
-  }
-
-  SB_DCHECK(channel_count_ > 0);
-  SB_DCHECK(bytes_per_sample_ > 0);
-  frame_size_bytes_ = channel_count_ * bytes_per_sample_;
-  buffer_capacity_bytes_ = buffer_capacity_in_frames * frame_size_bytes_;
-  internal_buffer_.resize(buffer_capacity_bytes_);
-}
+      frame_bytes_([sample_type, channel_count]() -> int {
+        switch (sample_type) {
+          SB_DCHECK(channel_count > 0);
+          case kSbMediaAudioSampleTypeFloat32:
+            return sizeof(float) * channel_count;
+          case kSbMediaAudioSampleTypeInt16Deprecated:
+            return sizeof(int16_t) * channel_count;
+          default:
+            SB_NOTREACHED();
+            return 0;
+        }
+      }()),
+      buffer_bytes_(buffer_frames * frame_bytes_) {}
 
 AudioStream::~AudioStream() {
   if (stream_ == nullptr) {
@@ -311,7 +306,8 @@ void AudioStream::HandleError(AAudioStream* native_stream,
                     << ") that doesn't match this instance's stream ("
                     << stream_ << ").";
     // Still log the error, but be aware it might be for a different stream
-    // if this instance was, for example, already closed and a new one created.
+    // if this instance was, for example, already closed and a new one
+    // created.
   }
   SB_LOG(ERROR) << "Met error: " << AAudio_convertResultToText(error_code);
   // Consider more sophisticated error handling, like signaling an error state
@@ -369,12 +365,6 @@ bool AudioStream::PauseAndFlush() {
 }
 
 int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
-  if (!stream_ || frame_size_bytes_ == 0 || buffer_capacity_bytes_ == 0) {
-    SB_LOG(WARNING) << __func__
-                    << ": Stream not ready or buffer misconfigured.";
-    return 0;
-  }
-
   const uint8_t* input_buffer = static_cast<const uint8_t*>(buffer);
   int32_t frames_written_total = 0;
   int32_t remaining_frames_to_write = frames_to_write;
@@ -383,7 +373,7 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
 
   while (remaining_frames_to_write > 0) {
     ScopedLock lock(buffer_mutex_);
-    size_t available_space_bytes = buffer_capacity_bytes_ - filled_bytes_;
+    int available_space_bytes = buffer_bytes_ - filled_bytes_;
 
     if (available_space_bytes == 0) {
       if (!buffer_not_full_cv_.WaitTimed(kWriteTimeoutUsec)) {
@@ -391,37 +381,36 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
         break;  // Timed out
       }
       // Re-check available space after waking up
-      available_space_bytes = buffer_capacity_bytes_ - filled_bytes_;
+      available_space_bytes = buffer_bytes_ - filled_bytes_;
       if (available_space_bytes == 0) {
-        continue;  // Spurious wakeup or still full, try waiting again or break
-                   // next iteration if timeout
+        continue;  // Spurious wakeup or still full, try waiting again or
+                   // break next iteration if timeout
       }
     }
 
-    size_t frames_to_write_now =
-        std::min(static_cast<size_t>(remaining_frames_to_write),
-                 available_space_bytes / frame_size_bytes_);
+    int frames_to_write_now = std::min(remaining_frames_to_write,
+                                       available_space_bytes / frame_bytes_);
 
     if (frames_to_write_now == 0) {
-      // Should not happen if available_space_bytes > 0 and frame_size_bytes_ >
+      // Should not happen if available_space_bytes > 0 and frame_bytes_ >
       // 0
       break;
     }
 
-    size_t bytes_to_write_now = frames_to_write_now * frame_size_bytes_;
+    int bytes_to_write_now = frames_to_write_now * frame_bytes_;
 
-    // Copy to internal_buffer_ (circularly)
-    size_t first_chunk_size = std::min(
-        bytes_to_write_now, buffer_capacity_bytes_ - write_offset_bytes_);
-    memcpy(internal_buffer_.data() + write_offset_bytes_, input_buffer,
+    // Copy to buffer_ (circularly)
+    int first_chunk_size =
+        std::min(bytes_to_write_now, buffer_bytes_ - write_offset_bytes_);
+    memcpy(buffer_.data() + write_offset_bytes_, input_buffer,
            first_chunk_size);
     if (first_chunk_size < bytes_to_write_now) {
-      memcpy(internal_buffer_.data(), input_buffer + first_chunk_size,
+      memcpy(buffer_.data(), input_buffer + first_chunk_size,
              bytes_to_write_now - first_chunk_size);
     }
 
     write_offset_bytes_ =
-        (write_offset_bytes_ + bytes_to_write_now) % buffer_capacity_bytes_;
+        (write_offset_bytes_ + bytes_to_write_now) % buffer_bytes_;
     filled_bytes_ += bytes_to_write_now;
     frames_written_total += frames_to_write_now;
     input_buffer += bytes_to_write_now;
@@ -435,26 +424,26 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
 
 aaudio_data_callback_result_t AudioStream::StaticDataCallback(
     AAudioStream* stream,
-    void* userData,
-    void* audioData,
-    int32_t numFrames) {
-  SB_DCHECK(userData);
-  return static_cast<AudioStream*>(userData)->HandleDataCallback(audioData,
-                                                                 numFrames);
+    void* user_data,
+    void* audio_data,
+    int32_t num_frames) {
+  SB_DCHECK(user_data);
+  return static_cast<AudioStream*>(user_data)->HandleDataCallback(audio_data,
+                                                                  num_frames);
 }
 
 aaudio_data_callback_result_t AudioStream::HandleDataCallback(
-    void* audioData,
-    int32_t numFrames) {
-  if (frame_size_bytes_ == 0 || buffer_capacity_bytes_ == 0) {
+    void* audio_data,
+    int32_t num_frames) {
+  if (frame_bytes_ == 0 || buffer_bytes_ == 0) {
     // Fill with silence if not configured properly
-    memset(audioData, 0, numFrames * frame_size_bytes_);
+    memset(audio_data, 0, num_frames * frame_bytes_);
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
   }
 
-  uint8_t* output_buffer = static_cast<uint8_t*>(audioData);
-  size_t bytes_requested = numFrames * frame_size_bytes_;
-  size_t bytes_provided = 0;
+  uint8_t* output_buffer = static_cast<uint8_t*>(audio_data);
+  int bytes_requested = num_frames * frame_bytes_;
+  int bytes_provided = 0;
 
   ScopedLock lock(buffer_mutex_);
 
@@ -465,16 +454,15 @@ aaudio_data_callback_result_t AudioStream::HandleDataCallback(
     // Copy available data
     if (filled_bytes_ > 0) {
       size_t first_chunk_size =
-          std::min(filled_bytes_, buffer_capacity_bytes_ - read_offset_bytes_);
-      memcpy(output_buffer, internal_buffer_.data() + read_offset_bytes_,
+          std::min(filled_bytes_, buffer_bytes_ - read_offset_bytes_);
+      memcpy(output_buffer, buffer_.data() + read_offset_bytes_,
              first_chunk_size);
       if (first_chunk_size < filled_bytes_) {
-        memcpy(output_buffer + first_chunk_size, internal_buffer_.data(),
+        memcpy(output_buffer + first_chunk_size, buffer_.data(),
                filled_bytes_ - first_chunk_size);
       }
       bytes_provided = filled_bytes_;
-      read_offset_bytes_ =
-          (read_offset_bytes_ + filled_bytes_) % buffer_capacity_bytes_;
+      read_offset_bytes_ = (read_offset_bytes_ + filled_bytes_) % buffer_bytes_;
       filled_bytes_ = 0;  // All available data consumed
     }
     // Fill remaining with silence
@@ -488,17 +476,15 @@ aaudio_data_callback_result_t AudioStream::HandleDataCallback(
   }
 
   // Sufficient data available
-  size_t first_chunk_size =
-      std::min(bytes_requested, buffer_capacity_bytes_ - read_offset_bytes_);
-  memcpy(output_buffer, internal_buffer_.data() + read_offset_bytes_,
-         first_chunk_size);
+  int first_chunk_size =
+      std::min(bytes_requested, buffer_bytes_ - read_offset_bytes_);
+  memcpy(output_buffer, buffer_.data() + read_offset_bytes_, first_chunk_size);
   if (first_chunk_size < bytes_requested) {
-    memcpy(output_buffer + first_chunk_size, internal_buffer_.data(),
+    memcpy(output_buffer + first_chunk_size, buffer_.data(),
            bytes_requested - first_chunk_size);
   }
 
-  read_offset_bytes_ =
-      (read_offset_bytes_ + bytes_requested) % buffer_capacity_bytes_;
+  read_offset_bytes_ = (read_offset_bytes_ + bytes_requested) % buffer_bytes_;
   filled_bytes_ -= bytes_requested;
 
   buffer_not_full_cv_.Signal();  // Signal that buffer has more space
