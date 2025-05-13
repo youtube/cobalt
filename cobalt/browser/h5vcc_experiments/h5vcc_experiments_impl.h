@@ -47,8 +47,9 @@ class H5vccExperimentsImpl
   void SetExperimentState(base::Value::Dict,
                           SetExperimentStateCallback) override;
   void ResetExperimentState(ResetExperimentStateCallback) override;
-  void GetActiveExperimentIds(GetActiveExperimentIdsCallback) override;
-  void GetFeature(const std::string& feature_name, GetFeatureCallback) override;
+  // void GetActiveExperimentIds(GetActiveExperimentIdsCallback) override;
+  // void GetFeature(const std::string& feature_name, GetFeatureCallback)
+  // override;
   void GetFeatureParam(const std::string& feature_param_name,
                        GetFeatureParamCallback) override;
 
