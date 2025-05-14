@@ -326,6 +326,10 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
   map_["pthread_getname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_getname_np);
+  map_["pthread_getattr_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getattr_np);
+  map_["pthread_getschedparam"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getschedparam);
   map_["pthread_getspecific"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
   map_["pthread_join"] =
@@ -378,6 +382,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
+  map_["pthread_setschedparam"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setschedparam);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
