@@ -18,6 +18,7 @@
 
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/posix/file_descriptor_shuffle.h"
 #include "base/time/time.h"
 #include "base/version.h"
 #include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
@@ -46,6 +47,34 @@ void CobaltMetricsServiceClient::Initialize() {
                                                   this, local_state_.get());
   log_uploader_ = CreateLogUploaderInternal();
   log_uploader_weak_ptr_ = log_uploader_->GetWeakPtr();
+  StartIdleRefreshTimer();
+}
+
+void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
+  if (idle_refresh_timer_.IsRunning()) {
+    idle_refresh_timer_.Stop();
+  }
+
+  // At a rate of half the upload interval, we force UMA to consider the app
+  // as non-idle. This guarantees metrics are uploaded regularly. This is done
+  // for two reasons:
+  //
+  //   1) The nature of the YouTube application is such that the user can be
+  //      "idle" for long periods (e.g., watching a movie). We still want to
+  //      send metrics in these cases.
+  //
+  //   2) The typical way Chromium handles non-idle is page loads and user
+  //      actions. User actions are currently sparse and/or not working due to
+  //      the nature of Kabuki's implementation (see b/417477183).
+  auto timer_interval = GetStandardUploadInterval() / 2;
+  timer_interval = timer_interval > kMinIdleRefreshInterval
+                       ? timer_interval
+                       : kMinIdleRefreshInterval;
+  idle_refresh_timer_.Start(
+      FROM_HERE, timer_interval, this,
+      &CobaltMetricsServiceClient::OnApplicationNotIdleInternal);
+  DLOG(INFO) << "Starting refresh timer for: "
+             << idle_refresh_timer_.GetCurrentDelay().InSeconds() << " seconds";
 }
 
 std::unique_ptr<metrics::MetricsService>
@@ -207,6 +236,8 @@ base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
 
 void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
   upload_interval_ = interval;
+  // If upload interval changes, update idle refresh timer accordingly.
+  StartIdleRefreshTimer();
 }
 
 void CobaltMetricsServiceClient::SetMetricsListener(
