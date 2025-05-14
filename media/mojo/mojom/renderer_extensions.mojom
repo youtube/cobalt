@@ -162,6 +162,10 @@ interface StarboardRendererExtension {
 
   // Pass CommandBufferId to StarboardRendererWrapper.
   OnGpuChannelTokenReady(CommandBufferId? command_buffer_id);
+
+  // Acquire frame from SbPlayer.
+  [Sync]
+  GetCurrentVideoFrame() => (VideoFrame? video_frame);
 };
 
 // This interface is used by the browser to determine if there are any renderers

@@ -77,6 +77,7 @@ class StarboardRendererWrapper : public Renderer,
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
+  void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
 
   StarboardRenderer* GetRenderer();
   base::SequenceBound<StarboardGpuFactory>* GetGpuFactory();
