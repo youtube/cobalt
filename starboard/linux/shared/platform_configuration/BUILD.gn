@@ -13,17 +13,14 @@
 # limitations under the License.
 
 import("//build/config/sysroot.gni")
-_sysroot = "$target_sysroot_dir/debian_bullseye_amd64-sysroot"
 
 config("compiler_flags") {
   cflags = []
   cflags_c = []
   cflags_cc = []
   defines = []
-  ldflags = [
-    "-Wl,--error-limit=0",
-    "--sysroot=$_sysroot",
-  ]
+  asmflags = []
+  ldflags = [ "-Wl,--error-limit=0" ]
 
   if (is_debug) {
     cflags += [ "-O0" ]
@@ -124,6 +121,16 @@ config("compiler_flags") {
     ldflags += [ "-fsanitize=thread" ]
     defines += [ "THREAD_SANITIZER" ]
   }
+
+  sysroot_flags = []
+  if (is_cobalt_hermetic_build) {
+    linux_sysroot = "$target_sysroot_dir/debian_bullseye_amd64-sysroot"
+    sysroot_flags += [ "--sysroot=" + rebase_path(sysroot, root_build_dir) ]
+  }
+  asmflags += sysroot_flags
+  ldflags += sysroot_flags
+  cflags_c += sysroot_flags
+  cflags_cc += sysroot_flags
 }
 
 config("platform_configuration") {
