@@ -125,7 +125,8 @@ config("compiler_flags") {
   sysroot_flags = []
   if (is_cobalt_hermetic_build) {
     linux_sysroot = "$target_sysroot_dir/debian_bullseye_amd64-sysroot"
-    sysroot_flags += [ "--sysroot=" + rebase_path(sysroot, root_build_dir) ]
+    sysroot_flags +=
+        [ "--sysroot=" + rebase_path(linux_sysroot, root_build_dir) ]
   }
   asmflags += sysroot_flags
   ldflags += sysroot_flags
