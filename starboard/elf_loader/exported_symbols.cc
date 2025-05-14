@@ -278,10 +278,22 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
   map_["pthread_attr_getdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getschedpolicy);
+  map_["pthread_attr_getscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getscope);
+  map_["pthread_attr_getstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstack);
   map_["pthread_attr_getstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
   map_["pthread_attr_setdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setschedpolicy);
+  map_["pthread_attr_setscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setscope);
+  map_["pthread_attr_setstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstack);
   map_["pthread_attr_setstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
   map_["pthread_cond_broadcast"] =

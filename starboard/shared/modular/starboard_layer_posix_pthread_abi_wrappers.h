@@ -36,6 +36,13 @@ extern "C" {
 #define MUSL_PTHREAD_PROCESS_PRIVATE 0
 #define MUSL_PTHREAD_PROCESS_SHARED 1
 
+#define MUSL_PTHREAD_SCOPE_SYSTEM 0
+#define MUSL_PTHREAD_SCOPE_PROCESS 1
+
+#define MUSL_SCHED_OTHER 0
+#define MUSL_SCHED_FIFO 1
+#define MUSL_SCHED_RR 2
+
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80
 
@@ -132,11 +139,29 @@ SB_EXPORT int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
 SB_EXPORT int __abi_wrap_pthread_attr_init(musl_pthread_attr_t* attr);
 SB_EXPORT int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr);
 
+SB_EXPORT int __abi_wrap_pthread_attr_getscope(
+    const musl_pthread_attr_t* __restrict,
+    int* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setscope(musl_pthread_attr_t*, int);
+
+SB_EXPORT int __abi_wrap_pthread_attr_getschedpolicy(
+    const musl_pthread_attr_t* __restrict,
+    int* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setschedpolicy(musl_pthread_attr_t*, int);
+
 SB_EXPORT int __abi_wrap_pthread_attr_getstacksize(
     const musl_pthread_attr_t* attr,
     size_t* stack_size);
 SB_EXPORT int __abi_wrap_pthread_attr_setstacksize(musl_pthread_attr_t* attr,
                                                    size_t stack_size);
+
+SB_EXPORT int __abi_wrap_pthread_attr_getstack(
+    const musl_pthread_attr_t* __restrict,
+    void** __restrict,
+    size_t* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setstack(musl_pthread_attr_t*,
+                                               void*,
+                                               size_t);
 
 SB_EXPORT int __abi_wrap_pthread_attr_getdetachstate(
     const musl_pthread_attr_t* attr,
