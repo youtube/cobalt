@@ -33,7 +33,8 @@ namespace {
 const int kMaxTimeZoneSize = 32;
 
 // Since ICU APIs take timezones by Unicode name strings, this is a cache of
-// commonly used timezones that can be passed into ICU functions that take them.
+// commonly used timezones that can be passed into ICU functions that take
+// them.
 UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
 
 // Once control for initializing eztime static data.
@@ -65,11 +66,9 @@ void InitializeTimeZone(EzTimeZone ez_timezone) {
                 &status);
 }
 
-// Initializes ICU and TimeZones so the rest of the functions will work. Should
-// only be called once.
+// Initializes ICU and TimeZones so the rest of the functions will work.
+// Should only be called once.
 void Initialize() {
-  IcuInit();
-
   // Initialize |g_timezones| table.
   for (int timezone = 0; timezone < kEzTimeZoneCount; ++timezone) {
     InitializeTimeZone(static_cast<EzTimeZone>(timezone));
