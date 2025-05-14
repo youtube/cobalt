@@ -5,20 +5,21 @@
 #include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
 #include "content/public/browser/navigation_handle.h"
 
-namespace content{
+namespace content {
 
-CobaltHttpsOnlyNavigationThrottle::CobaltHttpsOnlyNavigationThrottle(content::NavigationHandle* handle) :
-  content::NavigationThrottle(handle) {}
+CobaltHttpsOnlyNavigationThrottle::CobaltHttpsOnlyNavigationThrottle(
+    content::NavigationHandle* handle)
+    : content::NavigationThrottle(handle) {}
 
-CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() = default;
+CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() =
+    default;
 
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
-
 #if BUILDFLAG(IS_ANDROIDTV)
   const GURL& url = navigation_handle()->GetURL();
-  if(!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))){
+  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
     LOG(INFO) << "Throttle result nav throttle cancel";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
@@ -32,7 +33,7 @@ CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  if(!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))){
+  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
     LOG(INFO) << "Throttle result nav throttle cancel";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
@@ -45,7 +46,7 @@ CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillFailRequest() {
 #if BUILDFLAG(IS_ANDROIDTV)
-  if(!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))){
+  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
     LOG(INFO) << "Throttle result nav throttle cancel";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
@@ -54,7 +55,7 @@ CobaltHttpsOnlyNavigationThrottle::WillFailRequest() {
   return content::NavigationThrottle::PROCEED;
 }
 
-const char* CobaltHttpsOnlyNavigationThrottle::GetNameForLogging(){
+const char* CobaltHttpsOnlyNavigationThrottle::GetNameForLogging() {
   return "CobaltHttpsOnlyNavigationThrottle";
 }
 
