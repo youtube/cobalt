@@ -44,9 +44,9 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
       // to enable it.
       switches::kIgnoreGpuBlocklist,
-  // This flag is added specifically for m114 and should be removed after
-  // rebasing to m120+
 #if BUILDFLAG(IS_ANDROID)
+      // This flag is added specifically for m114 and should be removed after
+      // rebasing to m120+
       switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
       sandbox::policy::switches::kNoSandbox
@@ -57,6 +57,8 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
     // Disable Vulkan.
     {switches::kDisableFeatures, "Vulkan"},
+        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
+        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
     // Force some ozone settings.
 #if !BUILDFLAG(IS_ANDROID)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
