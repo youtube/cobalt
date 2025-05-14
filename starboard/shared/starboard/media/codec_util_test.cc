@@ -160,9 +160,9 @@ TEST(VideoConfigTest, H264MultiSpsPps) {
                                   nalus_in_annex_b.size());
   EXPECT_TRUE(config_single_sps_pps != config_dual_sps_pps);
   EXPECT_FALSE(config_single_sps_pps == config_dual_sps_pps);
-  EXPECT_TRUE(config_dual_sps_pps.avc_parameter_sets() ==
-              AvcParameterSets(kAnnexB, nalus_in_annex_b.data(),
-                               nalus_in_annex_b.size()));
+  EXPECT_EQ(config_dual_sps_pps.avc_parameter_sets(),
+            *AvcParameterSets::Create(kAnnexB, nalus_in_annex_b.data(),
+                                      nalus_in_annex_b.size()));
 
   // Same resolution, different parameter sets.
   nalus_in_annex_b =

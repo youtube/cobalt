@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/common/log.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
@@ -49,11 +50,12 @@ class AvcParameterSets {
   static const uint8_t kSpsStartCode = 0x67;
   static const uint8_t kPpsStartCode = 0x68;
 
-  // Only |format == kAnnexB| is supported, which is checked in the ctor.
-  AvcParameterSets(Format format, const uint8_t* data, size_t size);
-
+  // Creates an AvcParameterSets instance if the provided data is valid for the
+  // given format. Otherwise, returns nullopt.
+  static optional<AvcParameterSets> Create(Format format,
+                                           const uint8_t* data,
+                                           size_t size);
   Format format() const { return format_; }
-  bool is_valid() const { return is_valid_; }
   bool has_sps_and_pps() const {
     return first_sps_index_ != -1 && first_pps_index_ != -1;
   }
@@ -92,6 +94,9 @@ class AvcParameterSets {
   bool operator!=(const AvcParameterSets& that) const;
 
  private:
+  // Only |format == kAnnexB| is supported, which is checked in the ctor.
+  AvcParameterSets(Format format, const uint8_t* data, size_t size);
+
   Format format_ = kAnnexB;
   bool is_valid_ = false;
   int first_sps_index_ = -1;
