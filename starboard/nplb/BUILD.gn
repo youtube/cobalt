@@ -121,6 +121,7 @@ test("nplb") {
     "posix_compliance/posix_file_can_open_test.cc",
     "posix_compliance/posix_file_close_test.cc",
     "posix_compliance/posix_file_delete_test.cc",
+    "posix_compliance/posix_file_descriptor_duplicate_test.cc",
     "posix_compliance/posix_file_fsync_test.cc",
     "posix_compliance/posix_file_ftruncate_test.cc",
     "posix_compliance/posix_file_get_info_test.cc",
