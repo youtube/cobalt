@@ -53,12 +53,14 @@ template("modular_executable") {
         "-Wl,-rpath=" + rebase_path("$root_build_dir"),
       ]
 
-      write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
-
       deps = [
         ":${original_target_name}($default_toolchain)",
         "//starboard:starboard_group",
       ]
+
+      # TODO: b/417685824 - Not complete, as it doesn't include the copied
+      # _loader target. Could create a phony shlib intermediary.
+      write_runtime_deps = "$root_build_dir/${target_name}.runtime_deps"
     }
   }
 }
