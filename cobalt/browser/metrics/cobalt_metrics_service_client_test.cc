@@ -155,6 +155,10 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
     return on_application_not_idle_internal_called_;
   }
 
+  void ResetOnApplicationNotIdleInternalCalled() {
+    on_application_not_idle_internal_called_ = false;
+  }
+
   // Expose Initialize for finer-grained control in tests if necessary,
   // though the base class's static Create method normally handles this.
   void CallInitialize() { Initialize(); }
@@ -164,6 +168,11 @@ class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
   }
   StrictMock<MockCobaltMetricsLogUploader>* mock_log_uploader() const {
     return mock_log_uploader_;
+  }
+
+  // Expose the timer for inspection in tests.
+  const base::RepeatingTimer& idle_refresh_timer() const {
+    return idle_refresh_timer_;
   }
 
  private:
@@ -217,6 +226,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   }
 
   base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME,
       base::test::TaskEnvironment::MainThreadType::UI};
   TestingPrefServiceSimple prefs_;
   base::ScopedTempDir temp_dir_;
@@ -374,6 +384,108 @@ TEST_F(CobaltMetricsServiceClientTest,
   EXPECT_CALL(*(client_->mock_log_uploader()), SetMetricsListener(_));
 
   client_->SetMetricsListener(std::move(listener_remote));
+}
+
+TEST_F(CobaltMetricsServiceClientTest, IdleTimerStartsOnInitialization) {
+  // Initialization is done in SetUp().
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+
+  base::TimeDelta expected_delay = kStandardUploadIntervalMinutes / 2;
+  if (expected_delay < kMinIdleRefreshInterval) {
+    expected_delay = kMinIdleRefreshInterval;
+  }
+  EXPECT_EQ(expected_delay, client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerRestartsOnSetUploadIntervalWithCorrectDelay) {
+  const base::TimeDelta new_upload_interval = base::Minutes(50);
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  base::TimeDelta expected_delay = new_upload_interval / 2;  // 25 minutes
+  ASSERT_GT(expected_delay, kMinIdleRefreshInterval);
+  EXPECT_EQ(expected_delay, client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerDelayIsLimitedByMinIdleRefreshInterval) {
+  // New interval is 40 seconds. Half of it is 20 seconds.
+  const base::TimeDelta new_upload_interval = base::Seconds(40);
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  // Expected delay should be kMinIdleRefreshInterval (30s) because 20s < 30s.
+  EXPECT_EQ(kMinIdleRefreshInterval,
+            client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerCallbackInvokesOnApplicationNotIdleInternal) {
+  client_->ResetOnApplicationNotIdleInternalCalled();  // Ensure clean state.
+
+  // Use a known interval that results in a delay > kMinIdleRefreshInterval.
+  const base::TimeDelta test_upload_interval = base::Minutes(2);  // 120s
+  client_->SetUploadInterval(test_upload_interval);
+  base::TimeDelta current_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(base::Minutes(1), current_delay);  // Half of 2 minutes.
+
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, IdleTimerIsRepeatingAndKeepsFiring) {
+  client_->ResetOnApplicationNotIdleInternalCalled();
+
+  const base::TimeDelta test_upload_interval =
+      base::Seconds(80);  // Results in 40s delay.
+  client_->SetUploadInterval(test_upload_interval);
+  base::TimeDelta current_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(base::Seconds(40), current_delay);  // 80s / 2 = 40s > 30s.
+
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // First fire.
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  client_->ResetOnApplicationNotIdleInternalCalled();  // Reset for next fire.
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // Second fire.
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       StartIdleRefreshTimerStopsAndRestartsExistingTimer) {
+  // Initial timer started with default interval (15 min delay) in SetUp.
+  base::TimeDelta initial_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(kStandardUploadIntervalMinutes / 2, initial_delay);
+
+  // Change interval to something different.
+  const base::TimeDelta new_upload_interval =
+      base::Minutes(10);  // New delay = 5 mins.
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  base::TimeDelta new_delay = new_upload_interval / 2;
+  ASSERT_GT(new_delay, kMinIdleRefreshInterval);
+  EXPECT_EQ(new_delay, client_->idle_refresh_timer().GetCurrentDelay());
+
+  client_->ResetOnApplicationNotIdleInternalCalled();
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // Fast forward by less than the initial_delay but more than or equal to
+  // new_delay. If the timer wasn't restarted, it wouldn't fire. If it was
+  // restarted, it should fire based on new_delay.
+  task_environment_.FastForwardBy(new_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
 }  // namespace cobalt
