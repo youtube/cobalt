@@ -94,6 +94,8 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'connect',
     'clock_gettime',
     'close',
+    'dup',
+    'dup2',
     'fcntl',
     'free',
     'freeifaddrs',
