@@ -140,6 +140,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
+    "//cobalt/common/eztime:eztime_test",
     "//cobalt/user_agent",
     "//components/metrics",
     "//components/prefs",

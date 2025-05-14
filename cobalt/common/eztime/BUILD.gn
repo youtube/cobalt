@@ -18,12 +18,7 @@ static_library("eztime") {
     "eztime.h",
   ]
 
-  deps = [
-    "//starboard:starboard_headers_only",
-    "//starboard/client_porting/icu_init",
-    "//starboard/common",
-    "//third_party/icu",
-  ]
+  deps = [ "//third_party/icu" ]
 }
 
 source_set("eztime_test") {
@@ -36,8 +31,6 @@ source_set("eztime_test") {
 
   deps = [
     ":eztime",
-    "//starboard:starboard_group",
-    "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
   ]
