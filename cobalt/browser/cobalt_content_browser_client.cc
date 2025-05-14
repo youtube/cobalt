@@ -29,6 +29,7 @@
 #include "cobalt/browser/cobalt_experiment_names.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
@@ -127,6 +128,13 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
+}
+
+std::vector<std::unique_ptr<content::NavigationThrottle>>
+CobaltContentBrowserClient::CreateThrottlesForNavigation(content::NavigationHandle* handle) {
+  std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
+  throttles.push_back(std::make_unique<content::CobaltHttpsOnlyNavigationThrottle>(handle));
+  return throttles;
 }
 
 content::GeneratedCodeCacheSettings

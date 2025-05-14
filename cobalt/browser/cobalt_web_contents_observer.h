@@ -27,6 +27,7 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   CobaltWebContentsObserver(content::WebContents* web_contents);
 
   void PrimaryMainDocumentElementAvailable() override;
+  void DidStartNavigation(content::NavigationHandle* navigation_handle) override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
 
