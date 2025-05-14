@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/linux/strip_binary.gni")
+import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 
 group("gn_all") {
@@ -40,7 +41,7 @@ group("gn_all") {
 
 if (!is_android) {
   if (is_cobalt_hermetic_build) {
-    cobalt_target_type = "shared_library"
+    cobalt_target_type = "modular_executable"
   } else {
     cobalt_target_type = "executable"
   }
