@@ -83,19 +83,21 @@ bool ExtractAnnexBNalu(const uint8_t** annex_b_data,
 
 }  // namespace
 
+optional<AvcParameterSets> AvcParameterSets::Create(Format format,
+                                                    const uint8_t* data,
+                                                    size_t size) {
+  SB_DCHECK(format == kAnnexB);
+  if (size != 0 && !StartsWithAnnexBHeader(data, size)) {
+    return nullopt;
+  }
+
+  return AvcParameterSets(format, data, size);
+}
+
 AvcParameterSets::AvcParameterSets(Format format,
                                    const uint8_t* data,
                                    size_t size)
     : format_(format) {
-  SB_DCHECK(format == kAnnexB);
-
-  is_valid_ =
-      format == kAnnexB && (size == 0 || StartsWithAnnexBHeader(data, size));
-
-  if (!is_valid_) {
-    return;
-  }
-
   if (size == 0) {
     return;
   }
@@ -153,9 +155,6 @@ AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
 
   AvcParameterSets new_parameter_sets(*this);
   new_parameter_sets.format_ = new_format;
-  if (!new_parameter_sets.is_valid()) {
-    return new_parameter_sets;
-  }
   for (auto& parameter_set : new_parameter_sets.parameter_sets_) {
     SB_DCHECK(parameter_set.size() >= kAnnexBHeaderSizeInBytes);
     parameter_set.erase(parameter_set.begin(),
@@ -167,13 +166,6 @@ AvcParameterSets AvcParameterSets::ConvertTo(Format new_format) const {
 }
 
 bool AvcParameterSets::operator==(const AvcParameterSets& that) const {
-  if (is_valid() != that.is_valid()) {
-    return false;
-  }
-  if (!is_valid()) {
-    return true;
-  }
-
   SB_DCHECK(format() == that.format());
 
   if (parameter_sets_ == that.parameter_sets_) {
