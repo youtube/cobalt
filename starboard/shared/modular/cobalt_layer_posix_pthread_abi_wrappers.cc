@@ -208,11 +208,56 @@ int pthread_attr_init(pthread_attr_t* attr) {
   return __abi_wrap_pthread_attr_init(attr);
 }
 
+int __abi_wrap_pthread_attr_getscope(const pthread_attr_t* __restrict attr,
+                                     int* __restrict scope);
+int pthread_attr_getscope(const pthread_attr_t* __restrict attr,
+                          int* __restrict scope) {
+  return __abi_wrap_pthread_attr_getscope(attr, scope);
+}
+
+int __abi_wrap_pthread_attr_setscope(pthread_attr_t* attr, int scope);
+int pthread_attr_setscope(pthread_attr_t* attr, int scope) {
+  return __abi_wrap_pthread_attr_setscope(attr, scope);
+}
+
+int __abi_wrap_pthread_attr_getschedpolicy(
+    const pthread_attr_t* __restrict attr,
+    int* __restrict policy);
+int pthread_attr_getschedpolicy(const pthread_attr_t* __restrict attr,
+                                int* __restrict policy) {
+  return __abi_wrap_pthread_attr_getschedpolicy(attr, policy);
+}
+
+int __abi_wrap_pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy);
+int pthread_attr_setschedpolicy(pthread_attr_t* attr, int policy) {
+  return __abi_wrap_pthread_attr_setschedpolicy(attr, policy);
+}
+
 int __abi_wrap_pthread_attr_getstacksize(const pthread_attr_t* attr,
                                          size_t* stack_size);
 
 int pthread_attr_getstacksize(const pthread_attr_t* attr, size_t* stack_size) {
   return __abi_wrap_pthread_attr_getstacksize(attr, stack_size);
+}
+
+int __abi_wrap_pthread_attr_getstack(const pthread_attr_t* __restrict attr,
+                                     void** __restrict stackaddr,
+                                     size_t* __restrict stacksize);
+
+int pthread_attr_getstack(const pthread_attr_t* __restrict attr,
+                          void** __restrict stackaddr,
+                          size_t* __restrict stacksize) {
+  return __abi_wrap_pthread_attr_getstack(attr, stackaddr, stacksize);
+}
+
+int __abi_wrap_pthread_attr_setstack(pthread_attr_t* attr,
+                                     void* stackaddr,
+                                     size_t stacksize);
+
+int pthread_attr_setstack(pthread_attr_t* attr,
+                          void* stackaddr,
+                          size_t stacksize) {
+  return __abi_wrap_pthread_attr_setstack(attr, stackaddr, stacksize);
 }
 
 int __abi_wrap_pthread_attr_setstacksize(pthread_attr_t* attr,
