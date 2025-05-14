@@ -21,7 +21,9 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/pipeline_status.h"
+#include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/video_renderer_sink.h"
 #include "media/mojo/clients/mojo_renderer_wrapper.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/starboard/bind_host_receiver_callback.h"
@@ -36,7 +38,7 @@ class RendererClient;
 class MediaLog;
 class MediaResource;
 class MojoRenderer;
-class VideoRendererSink;
+class VideoFrame;
 class VideoOverlayFactory;
 
 // StarboardRendererClient lives in Chrome_InProcRendererThread
@@ -44,7 +46,9 @@ class VideoOverlayFactory;
 // Chrome_InProcGpuThread, using `mojo_renderer_` and `renderer_extension_`.
 class MEDIA_EXPORT StarboardRendererClient
     : public MojoRendererWrapper,
+      public RendererClient,
       public mojom::StarboardRendererClientExtension,
+      public VideoRendererSink::RenderCallback,
       public cobalt::media::mojom::VideoGeometryChangeClient {
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
@@ -70,7 +74,30 @@ class MEDIA_EXPORT StarboardRendererClient
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) override;
+  void StartPlayingFrom(base::TimeDelta time) override;
   RendererType GetRendererType() override;
+
+  // RendererClient implementation.
+  void OnError(PipelineStatus status) override;
+  void OnFallback(PipelineStatus fallback) override;
+  void OnEnded() override;
+  void OnStatisticsUpdate(const PipelineStatistics& stats) override;
+  void OnBufferingStateChange(BufferingState state,
+                              BufferingStateChangeReason) override;
+  void OnWaiting(WaitingReason reason) override;
+  void OnAudioConfigChange(const AudioDecoderConfig& config) override;
+  void OnVideoConfigChange(const VideoDecoderConfig& config) override;
+  void OnVideoNaturalSizeChange(const gfx::Size& size) override;
+  void OnVideoOpacityChange(bool opaque) override;
+  void OnVideoFrameRateChange(absl::optional<int> fps) override;
+
+  // VideoRendererSink::RenderCallback implementation.
+  scoped_refptr<VideoFrame> Render(
+      base::TimeTicks deadline_min,
+      base::TimeTicks deadline_max,
+      VideoRendererSink::RenderCallback::RenderingMode rendering_mode) override;
+  void OnFrameDropped() override;
+  base::TimeDelta GetPreferredRenderInterval() override;
 
   // mojom::StarboardRendererClientExtension implementation
   void PaintVideoHoleFrame(const gfx::Size& size) override;
@@ -97,6 +124,11 @@ class MEDIA_EXPORT StarboardRendererClient
     return client_extension_receiver_.is_bound() &&
            renderer_extension_.is_bound();
   }
+  void SignalMediaPlayingStateChange(bool is_playing);
+  void UpdateCurrentFrame();
+  void OnRenderDone(const scoped_refptr<VideoFrame>& frame);
+  void StartVideoRendererSink();
+  void StopVideoRendererSink();
 
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<MediaLog> media_log_;
@@ -115,6 +147,10 @@ class MEDIA_EXPORT StarboardRendererClient
   // Rendering mode the Starboard Renderer will use.
   // Default is punch-out mode.
   StarboardRenderingMode rendering_mode_ = StarboardRenderingMode::kPunchOut;
+
+  bool is_playing_ = false;
+  bool video_renderer_sink_started_ = false;
+  scoped_refptr<VideoFrame> next_video_frame_;
 
   mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
       video_geometry_change_subcriber_remote_;
