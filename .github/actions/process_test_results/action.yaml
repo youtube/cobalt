@@ -7,7 +7,7 @@ inputs:
   datadog_api_key:
     description: "Path to directory where test results are saved."
     default: ''
-  results_path:
+  results_glob:
     description: "Path (or glob) to test result xml files."
     required: true
 runs:
@@ -17,7 +17,7 @@ runs:
       id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: ${{ inputs.results_path }}
+        paths: ${{ inputs.results_glob }}
         output: test-report-summary.md
         show: "fail, skip"
 
@@ -33,7 +33,7 @@ runs:
         # nullglob to return empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        result_xmls=(${{ inputs.results_path }})
+        result_xmls=(${{ inputs.results_glob }})
         if [ ${#result_xmls[@]} -eq 0 ]; then
           echo "::error::No test results found. Did the test crash?"
           exit 1
@@ -48,6 +48,7 @@ runs:
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
       if: always() && inputs.datadog_api_key != ''
+      continue-on-error: true
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
@@ -61,6 +62,7 @@ runs:
 
     - name: Upload to Datadog
       if: always() && steps.download-dd-cli.outcome == 'success'
+      continue-on-error: true
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}

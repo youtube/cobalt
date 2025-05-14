@@ -51,10 +51,9 @@ jobs:
           path: |
             .github
             cobalt/build
-            cobalt/testing/filters
-            cobalt/tools/on_device*
-            cobalt/tools/requirements*
             cobalt/docker
+            cobalt/testing/filters
+            cobalt/tools
             docker-compose.yml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
@@ -484,13 +483,13 @@ jobs:
         uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
-          results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
         uses: ./.github/actions/print_logs
         with:
-          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           # TODO: Enable symbolization when it works.
           # symbolize: true
           symbolize: 'false'
@@ -498,7 +497,8 @@ jobs:
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./.github/actions/print_logs
         with:
-          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           test_status: ${{ steps.process-results.outcome }}
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
@@ -510,16 +510,28 @@ jobs:
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Fail
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+      - name: Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
+      - name: Failed Tests
         if: needs.test-results.result == 'failure'
         run: |
-            # TODO: Print a summary of failed tests here.
-            echo "Test jobs failed. See individual failing jobs for details."
-            exit 1
+          # Print test result summary.
+          shopt -s globstar nullglob
+          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          exit 1
         shell: bash
