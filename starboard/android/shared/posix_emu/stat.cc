@@ -32,16 +32,6 @@ using starboard::android::shared::OpenAndroidAssetDir;
 extern "C" {
 int __real_stat(const char* path, struct stat* info);
 
-// Reverse implementation of TimeTToWindowsUsec and PosixTimeToWindowsTime for
-// backwards compatibility TimeTToWindowsUsec converts to microseconds
-// (*1000000) and then calls PosixTimeToWindowsTime PosixTimeToWindows time adds
-// number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC)
-static SB_C_FORCE_INLINE time_t WindowsUsecToTimeTAndroid(int64_t time) {
-  int64_t posix_time = time - 11644473600000000ULL;
-  posix_time = posix_time / 1000000;
-  return posix_time;
-}
-
 // This needs to be exported to ensure shared_library targets include it.
 int __wrap_stat(const char* path, struct stat* info) {
   // SbFileExists(path) implementation for Android
