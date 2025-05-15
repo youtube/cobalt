@@ -62,9 +62,9 @@ class MEDIA_EXPORT MediaClient {
   GetAudioRendererAlgorithmParameters(AudioParameters audio_parameters) = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  static uint64_t GetMediaSourceSizeLimit();
-  static uint64_t GetTotalMediaSourceSize();
-  static uint64_t GetUsedMediaSourceMemorySize();
+  static uint64_t GetMediaSourceMaximumMemoryCapacity();
+  static uint64_t GetMediaSourceCurrentMemoryCapacity();
+  static uint64_t GetMediaSourceTotalAllocatedMemory();
 
   uint64_t GetMaximumMemoryCapacity() const;
   uint64_t GetCurrentMemoryCapacity() const;
