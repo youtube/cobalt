@@ -307,9 +307,9 @@ class CONTENT_EXPORT RenderThreadImpl
   PepperVideoDecodeContextProvider();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  uint64_t GetMediaSourceSizeLimit() const;
-  uint64_t GetTotalMediaSourceSize() const;
-  uint64_t GetUsedMediaSourceMemorySize() const;
+  uint64_t GetMediaSourceMaximumMemoryCapacity() const;
+  uint64_t GetMediaSourceCurrentMemoryCapacity() const;
+  uint64_t GetMediaSourceTotalAllocatedMemory() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 >>>>>>> 55859f56c58 (Implement mediasource MemoryInfo extension (#4960))
