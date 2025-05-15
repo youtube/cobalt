@@ -10,10 +10,7 @@ enable_pkeys = false
 # We don't implement the necessary APIs for mdns.
 enable_mdns = false
 
-# Override from build/config/sysroot.gni
-# We want to avoid adding the sysroot and bringing in unneeded
-# dependencies in cobalt.
-use_sysroot = false
+# This brings in libraries we can't have in hermetic builds.
 use_system_libdrm = false
 
 # This brings in libraries we can't have in hermetic builds, and our decoding
