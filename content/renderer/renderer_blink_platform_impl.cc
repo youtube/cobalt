@@ -384,26 +384,28 @@ void RendererBlinkPlatformImpl::SetIsLockedToSite() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-uint64_t RendererBlinkPlatformImpl::mediaSourceSizeLimit() const {
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceMaximumMemoryCapacity()
+    const {
   RenderThreadImpl* thread = RenderThreadImpl::current();
   if (thread) {
-    return thread->GetMediaSourceSizeLimit();
+    return thread->GetMediaSourceMaximumMemoryCapacity();
   }
   return 0;
 }
 
-uint64_t RendererBlinkPlatformImpl::totalMediaSourceSize() const {
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceCurrentMemoryCapacity()
+    const {
   RenderThreadImpl* thread = RenderThreadImpl::current();
   if (thread) {
-    return thread->GetTotalMediaSourceSize();
+    return thread->GetMediaSourceCurrentMemoryCapacity();
   }
   return 0;
 }
 
-uint64_t RendererBlinkPlatformImpl::usedMediaSourceMemorySize() const {
+uint64_t RendererBlinkPlatformImpl::GetMediaSourceTotalAllocatedMemory() const {
   RenderThreadImpl* thread = RenderThreadImpl::current();
   if (thread) {
-    return thread->GetUsedMediaSourceMemorySize();
+    return thread->GetMediaSourceTotalAllocatedMemory();
   }
   return 0;
 }
