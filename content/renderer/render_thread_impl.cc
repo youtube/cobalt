@@ -1236,16 +1236,16 @@ RenderThreadImpl::PepperVideoDecodeContextProvider() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-uint64_t RenderThreadImpl::GetMediaSourceSizeLimit() const {
-  return RenderMediaClient::GetMediaSourceSizeLimit();
+uint64_t RenderThreadImpl::GetMediaSourceMaximumMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceMaximumMemoryCapacity();
 }
 
-uint64_t RenderThreadImpl::GetTotalMediaSourceSize() const {
-  return RenderMediaClient::GetTotalMediaSourceSize();
+uint64_t RenderThreadImpl::GetMediaSourceCurrentMemoryCapacity() const {
+  return RenderMediaClient::GetMediaSourceCurrentMemoryCapacity();
 }
 
-uint64_t RenderThreadImpl::GetUsedMediaSourceMemorySize() const {
-  return RenderMediaClient::GetUsedMediaSourceMemorySize();
+uint64_t RenderThreadImpl::GetMediaSourceTotalAllocatedMemory() const {
+  return RenderMediaClient::GetMediaSourceTotalAllocatedMemory();
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
