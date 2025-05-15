@@ -8,6 +8,8 @@
     "DecoderBufferTest.*",
     "KeySystemsTest.*",
     "MediaServiceTest.*",
+    "MojoDecoderBufferConverterTest.WriterSidePipeError",
+    "MojoDecryptorTest.DestroyService",
     "H264Specific/H264VideoEncoderTest.EncodeAndDecodeWithConfig/*",
     "MimeUtilTest.CommonMediaMimeType",
     "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",

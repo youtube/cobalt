@@ -414,10 +414,111 @@ int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr) {
   return errno_to_musl_errno(ret);
 }
 
+int __abi_wrap_pthread_attr_getscope(const musl_pthread_attr_t* attr,
+                                     int* scope) {
+  int native_scope;
+  const int ret =
+      pthread_attr_getscope(CONST_PTHREAD_INTERNAL_ATTR(attr), &native_scope);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_scope) {
+    case PTHREAD_SCOPE_SYSTEM:
+      *scope = MUSL_PTHREAD_SCOPE_SYSTEM;
+      return 0;
+    case PTHREAD_SCOPE_PROCESS:
+      *scope = MUSL_PTHREAD_SCOPE_PROCESS;
+      return 0;
+    default:
+      return MUSL_EINVAL;
+  }
+}
+
+int __abi_wrap_pthread_attr_setscope(musl_pthread_attr_t* attr, int scope) {
+  int native_scope;
+  switch (scope) {
+    case MUSL_PTHREAD_SCOPE_SYSTEM:
+      native_scope = PTHREAD_SCOPE_SYSTEM;
+      break;
+    case MUSL_PTHREAD_SCOPE_PROCESS:
+      native_scope = PTHREAD_SCOPE_PROCESS;
+      break;
+    default:
+      return MUSL_EINVAL;
+  }
+
+  const int ret =
+      pthread_attr_setscope(PTHREAD_INTERNAL_ATTR(attr), native_scope);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_getschedpolicy(const musl_pthread_attr_t* attr,
+                                           int* policy) {
+  int native_policy;
+  const int ret = pthread_attr_getschedpolicy(CONST_PTHREAD_INTERNAL_ATTR(attr),
+                                              &native_policy);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_policy) {
+    case SCHED_FIFO:
+      *policy = MUSL_SCHED_FIFO;
+      return 0;
+    case SCHED_RR:
+      *policy = MUSL_SCHED_RR;
+      return 0;
+    case SCHED_OTHER:
+      *policy = MUSL_SCHED_OTHER;
+      return 0;
+    default:
+      return MUSL_EINVAL;
+  }
+}
+
+int __abi_wrap_pthread_attr_setschedpolicy(musl_pthread_attr_t* attr,
+                                           int policy) {
+  int native_policy;
+  switch (policy) {
+    case MUSL_SCHED_FIFO:
+      native_policy = SCHED_FIFO;
+      break;
+    case MUSL_SCHED_RR:
+      native_policy = SCHED_RR;
+      break;
+    case MUSL_SCHED_OTHER:
+      native_policy = SCHED_OTHER;
+      break;
+    default:
+      return MUSL_EINVAL;
+  }
+
+  const int ret =
+      pthread_attr_setschedpolicy(PTHREAD_INTERNAL_ATTR(attr), native_policy);
+  return errno_to_musl_errno(ret);
+}
+
 int __abi_wrap_pthread_attr_getstacksize(const musl_pthread_attr_t* attr,
                                          size_t* stack_size) {
   int ret =
       pthread_attr_getstacksize(CONST_PTHREAD_INTERNAL_ATTR(attr), stack_size);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_getstack(const musl_pthread_attr_t* __restrict attr,
+                                     void** __restrict stackaddr,
+                                     size_t* __restrict stacksize) {
+  int ret = pthread_attr_getstack(CONST_PTHREAD_INTERNAL_ATTR(attr), stackaddr,
+                                  stacksize);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_setstack(musl_pthread_attr_t* attr,
+                                     void* stackaddr,
+                                     size_t stacksize) {
+  int ret =
+      pthread_attr_setstack(PTHREAD_INTERNAL_ATTR(attr), stackaddr, stacksize);
   return errno_to_musl_errno(ret);
 }
 
@@ -454,6 +555,35 @@ int __abi_wrap_pthread_mutexattr_destroy(musl_pthread_mutexattr_t* attr) {
   return errno_to_musl_errno(ret);
 }
 
+int __abi_wrap_pthread_mutexattr_gettype(
+    const musl_pthread_mutexattr_t* __restrict attr,
+    int* __restrict type) {
+  int native_type;
+  const pthread_mutexattr_t* tmp = nullptr;
+  if (attr) {
+    tmp = CONST_PTHREAD_INTERNAL_MUTEX_ATTR(attr);
+  }
+  const int ret = pthread_mutexattr_gettype(tmp, &native_type);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_type) {
+    case PTHREAD_MUTEX_NORMAL:
+      *type = MUSL_PTHREAD_MUTEX_NORMAL;
+      break;
+    case PTHREAD_MUTEX_RECURSIVE:
+      *type = MUSL_PTHREAD_MUTEX_RECURSIVE;
+      break;
+    case PTHREAD_MUTEX_ERRORCHECK:
+      *type = MUSL_PTHREAD_MUTEX_ERRORCHECK;
+      break;
+    default:
+      *type = MUSL_PTHREAD_MUTEX_DEFAULT;
+  }
+  return 0;
+}
+
 int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
                                          int musl_type) {
   int type;
@@ -472,6 +602,27 @@ int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
   }
   int ret = pthread_mutexattr_settype(PTHREAD_INTERNAL_MUTEX_ATTR(attr), type);
   return errno_to_musl_errno(ret);
+}
+
+SB_EXPORT int __abi_wrap_pthread_mutexattr_getpshared(
+    const musl_pthread_mutexattr_t* __restrict attr,
+    int* __restrict pshared) {
+  int native_pshared;
+  const pthread_mutexattr_t* tmp = nullptr;
+  if (attr) {
+    tmp = CONST_PTHREAD_INTERNAL_MUTEX_ATTR(attr);
+  }
+
+  const int ret = pthread_mutexattr_getpshared(tmp, &native_pshared);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  *pshared = MUSL_PTHREAD_PROCESS_PRIVATE;
+  if (native_pshared == PTHREAD_PROCESS_SHARED) {
+    *pshared = MUSL_PTHREAD_PROCESS_SHARED;
+  }
+  return 0;
 }
 
 int __abi_wrap_pthread_mutexattr_setpshared(musl_pthread_mutexattr_t* attr,

@@ -111,8 +111,8 @@ public abstract class CobaltActivity extends Activity {
             "--autoplay-policy=no-user-gesture-required",
             // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
-            // Pass javascript console log to adb log.
-            "--enable-features=LogJsConsoleMessages",
+            // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
+            "--enable-features=LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
             // Enable low end device mode.
@@ -442,6 +442,9 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // document.onresume event
+      webContents.onResume();
+      // visibility:visible event
       webContents.onShow();
     }
     super.onStart();
@@ -454,7 +457,10 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // visibility:hidden event
       webContents.onHide();
+      // document.onfreeze event
+      webContents.onFreeze();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {

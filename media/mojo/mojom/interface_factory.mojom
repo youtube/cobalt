@@ -17,7 +17,7 @@ import "mojo/public/mojom/base/token.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 
 [EnableIf=use_starboard_media]
-import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
+import "media/mojo/mojom/starboard/starboard_media_types.mojom";
 
 // A factory for creating media mojo interfaces. Renderers can only access
 // ContentDecryptionModules created with the same factory.

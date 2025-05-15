@@ -67,7 +67,7 @@ static_library("elf_loader") {
   }
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+if (current_toolchain == starboard_toolchain) {
   static_library("elf_loader_sys") {
     # System loader based on dlopen/dlsym.
     # Should be used only for debugging/troubleshooting.
@@ -85,7 +85,6 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":evergreen_info",
       "//starboard:starboard_group",
       "//starboard/common",
-      "//starboard/crashpad_wrapper",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
     ]
   }
@@ -126,8 +125,8 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target(final_executable_type, "elf_loader_sys_sandbox") {
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "elf_loader_sys_sandbox") {
     # To properly function the system loader requires the starboard
     # symbols to be exported from the binary.
     # To allow symbols to be exported remove the '-fvisibility=hidden' flag
@@ -153,6 +152,11 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":sabi_string",
       "//starboard:starboard_group",
     ]
+    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
+      deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper" ]
+    }
   }
 }
 

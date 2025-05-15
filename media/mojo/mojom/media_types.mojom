@@ -257,6 +257,10 @@ struct DecoderBuffer {
   // These fields indicate the amount of data to discard after decoding.
   mojo_base.mojom.TimeDelta front_discard;
   mojo_base.mojom.TimeDelta back_discard;
+
+  [EnableIf=use_starboard_media]
+  // This stores the address of DecoderBuffer.
+  uint64 address;
 };
 
 // This defines a mojo transport format for media::AudioBuffer.

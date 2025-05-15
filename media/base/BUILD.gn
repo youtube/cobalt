@@ -468,6 +468,7 @@ source_set("base") {
         "starboard/renderer_factory_traits.h",
         "starboard/starboard_renderer_config.cc",
         "starboard/starboard_renderer_config.h",
+        "starboard/starboard_rendering_mode.h"
     ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]

@@ -37,9 +37,9 @@ namespace media {
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
 // media::mojom::StarboardRendererExtension interface.
-// StarboardRendererWrapper in Chrome_InProcGpuThread (Media thread)
-// talks to the StarboardRendererClient living in the
-// Chrome_InProcRendererThread, using `renderer_extension_receiver_`
+// StarboardRendererWrapper in Chrome_InProcGpuThread talks to the
+// StarboardRendererClient living in the Chrome_InProcRendererThread
+// (Media thread), using `renderer_extension_receiver_`
 // and `client_extension_remote_`.
 class StarboardRendererWrapper final
     : public Renderer,
@@ -75,6 +75,8 @@ class StarboardRendererWrapper final
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
+  void OnUpdateStarboardRenderingModeByStarboard(
+      const StarboardRenderingMode mode);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;

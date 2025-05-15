@@ -14,34 +14,478 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
-#include "base/metrics/user_metrics.h"
-#include "base/task/single_thread_task_runner.h"
+#include <memory>
+#include <string>
+#include <utility>
+
+#include "base/allocator/partition_allocator/pointers/raw_ptr.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
+#include "base/test/mock_callback.h"
+#include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
+#include "base/time/time.h"
+#include "base/version.h"
+#include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
+#include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
+#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
+#include "components/metrics/metrics_pref_names.h"
+#include "components/metrics/metrics_service.h"
+#include "components/metrics/metrics_state_manager.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/testing_pref_service.h"
+#include "components/variations/synthetic_trial_registry.h"
+#include "content/shell/browser/shell_paths.h"
+#include "mojo/core/embedder/embedder.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+#include "mojo/public/cpp/bindings/remote.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "url/gurl.h"
 
 namespace cobalt {
 
-class CobaltMetricsServiceClientTest : public ::testing::Test {
- public:
-  CobaltMetricsServiceClientTest() = default;
-  void SetUp() override {
-    // This set up (and the corresponding include) are only to support the
-    // Add/RemoveActionCallback() calls inside CobaltMetricsServiceClient's
-    // MetricsService.
-    // TODO(b/372559349): Mock here said MetricsService, add expectations to its
-    // methods and remove this call and include file.
-    base::SetRecordActionTaskRunner(
-        task_environment_.GetMainThreadTaskRunner());
-  }
+using ::testing::_;
+using ::testing::ByMove;
+using ::testing::IsNull;
+using ::testing::NotNull;
+using ::testing::Return;
+using ::testing::StrictMock;
 
- protected:
-  base::test::SingleThreadTaskEnvironment task_environment_;
+// Mock for MetricsService to verify construction of a specific MetricsService
+// in tests.
+class MockMetricsService : public metrics::MetricsService {
+ public:
+  MockMetricsService(metrics::MetricsStateManager* state_manager,
+                     metrics::MetricsServiceClient* client,
+                     PrefService* local_state)
+      : metrics::MetricsService(state_manager, client, local_state) {}
 };
 
-// Verifies that a CobaltMetricsServiceClient can be constructed and destroyed.
-TEST_F(CobaltMetricsServiceClientTest, ConstructDestruct) {
-  // TODO(b/372559349): Finish unit tests.
-  EXPECT_TRUE(true);
+class MockCobaltMetricsLogUploader : public CobaltMetricsLogUploader {
+ public:
+  MockCobaltMetricsLogUploader()
+      : CobaltMetricsLogUploader(
+            ::metrics::MetricsLogUploader::MetricServiceType::UMA) {}
+  MOCK_METHOD(void,
+              UploadLog,
+              (const std::string& compressed_log_data,
+               const std::string& log_hash,
+               const std::string& log_signature,
+               const metrics::ReportingInfo& reporting_info),
+              (override));
+  MOCK_METHOD(
+      void,
+      SetMetricsListener,
+      (mojo::PendingRemote<h5vcc_metrics::mojom::MetricsListener> listener),
+      (override));
+
+  // Provide a way to call the real GetWeakPtr for the mock framework.
+  base::WeakPtr<CobaltMetricsLogUploader> RealGetWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+  // Mock GetWeakPtr itself if specific test scenarios require controlling it.
+  MOCK_METHOD(base::WeakPtr<CobaltMetricsLogUploader>, GetWeakPtr, ());
+
+  MOCK_METHOD(void,
+              setOnUploadComplete,
+              (const ::metrics::MetricsLogUploader::UploadCallback&),
+              (override));
+
+ private:
+  base::WeakPtrFactory<MockCobaltMetricsLogUploader> weak_ptr_factory_{this};
+};
+
+class MockH5vccMetricsListener : public h5vcc_metrics::mojom::MetricsListener {
+ public:
+  MOCK_METHOD(void,
+              OnMetrics,
+              (h5vcc_metrics::mojom::H5vccMetricType metric_type,
+               const std::string& serialized_proto),
+              (override));
+};
+
+// Test version of CobaltMetricsServiceClient to allow injecting mock
+// dependencies. This requires CobaltMetricsServiceClient to have virtual
+// methods for creating its owned dependencies (MetricsService,
+// CobaltMetricsLogUploader).
+class TestCobaltMetricsServiceClient : public CobaltMetricsServiceClient {
+ public:
+  TestCobaltMetricsServiceClient(
+      metrics::MetricsStateManager* state_manager,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
+      PrefService* local_state)
+      : CobaltMetricsServiceClient(state_manager,
+                                   std::move(synthetic_trial_registry),
+                                   local_state) {}
+
+  // Override internal factory for MetricsService
+  std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
+      metrics::MetricsStateManager* state_manager,
+      metrics::MetricsServiceClient* client,
+      PrefService* local_state) override {
+    auto mock_service = std::make_unique<StrictMock<MockMetricsService>>(
+        state_manager, client, local_state);
+    mock_metrics_service_ = mock_service.get();
+    return std::move(mock_service);
+  }
+
+  // Override internal factory for CobaltMetricsLogUploader.
+  std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal()
+      override {
+    auto mock_uploader =
+        std::make_unique<StrictMock<MockCobaltMetricsLogUploader>>();
+    // Setup the mock's GetWeakPtr to return a usable weak pointer.
+    ON_CALL(*mock_uploader, GetWeakPtr())
+        .WillByDefault([uploader_ptr = mock_uploader.get()]() {
+          return static_cast<MockCobaltMetricsLogUploader*>(uploader_ptr)
+              ->RealGetWeakPtr();
+        });
+    mock_log_uploader_ = mock_uploader.get();
+    return std::move(mock_uploader);
+  }
+
+  void OnApplicationNotIdleInternal() override {
+    on_application_not_idle_internal_called_ = true;
+  }
+
+  bool GetOnApplicationNotIdleInternalCalled() {
+    return on_application_not_idle_internal_called_;
+  }
+
+  void ResetOnApplicationNotIdleInternalCalled() {
+    on_application_not_idle_internal_called_ = false;
+  }
+
+  // Expose Initialize for finer-grained control in tests if necessary,
+  // though the base class's static Create method normally handles this.
+  void CallInitialize() { Initialize(); }
+
+  StrictMock<MockMetricsService>* mock_metrics_service() const {
+    return mock_metrics_service_;
+  }
+  StrictMock<MockCobaltMetricsLogUploader>* mock_log_uploader() const {
+    return mock_log_uploader_;
+  }
+
+  // Expose the timer for inspection in tests.
+  const base::RepeatingTimer& idle_refresh_timer() const {
+    return idle_refresh_timer_;
+  }
+
+ private:
+  raw_ptr<StrictMock<MockMetricsService>> mock_metrics_service_ = nullptr;
+  raw_ptr<StrictMock<MockCobaltMetricsLogUploader>> mock_log_uploader_ =
+      nullptr;
+  bool on_application_not_idle_internal_called_ = false;
+};
+
+class CobaltMetricsServiceClientTest : public ::testing::Test {
+ protected:
+  CobaltMetricsServiceClientTest() { mojo::core::Init(); }
+
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    path_override_ = std::make_unique<base::ScopedPathOverride>(
+        content::SHELL_DIR_USER_DATA, temp_dir_.GetPath());
+
+    // Register all metric-related prefs, otherwise tests crash when calling
+    // upstream metrics code.
+    metrics::MetricsService::RegisterPrefs(prefs_.registry());
+    prefs_.registry()->RegisterBooleanPref(
+        metrics::prefs::kMetricsReportingEnabled, false);
+
+    // Make sure user_metrics.cc has a g_task_runner.
+    base::SetRecordActionTaskRunner(
+        task_environment_.GetMainThreadTaskRunner());
+
+    // The client under test receives MetricsStateManager, so create one.
+    // A real CobaltEnabledStateProvider is simple enough.
+    enabled_state_provider_ =
+        std::make_unique<CobaltEnabledStateProvider>(&prefs_);
+    metrics_state_manager_ = metrics::MetricsStateManager::Create(
+        &prefs_, enabled_state_provider_.get(), std::wstring(),
+        temp_dir_.GetPath(), metrics::StartupVisibility::kForeground);
+    ASSERT_THAT(metrics_state_manager_, NotNull());
+
+    auto synthetic_trial_registry =
+        std::make_unique<variations::SyntheticTrialRegistry>();
+    synthetic_trial_registry_ = synthetic_trial_registry.get();
+
+    // Instantiate the test client and call Initialize to trigger mock creation.
+    // This simulates the two-phase initialization of the static Create().
+    client_ = std::make_unique<TestCobaltMetricsServiceClient>(
+        metrics_state_manager_.get(), std::move(synthetic_trial_registry),
+        &prefs_);
+    client_->CallInitialize();  // This will use the overridden factory methods.
+
+    ASSERT_THAT(client_->mock_metrics_service(), NotNull());
+    ASSERT_THAT(client_->mock_log_uploader(), NotNull());
+  }
+
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME,
+      base::test::TaskEnvironment::MainThreadType::UI};
+  TestingPrefServiceSimple prefs_;
+  base::ScopedTempDir temp_dir_;
+  std::unique_ptr<base::ScopedPathOverride> path_override_;
+  std::unique_ptr<CobaltEnabledStateProvider> enabled_state_provider_;
+  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
+  base::raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+  std::unique_ptr<TestCobaltMetricsServiceClient> client_;
+};
+
+TEST_F(CobaltMetricsServiceClientTest, PostCreateInitialization) {
+  EXPECT_EQ(client_->GetMetricsService(), client_->mock_metrics_service());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       GetSyntheticTrialRegistryReturnsInjectedInstance) {
+  EXPECT_EQ(client_->GetSyntheticTrialRegistry(),
+            synthetic_trial_registry_.get());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       GetMetricsServiceReturnsCreatedInstance) {
+  EXPECT_EQ(client_->GetMetricsService(), client_->mock_metrics_service());
+  EXPECT_THAT(client_->GetMetricsService(), NotNull());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, SetMetricsClientIdIsNoOp) {
+  client_->SetMetricsClientId("test_client_id");
+  // No specific side-effect to check other than not crashing.
+  SUCCEED();
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetProductReturnsDefault) {
+  EXPECT_EQ(0, client_->GetProduct());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetApplicationLocaleReturnsDefault) {
+  EXPECT_EQ("en-US", client_->GetApplicationLocale());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       GetNetworkTimeTrackerNotImplementedReturnsNull) {
+  // NOTIMPLEMENTED() for now.
+  EXPECT_THAT(client_->GetNetworkTimeTracker(), IsNull());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetBrandReturnsFalse) {
+  std::string brand_code;
+  EXPECT_FALSE(client_->GetBrand(&brand_code));
+  EXPECT_TRUE(brand_code.empty());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetChannelReturnsUnknown) {
+  EXPECT_EQ(metrics::SystemProfileProto::CHANNEL_UNKNOWN,
+            client_->GetChannel());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, IsExtendedStableChannelReturnsFalse) {
+  EXPECT_FALSE(client_->IsExtendedStableChannel());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetVersionStringReturnsNonEmpty) {
+  // base::Version().GetString() should provide a default like "0.0.0.0".
+  EXPECT_EQ(base::Version().GetString(), client_->GetVersionString());
+  EXPECT_FALSE(client_->GetVersionString().empty());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       CollectFinalMetricsForLogInvokesDoneCallbackAndNotifiesService) {
+  base::MockCallback<base::OnceClosure> done_callback_mock;
+
+  EXPECT_CALL(done_callback_mock, Run());
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+  client_->CollectFinalMetricsForLog(done_callback_mock.Get());
+  // Most ideally, we could assert that the "real" OnApplicationIdle was
+  // called. However, this is impossible without modifying MetricsService itself
+  // which we really don't want to do. There is no real virtual method in
+  // MetricsService that seems to indicate OnApplicationNotIdle was called.
+  // The second best we can do within these constraints is to assert our
+  // internal method is called, which should call OnApplicationNotIdle() in the
+  // real impl.
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, GetMetricsServerUrlReturnsPlaceholder) {
+  EXPECT_EQ(GURL("https://youtube.com/tv/uma"), client_->GetMetricsServerUrl());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       CreateUploaderReturnsMockUploaderAndSetsCallback) {
+  base::MockCallback<metrics::MetricsLogUploader::UploadCallback>
+      on_upload_complete_mock;
+
+  // Variable to capture the callback passed to setOnUploadComplete().
+  metrics::MetricsLogUploader::UploadCallback captured_callback;
+
+  // Expect setOnUploadComplete to be called with any callback of the correct
+  // type, and use .WillOnce() to save the actual argument passed into
+  // 'captured_callback'.
+  EXPECT_CALL(
+      *client_->mock_log_uploader(),
+      setOnUploadComplete(
+          testing::A<const metrics::MetricsLogUploader::UploadCallback&>()))
+      .WillOnce(testing::SaveArg<0>(&captured_callback));
+
+  // The mock_log_uploader_ is already created and its GetWeakPtr is stubbed.
+  // CreateUploader will move the uploader from the client's internal
+  // unique_ptr. The returned uploader should be the one our factory provided.
+  std::unique_ptr<metrics::MetricsLogUploader> uploader =
+      client_->CreateUploader(GURL(), GURL(), "",
+                              metrics::MetricsLogUploader::UMA,
+                              on_upload_complete_mock.Get());
+
+  // The uploader returned should be the same mock instance.
+  EXPECT_EQ(uploader.get(), client_->mock_log_uploader());
+  EXPECT_THAT(uploader, NotNull());
+
+  // Verify that a callback was indeed captured by SaveArg.
+  ASSERT_TRUE(captured_callback) << "Callback was not captured by SaveArg. "
+                                    "Was setOnUploadComplete called?";
+
+  // Invoke the 'captured_callback' and expect on_upload_complete_mock' (the
+  // original one you created) to have its Run method called. This proves that
+  // the callback set by CreateUploader is functionally the mock callback.
+  const int kExpectedStatusCode = 204;
+  const int kExpectedNetError = 0;
+  const bool kExpectedHttps = true;
+  const bool kExpectedForceDiscard = false;
+  constexpr base::StringPiece kExpectedGuid = "test-guid-123";
+
+  EXPECT_CALL(on_upload_complete_mock,
+              Run(kExpectedStatusCode, kExpectedNetError, kExpectedHttps,
+                  kExpectedForceDiscard, kExpectedGuid));
+
+  // Run the callback that was captured from the actual call to
+  // setOnUploadComplete.
+  captured_callback.Run(kExpectedStatusCode, kExpectedNetError, kExpectedHttps,
+                        kExpectedForceDiscard, kExpectedGuid);
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       GetStandardUploadIntervalReturnsDefaultOrSetValue) {
+  EXPECT_EQ(kStandardUploadIntervalMinutes,
+            client_->GetStandardUploadInterval());
+
+  const base::TimeDelta new_interval = base::Minutes(23);
+  client_->SetUploadInterval(new_interval);
+  EXPECT_EQ(new_interval, client_->GetStandardUploadInterval());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       SetMetricsListenerDelegatesToLogUploader) {
+  mojo::PendingRemote<h5vcc_metrics::mojom::MetricsListener> listener_remote;
+
+  EXPECT_CALL(*(client_->mock_log_uploader()), SetMetricsListener(_));
+
+  client_->SetMetricsListener(std::move(listener_remote));
+}
+
+TEST_F(CobaltMetricsServiceClientTest, IdleTimerStartsOnInitialization) {
+  // Initialization is done in SetUp().
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+
+  base::TimeDelta expected_delay = kStandardUploadIntervalMinutes / 2;
+  if (expected_delay < kMinIdleRefreshInterval) {
+    expected_delay = kMinIdleRefreshInterval;
+  }
+  EXPECT_EQ(expected_delay, client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerRestartsOnSetUploadIntervalWithCorrectDelay) {
+  const base::TimeDelta new_upload_interval = base::Minutes(50);
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  base::TimeDelta expected_delay = new_upload_interval / 2;  // 25 minutes
+  ASSERT_GT(expected_delay, kMinIdleRefreshInterval);
+  EXPECT_EQ(expected_delay, client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerDelayIsLimitedByMinIdleRefreshInterval) {
+  // New interval is 40 seconds. Half of it is 20 seconds.
+  const base::TimeDelta new_upload_interval = base::Seconds(40);
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  // Expected delay should be kMinIdleRefreshInterval (30s) because 20s < 30s.
+  EXPECT_EQ(kMinIdleRefreshInterval,
+            client_->idle_refresh_timer().GetCurrentDelay());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       IdleTimerCallbackInvokesOnApplicationNotIdleInternal) {
+  client_->ResetOnApplicationNotIdleInternalCalled();  // Ensure clean state.
+
+  // Use a known interval that results in a delay > kMinIdleRefreshInterval.
+  const base::TimeDelta test_upload_interval = base::Minutes(2);  // 120s
+  client_->SetUploadInterval(test_upload_interval);
+  base::TimeDelta current_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(base::Minutes(1), current_delay);  // Half of 2 minutes.
+
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest, IdleTimerIsRepeatingAndKeepsFiring) {
+  client_->ResetOnApplicationNotIdleInternalCalled();
+
+  const base::TimeDelta test_upload_interval =
+      base::Seconds(80);  // Results in 40s delay.
+  client_->SetUploadInterval(test_upload_interval);
+  base::TimeDelta current_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(base::Seconds(40), current_delay);  // 80s / 2 = 40s > 30s.
+
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // First fire.
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  client_->ResetOnApplicationNotIdleInternalCalled();  // Reset for next fire.
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // Second fire.
+  task_environment_.FastForwardBy(current_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
+}
+
+TEST_F(CobaltMetricsServiceClientTest,
+       StartIdleRefreshTimerStopsAndRestartsExistingTimer) {
+  // Initial timer started with default interval (15 min delay) in SetUp.
+  base::TimeDelta initial_delay =
+      client_->idle_refresh_timer().GetCurrentDelay();
+  EXPECT_EQ(kStandardUploadIntervalMinutes / 2, initial_delay);
+
+  // Change interval to something different.
+  const base::TimeDelta new_upload_interval =
+      base::Minutes(10);  // New delay = 5 mins.
+  client_->SetUploadInterval(new_upload_interval);
+
+  EXPECT_TRUE(client_->idle_refresh_timer().IsRunning());
+  base::TimeDelta new_delay = new_upload_interval / 2;
+  ASSERT_GT(new_delay, kMinIdleRefreshInterval);
+  EXPECT_EQ(new_delay, client_->idle_refresh_timer().GetCurrentDelay());
+
+  client_->ResetOnApplicationNotIdleInternalCalled();
+  EXPECT_FALSE(client_->GetOnApplicationNotIdleInternalCalled());
+
+  // Fast forward by less than the initial_delay but more than or equal to
+  // new_delay. If the timer wasn't restarted, it wouldn't fire. If it was
+  // restarted, it should fire based on new_delay.
+  task_environment_.FastForwardBy(new_delay);
+  EXPECT_TRUE(client_->GetOnApplicationNotIdleInternalCalled());
 }
 
 }  // namespace cobalt
