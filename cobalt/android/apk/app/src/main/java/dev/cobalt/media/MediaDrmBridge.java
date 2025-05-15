@@ -211,15 +211,24 @@ public class MediaDrmBridge {
     assert mMediaDrm != null;
     LicenseRequestArgs args = new LicenseRequestArgs(ticket, initData, mime);
 
-    createMediaCryptoSession();
-
-    createSessionInternal(args);
+    try {
+      createSessionInternal(args);
+    } catch(NotProvisionedException e) {
+      Log.i(TAG, "Device not provisioned. Start provisioning.");
+      startProvisioning(ticket);
+      return;
+    } catch(Exception e) {
+      Log.e(TAG, "Device not provisioned", e);
+      return;
+    }
   }
 
-  private void createSessionInternal(LicenseRequestArgs args) {
+  private void createSessionInternal(LicenseRequestArgs args) throws android.media.NotProvisionedException {
     boolean newSessionOpened = false;
     byte[] sessionId;
     MediaDrm.KeyRequest request;
+
+    createMediaCryptoSession();
 
     try {
       sessionId = openSession();
@@ -266,15 +275,14 @@ public class MediaDrmBridge {
    */
   @UsedByNative
   UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
-    Log.i(TAG, "updateSession()");
-    if (mMediaDrm == null) {
-      Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Null MediaDrm object when calling updateSession(). StackTrace: "
-              + android.util.Log.getStackTraceString(new Throwable()));
+    assert mMediaDrm != null;
+
+    if (Arrays.equals(sessionId, FIRST_DRM_SESSION_ID)) {
+      Log.i(TAG, "Handle provision response.");
+      return handleProvisionResponse(response);
     }
 
+    Log.i(TAG, "updateSession()");
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
       return new UpdateSessionResult(
@@ -585,34 +593,21 @@ public class MediaDrmBridge {
     }
   }
 
-  boolean createMediaCryptoSession() {
+  void createMediaCryptoSession() throws android.media.NotProvisionedException {
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
-      return true;
+      return;
     }
 
-    Log.i(TAG, "MediaDrmBridge createMediaCryptoSession");
-    if (mMediaCrypto == null) {
-      throw new IllegalStateException("Cannot create media crypto session with null mMediaCrypto.");
-    }
+    assert mMediaCrypto != null;
 
-    // Open media crypto session.
     try {
       mMediaCryptoSession = openSession();
     } catch (NotProvisionedException e) {
-      Log.w(TAG, "Device not provisioned", e);
-      try {
-        mMediaCryptoSession = openSession();
-      } catch (NotProvisionedException e2) {
-        Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
-        return false;
-      }
+      Log.w(TAG, "Device not provisioned. Re-throw NotProvisionedException");
+      throw e;
     }
-
-    if (mMediaCryptoSession == null) {
-      Log.e(TAG, "Cannot create MediaCrypto Session.");
-      return false;
-    }
+    assert mMediaCryptoSession != null;
 
     try {
       Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(mMediaCryptoSession)");
@@ -621,33 +616,52 @@ public class MediaDrmBridge {
       Log.e(TAG, "Unable to set media drm session", e3);
       try {
         // Some implementations let this method throw exceptions.
-        Log.i(
-            TAG, "Calling mMediaDrm.closeSession(...) in createMediaCryptoSession failure path.");
+        Log.i(TAG, "Calling mMediaDrm.closeSession(...) in createMediaCryptoSession failure path.");
         mMediaDrm.closeSession(mMediaCryptoSession);
       } catch (Exception e) {
         Log.e(TAG, "closeSession failed: ", e);
       }
       mMediaCryptoSession = null;
-      return false;
+      return;
     }
 
-    Log.i(
-        TAG,
-        String.format("MediaCrypto Session created: %s", bytesToHexString(mMediaCryptoSession)));
-
-    return true;
+    Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToHexString(mMediaCryptoSession));
   }
+
+  private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
+  private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
 
   /**
    * Attempt to get the device that we are currently running on provisioned.
    *
    * @return whether provisioning was successful or not.
    */
-  private void startProvisioning() {
+  private void startProvisioning(int ticket) {
     Log.i(TAG, "start provisioning()");
     Log.i(TAG, "Calling mMediaDrm.getProvisionRequest()");
 
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
+
+    nativeOnSessionMessage(
+        mNativeMediaDrmBridge,
+        ticket, FIRST_DRM_SESSION_ID, INDIVIDUALIZATION_REQUEST_TYPE, request.getData());
+  }
+
+  private UpdateSessionResult handleProvisionResponse(byte[] response) {
+    Log.i(TAG, "handleProvisionResponse()");
+
+     try {
+      Log.i(TAG, "Calling mMediaDrm.provideProvisionResponse()");
+      mMediaDrm.provideProvisionResponse(response);
+    } catch (android.media.DeniedByServerException e) {
+      Log.e(TAG, "Failed to provide provision response.", e);
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          e.getMessage());
+    }
+    Log.i(TAG, "provideProvisionResponse succeeded");
+
+    return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
   }
 
   /**

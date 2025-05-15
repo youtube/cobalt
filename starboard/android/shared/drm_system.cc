@@ -45,6 +45,7 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 const jint REQUEST_TYPE_INITIAL = 0;
 const jint REQUEST_TYPE_RENEWAL = 1;
 const jint REQUEST_TYPE_RELEASE = 2;
+const jint REQUEST_TYPE_INDIVIDUALIZATION = 3;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
@@ -58,6 +59,9 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
   }
   if (request_type == REQUEST_TYPE_RELEASE) {
     return kSbDrmSessionRequestTypeLicenseRelease;
+  }
+  if (request_type == REQUEST_TYPE_INDIVIDUALIZATION) {
+    return kSbDrmSessionRequestTypeIndividualizationRequest;
   }
   SB_NOTREACHED();
   return kSbDrmSessionRequestTypeLicenseRequest;
