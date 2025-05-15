@@ -214,7 +214,8 @@ DrmSystem::DrmSystem(
   }
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
-  Start();
+  created_media_crypto_session_.store(true);
+  // Start();
 }
 
 void DrmSystem::Run() {

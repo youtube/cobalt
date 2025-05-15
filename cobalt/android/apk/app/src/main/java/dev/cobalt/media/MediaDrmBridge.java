@@ -203,6 +203,8 @@ public class MediaDrmBridge {
       return;
     }
 
+    createMediaCryptoSession();
+
     boolean newSessionOpened = false;
     byte[] sessionId = null;
     try {
@@ -281,7 +283,8 @@ public class MediaDrmBridge {
 
     try {
       try {
-        Log.i(TAG, "Calling MediaDrm.provideKeyResponse(...)");
+        Log.i(TAG, "Calling MediaDrm.provideKeyResponse: sessionId=" + bytesToHexString(sessionId)
+              + ", response(bytes)=" + response.length);
         mMediaDrm.provideKeyResponse(sessionId, response);
       } catch (IllegalStateException e) {
         // This is not really an exception. Some error codes are incorrectly
@@ -527,10 +530,11 @@ public class MediaDrmBridge {
     HashMap<String, String> optionalParameters = new HashMap<>();
     MediaDrm.KeyRequest request = null;
     try {
-      Log.i(TAG, "Calling MediaDrm.getKeyRequest(...)");
+      Log.i(TAG, "Calling MediaDrm.getKeyRequest: sessionId=" + bytesToHexString(sessionId)
+          + ", mime = " + mime + ", data(bytes)=" + data.length + ", optionalParameters=(null)");
       request =
           mMediaDrm.getKeyRequest(
-              sessionId, data, mime, MediaDrm.KEY_TYPE_STREAMING, optionalParameters);
+              sessionId, data, mime, MediaDrm.KEY_TYPE_STREAMING, null);
     } catch (IllegalStateException e) {
       if (e instanceof android.media.MediaDrm.MediaDrmStateException) {
         Log.e(TAG, "MediaDrmStateException fired during getKeyRequest().", e);
@@ -560,7 +564,7 @@ public class MediaDrmBridge {
     // Create MediaCrypto object.
     try {
       if (MediaCrypto.isCryptoSchemeSupported(mSchemeUUID)) {
-        Log.i(TAG, "Calling MediaCrypto Ctor.");
+        Log.i(TAG, "Calling MediaCrypto Ctor. mSchemeUUID = " + mSchemeUUID.toString());
         MediaCrypto mediaCrypto = new MediaCrypto(mSchemeUUID, new byte[0]);
         Log.i(TAG, "MediaCrypto successfully created!");
         mMediaCrypto = mediaCrypto;
@@ -585,6 +589,7 @@ public class MediaDrmBridge {
     if (mMediaDrm == null) {
       throw new IllegalStateException("mMediaDrm cannot be null in openSession");
     }
+
     try {
       Log.i(TAG, "Calling MediaDrm.openSession()");
       byte[] sessionId = mMediaDrm.openSession();
@@ -609,6 +614,7 @@ public class MediaDrmBridge {
   @UsedByNative
   boolean createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
+      Log.i(TAG, "MediaCryptoSession is already created");
       return true;
     }
     Log.w(TAG, "MediaDrmBridge createMediaCryptoSession");
@@ -639,7 +645,7 @@ public class MediaDrmBridge {
     }
 
     try {
-      Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(...)");
+      Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(mMediaCryptoSession)");
       mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
     } catch (MediaCryptoException e3) {
       Log.e(TAG, "Unable to set media drm session", e3);
@@ -695,14 +701,6 @@ public class MediaDrmBridge {
    * @return true if |sessionId| exists, false otherwise.
    */
   private boolean sessionExists(byte[] sessionId) {
-    if (mMediaCryptoSession == null) {
-      if (!mSessionIds.isEmpty()) {
-        throw new IllegalStateException(
-            "mSessionIds must be empty if crypto session does not exist.");
-      }
-      Log.e(TAG, "Session doesn't exist because media crypto session is not created.");
-      return false;
-    }
     return !Arrays.equals(sessionId, mMediaCryptoSession)
         && mSessionIds.containsKey(ByteBuffer.wrap(sessionId));
   }
