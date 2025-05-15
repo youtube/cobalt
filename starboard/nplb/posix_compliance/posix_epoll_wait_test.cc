@@ -13,14 +13,9 @@
 // limitations under the License.
 
 #include <fcntl.h>
-#include <netinet/in.h>
 #include <sys/epoll.h>
-#include <sys/socket.h>
 #include <unistd.h>
 
-#include "starboard/common/socket.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
