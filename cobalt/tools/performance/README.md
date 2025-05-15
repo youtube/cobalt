@@ -14,9 +14,9 @@ pylint.
 
 To install them, run the following command:
 
-    ```
-    vpython3 -m pip install pandas numpy matplotlib
-    ```
+```
+vpython3 -m pip install pandas numpy matplotlib
+```
 
 ### Usage
 
