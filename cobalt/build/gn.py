@@ -30,7 +30,8 @@ _BUILD_TYPES = {
     },
     'devel': {
         'symbol_level': 1,
-        'is_debug': 'false'
+        'is_debug': 'false',
+        'dcheck_always_on': 'true',  # On by default if `is_debug`.
     },
     'qa': {
         'symbol_level': 1,
