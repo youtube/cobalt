@@ -322,4 +322,41 @@ int __abi_wrap_pthread_mutexattr_setpshared(pthread_mutexattr_t* attr,
 int pthread_mutexattr_setpshared(pthread_mutexattr_t* attr, int pshared) {
   return __abi_wrap_pthread_mutexattr_setpshared(attr, pshared);
 }
+
+int __abi_wrap_pthread_rwlock_init(pthread_rwlock_t* __restrict,
+                                   const pthread_rwlockattr_t* __restrict);
+int pthread_rwlock_init(pthread_rwlock_t* __restrict rwlock,
+                        const pthread_rwlockattr_t* __restrict attr) {
+  return __abi_wrap_pthread_rwlock_init(rwlock, attr);
+}
+
+int __abi_wrap_pthread_rwlock_destroy(pthread_rwlock_t*);
+int pthread_rwlock_destroy(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_destroy(rwlock);
+}
+
+int __abi_wrap_pthread_rwlock_rdlock(pthread_rwlock_t*);
+int pthread_rwlock_rdlock(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_rdlock(rwlock);
+}
+
+int __abi_wrap_pthread_rwlock_wrlock(pthread_rwlock_t*);
+int pthread_rwlock_wrlock(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_wrlock(rwlock);
+}
+
+int __abi_wrap_pthread_rwlock_unlock(pthread_rwlock_t*);
+int pthread_rwlock_unlock(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_unlock(rwlock);
+}
+
+int __abi_wrap_pthread_rwlock_tryrdlock(pthread_rwlock_t*);
+int pthread_rwlock_tryrdlock(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_tryrdlock(rwlock);
+}
+
+int __abi_wrap_pthread_rwlock_trywrlock(pthread_rwlock_t*);
+int pthread_rwlock_trywrlock(pthread_rwlock_t* rwlock) {
+  return __abi_wrap_pthread_rwlock_trywrlock(rwlock);
+}
 }
