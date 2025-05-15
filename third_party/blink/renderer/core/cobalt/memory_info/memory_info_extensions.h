@@ -29,9 +29,9 @@ class CORE_EXPORT MemoryInfoExtensions final {
   STATIC_ONLY(MemoryInfoExtensions);
 
  public:
-  static uint64_t mediaSourceSizeLimit(MemoryInfo&);
-  static uint64_t totalMediaSourceSize(MemoryInfo&);
-  static uint64_t usedMediaSourceMemorySize(MemoryInfo&);
+  static uint64_t getMediaSourceMaximumMemoryCapacity(MemoryInfo&);
+  static uint64_t getMediaSourceCurrentMemoryCapacity(MemoryInfo&);
+  static uint64_t getMediaSourceTotalAllocatedMemory(MemoryInfo&);
 };
 
 }  // namespace blink

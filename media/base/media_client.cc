@@ -23,7 +23,7 @@ MediaClient::~MediaClient() = default;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // static
-uint64_t MediaClient::GetMediaSourceSizeLimit() {
+uint64_t MediaClient::GetMediaSourceMaximumMemoryCapacity() {
   if (g_media_client) {
     return g_media_client->GetMaximumMemoryCapacity();
   }
@@ -31,7 +31,7 @@ uint64_t MediaClient::GetMediaSourceSizeLimit() {
 }
 
 // static
-uint64_t MediaClient::GetTotalMediaSourceSize() {
+uint64_t MediaClient::GetMediaSourceCurrentMemoryCapacity() {
   if (g_media_client) {
     return g_media_client->GetCurrentMemoryCapacity();
   }
@@ -39,7 +39,7 @@ uint64_t MediaClient::GetTotalMediaSourceSize() {
 }
 
 // static
-uint64_t MediaClient::GetUsedMediaSourceMemorySize() {
+uint64_t MediaClient::GetMediaSourceTotalAllocatedMemory() {
   if (g_media_client) {
     return g_media_client->GetAllocatedMemory();
   }
