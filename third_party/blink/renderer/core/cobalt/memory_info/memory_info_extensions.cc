@@ -23,16 +23,18 @@
 
 namespace blink {
 
-uint64_t MemoryInfoExtensions::mediaSourceSizeLimit(MemoryInfo&) {
-  return Platform::Current()->mediaSourceSizeLimit();
+uint64_t MemoryInfoExtensions::getMediaSourceMaximumMemoryCapacity(
+    MemoryInfo&) {
+  return Platform::Current()->GetMediaSourceMaximumMemoryCapacity();
 }
 
-uint64_t MemoryInfoExtensions::totalMediaSourceSize(MemoryInfo&) {
-  return Platform::Current()->totalMediaSourceSize();
+uint64_t MemoryInfoExtensions::getMediaSourceCurrentMemoryCapacity(
+    MemoryInfo&) {
+  return Platform::Current()->GetMediaSourceCurrentMemoryCapacity();
 }
 
-uint64_t MemoryInfoExtensions::usedMediaSourceMemorySize(MemoryInfo&) {
-  return Platform::Current()->usedMediaSourceMemorySize();
+uint64_t MemoryInfoExtensions::getMediaSourceTotalAllocatedMemory(MemoryInfo&) {
+  return Platform::Current()->GetMediaSourceTotalAllocatedMemory();
 }
 
 }  //  namespace blink
