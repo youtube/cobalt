@@ -1,9 +1,13 @@
 name: Print Logs
 description: Processes test results to produce a test summary and upload results to DataDog.
 inputs:
-  logfile_glob:
+  log_glob:
     description: "Path (or glob) to test log files."
     required: true
+  results_glob:
+    description: "Path (or glob) to test result xml files."
+    required: false
+    default: ''
   test_status:
     description: "Test status. If the value is not success this step will fail."
     required: false
@@ -33,11 +37,12 @@ runs:
           "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
       shell: bash
     - run: |
+        # Print logs and failing tests.
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=(${{ inputs.logfile_glob }})
+        log_files=(${{ inputs.log_glob }})
 
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
@@ -57,8 +62,23 @@ runs:
         # By failing this step if tests failed the logs will be expanded by default.
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
-          echo "Tests failed"
-          grep -h "\[  FAILED  \]" ${{ inputs.logfile_glob }}
+          # Print failed tests summary.
+          echo
+          echo
+          echo " _____ _____ ____ _____   ____  _   _ __  __ __  __    _    ______   __"
+          echo "|_   _| ____/ ___|_   _| / ___|| | | |  \/  |  \/  |  / \  |  _ \ \ / /"
+          echo "  | | |  _| \___ \ | |   \___ \| | | | |\/| | |\/| | / _ \ | |_) \ V /"
+          echo "  | | | |___ ___) || |    ___) | |_| | |  | | |  | |/ ___ \|  _ < | |"
+          echo "  |_| |_____|____/ |_|   |____/ \___/|_|  |_|_|  |_/_/   \_\_| \_\|_|"
+          echo
+
+          results_files=(${{ inputs.results_glob }})
+          if [ ${#results_files[@]} -eq 0 ]; then
+            # TODO: Figure out which test suite crashed via target list and # of shards.
+            echo "::error::No test results were collected. A test probably crashed. See logs above."
+          else
+            python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
+          fi
           exit 1
         fi
       shell: bash
