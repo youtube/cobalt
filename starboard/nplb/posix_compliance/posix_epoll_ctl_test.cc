@@ -16,32 +16,12 @@
 #include <sys/epoll.h>
 #include <unistd.h>
 
+#include "starboard/nplb/posix_compliance/posix_epoll_create_test.cc"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
-
-// A helper function to create a pipe.
-// Returns true on success, false on failure.
-// pipe_fds[0] is the read end, pipe_fds[1] is the write end.
-bool CreatePipe(int pipe_fds[2], int flags = 0) {
-  if (flags == 0) {
-    return pipe(pipe_fds) == 0;
-  }
-  return pipe2(pipe_fds, flags) == 0;
-}
-
-// Test fixture for epoll tests
-class PosixEpollTest : public ::testing::Test {
- protected:
-  static const int kInvalidFd = -123;  // An fd value that is likely invalid.
-  static const int kMaxEvents = 10;  // Maximum number of events for epoll_wait.
-  static const int kShortTimeoutMs =
-      50;  // A short timeout for non-blocking checks.
-  static const int kModerateTimeoutMs =
-      100;  // A moderate timeout for waiting for events.
-};
 
 // --- Tests for epoll_ctl ---
 class PosixEpollCtlTests : public PosixEpollTest {
