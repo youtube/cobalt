@@ -22,6 +22,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 
 namespace {
 
@@ -219,6 +220,8 @@ DrmSystem::DrmSystem(
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
   created_media_crypto_session_.store(true);
+
+  Start();
 }
 
 void DrmSystem::Run() {
@@ -358,6 +361,17 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   // to perform the decryption.
   // TODO: Returns kRetry when |UpdateSession| is not called at all to allow the
   //       player worker to handle the retry logic.
+  static int64_t first_us = CurrentMonotonicTime();
+  static int64_t last_log_us = 0;
+  if (int64_t now_us = CurrentMonotonicTime();
+      (now_us - first_us) < 5'000'000) {
+    if (last_log_us == 0 || (now_us - last_log_us) > 1'000'000) {
+      SB_LOG(INFO) << "DrmSystem::Decrypt < Retry";
+      last_log_us = now_us;
+    }
+    return kRetry;
+  }
+
   return kSuccess;
 }
 
