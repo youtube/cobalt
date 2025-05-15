@@ -36,6 +36,13 @@ extern "C" {
 #define MUSL_PTHREAD_PROCESS_PRIVATE 0
 #define MUSL_PTHREAD_PROCESS_SHARED 1
 
+#define MUSL_PTHREAD_SCOPE_SYSTEM 0
+#define MUSL_PTHREAD_SCOPE_PROCESS 1
+
+#define MUSL_SCHED_OTHER 0
+#define MUSL_SCHED_FIFO 1
+#define MUSL_SCHED_RR 2
+
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80
 
@@ -73,6 +80,17 @@ typedef union musl_pthread_once_t {
   uint8_t once_buffer[MUSL_PTHREAD_ONCE_MAX_SIZE];
   void* ptr;
 } musl_pthread_once_t;
+
+#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 56
+typedef union musl_pthread_rwlock_t {
+  uint8_t rwlock_buffer[MUSL_PTHREAD_RWLOCK_MAX_SIZE];
+  void* ptr;
+} musl_pthread_rwlock_t;
+
+#define MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE 8
+typedef union musl_pthread_rwlockattr_t {
+  uint8_t rwlock_attr_buffer[MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE];
+} musl_pthread_rwlockattr_t;
 
 typedef void* musl_pthread_t;
 typedef void* musl_pthread_key_t;
@@ -132,11 +150,29 @@ SB_EXPORT int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
 SB_EXPORT int __abi_wrap_pthread_attr_init(musl_pthread_attr_t* attr);
 SB_EXPORT int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr);
 
+SB_EXPORT int __abi_wrap_pthread_attr_getscope(
+    const musl_pthread_attr_t* __restrict,
+    int* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setscope(musl_pthread_attr_t*, int);
+
+SB_EXPORT int __abi_wrap_pthread_attr_getschedpolicy(
+    const musl_pthread_attr_t* __restrict,
+    int* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setschedpolicy(musl_pthread_attr_t*, int);
+
 SB_EXPORT int __abi_wrap_pthread_attr_getstacksize(
     const musl_pthread_attr_t* attr,
     size_t* stack_size);
 SB_EXPORT int __abi_wrap_pthread_attr_setstacksize(musl_pthread_attr_t* attr,
                                                    size_t stack_size);
+
+SB_EXPORT int __abi_wrap_pthread_attr_getstack(
+    const musl_pthread_attr_t* __restrict,
+    void** __restrict,
+    size_t* __restrict);
+SB_EXPORT int __abi_wrap_pthread_attr_setstack(musl_pthread_attr_t*,
+                                               void*,
+                                               size_t);
 
 SB_EXPORT int __abi_wrap_pthread_attr_getdetachstate(
     const musl_pthread_attr_t* attr,
@@ -159,6 +195,18 @@ SB_EXPORT int __abi_wrap_pthread_mutexattr_getpshared(
 SB_EXPORT int __abi_wrap_pthread_mutexattr_setpshared(
     musl_pthread_mutexattr_t* attr,
     int pshared);
+
+SB_EXPORT int __abi_wrap_pthread_rwlock_init(
+    musl_pthread_rwlock_t* __restrict rwlock,
+    const musl_pthread_rwlockattr_t* __restrict attr);
+SB_EXPORT int __abi_wrap_pthread_rwlock_destroy(musl_pthread_rwlock_t* rwlock);
+SB_EXPORT int __abi_wrap_pthread_rwlock_rdlock(musl_pthread_rwlock_t* rwlock);
+SB_EXPORT int __abi_wrap_pthread_rwlock_wrlock(musl_pthread_rwlock_t* rwlock);
+SB_EXPORT int __abi_wrap_pthread_rwlock_unlock(musl_pthread_rwlock_t* rwlock);
+SB_EXPORT int __abi_wrap_pthread_rwlock_tryrdlock(
+    musl_pthread_rwlock_t* rwlock);
+SB_EXPORT int __abi_wrap_pthread_rwlock_trywrlock(
+    musl_pthread_rwlock_t* rwlock);
 
 #ifdef __cplusplus
 }  // extern "C"

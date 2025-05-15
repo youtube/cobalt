@@ -1,7 +1,0 @@
-{
-  "failing_tests": [
-    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
-    "MultiplePlayerTest.*",
-    "VerticalVideoTests/VerticalVideoTest.*"
-  ]
-}

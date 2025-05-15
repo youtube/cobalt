@@ -306,9 +306,9 @@ class CONTENT_EXPORT RenderThreadImpl
   PepperVideoDecodeContextProvider();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  uint64_t GetMediaSourceSizeLimit() const;
-  uint64_t GetTotalMediaSourceSize() const;
-  uint64_t GetUsedMediaSourceMemorySize() const;
+  uint64_t GetMediaSourceMaximumMemoryCapacity() const;
+  uint64_t GetMediaSourceCurrentMemoryCapacity() const;
+  uint64_t GetMediaSourceTotalAllocatedMemory() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // For producing custom V8 histograms. Custom histograms are produced if all
