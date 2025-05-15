@@ -2807,8 +2807,6 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_experiments.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metrics.h",
-    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.cc",
-    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system.h",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
@@ -2826,14 +2824,6 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_user_on_exit_strategy.h",
   ]
-  if (!cobalt_is_release_build) {
-    generated_dictionary_sources_in_modules += [
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.cc",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_verify_test_response.h",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.cc",
-      "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_storage_write_test_response.h",
-    ]
-  }
 }
 
 generated_namespace_sources_in_modules = [
