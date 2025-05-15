@@ -14,7 +14,7 @@ import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_starboard) {
-  import("//cobalt/build/testing/cobalt_test_templates.gni")
+  import("//cobalt/build/modular_executable.gni")
 }
 
 declare_args() {
@@ -963,7 +963,7 @@ template("test") {
     # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
     # is_starboard as a toolchain arg.
   } else if (is_starboard && use_custom_libc) {
-    cobalt_test(target_name) {
+    modular_executable(target_name) {
       forward_variables_from(invoker,
                              "*",
                              TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
@@ -1180,7 +1180,9 @@ template("isolated_script_test") {
 
 # Test defaults.
 set_defaults("test") {
-  if (is_android) {
+  if (is_cobalt_hermetic_build) {
+    configs = default_shared_library_configs
+  } else if (is_android) {
     configs = default_shared_library_configs
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
     configs += [ "//build/config/android:hide_all_but_jni" ]

@@ -57,6 +57,15 @@ typedef struct PosixThreadLocalKeyPrivate {
   pthread_key_t key;
 } PosixThreadLocalKeyPrivate;
 
+typedef struct PosixRwLockPrivate {
+  InitializedState initialized_state;
+  pthread_rwlock_t rwlock;
+} PosixRwLockPrivate;
+
+typedef struct PosixRwLockAttrPrivate {
+  pthread_rwlockattr_t rwlock_attr;
+} PosixRwLockAttrPrivate;
+
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
 #define PTHREAD_INTERNAL_MUTEX(mutex_var) \
@@ -88,6 +97,19 @@ typedef struct PosixThreadLocalKeyPrivate {
 
 #define INTERNAL_ONCE(once_control) \
   reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)
+
+#define INTERNAL_RWLOCK(rwlock_var) \
+  reinterpret_cast<PosixRwLockPrivate*>((rwlock_var)->rwlock_buffer)
+#define PTHREAD_INTERNAL_RWLOCK(rwlock_var) \
+  &(reinterpret_cast<PosixRwLockPrivate*>((rwlock_var)->rwlock_buffer)->rwlock)
+#define PTHREAD_INTERNAL_RWLOCK_ATTR(musl_rwlock_attr) \
+  &(reinterpret_cast<PosixRwLockAttrPrivate*>(         \
+        (musl_rwlock_attr)->rwlock_attr_buffer)        \
+        ->rwlock_attr)
+#define CONST_PTHREAD_INTERNAL_RWLOCK_ATTR(musl_rwlock_attr) \
+  &(reinterpret_cast<const PosixRwLockAttrPrivate*>(         \
+        (musl_rwlock_attr)->rwlock_attr_buffer)              \
+        ->rwlock_attr)
 
 int __abi_wrap_pthread_mutex_destroy(musl_pthread_mutex_t* mutex) {
   if (!mutex) {
@@ -414,10 +436,111 @@ int __abi_wrap_pthread_attr_destroy(musl_pthread_attr_t* attr) {
   return errno_to_musl_errno(ret);
 }
 
+int __abi_wrap_pthread_attr_getscope(const musl_pthread_attr_t* attr,
+                                     int* scope) {
+  int native_scope;
+  const int ret =
+      pthread_attr_getscope(CONST_PTHREAD_INTERNAL_ATTR(attr), &native_scope);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_scope) {
+    case PTHREAD_SCOPE_SYSTEM:
+      *scope = MUSL_PTHREAD_SCOPE_SYSTEM;
+      return 0;
+    case PTHREAD_SCOPE_PROCESS:
+      *scope = MUSL_PTHREAD_SCOPE_PROCESS;
+      return 0;
+    default:
+      return MUSL_EINVAL;
+  }
+}
+
+int __abi_wrap_pthread_attr_setscope(musl_pthread_attr_t* attr, int scope) {
+  int native_scope;
+  switch (scope) {
+    case MUSL_PTHREAD_SCOPE_SYSTEM:
+      native_scope = PTHREAD_SCOPE_SYSTEM;
+      break;
+    case MUSL_PTHREAD_SCOPE_PROCESS:
+      native_scope = PTHREAD_SCOPE_PROCESS;
+      break;
+    default:
+      return MUSL_EINVAL;
+  }
+
+  const int ret =
+      pthread_attr_setscope(PTHREAD_INTERNAL_ATTR(attr), native_scope);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_getschedpolicy(const musl_pthread_attr_t* attr,
+                                           int* policy) {
+  int native_policy;
+  const int ret = pthread_attr_getschedpolicy(CONST_PTHREAD_INTERNAL_ATTR(attr),
+                                              &native_policy);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  switch (native_policy) {
+    case SCHED_FIFO:
+      *policy = MUSL_SCHED_FIFO;
+      return 0;
+    case SCHED_RR:
+      *policy = MUSL_SCHED_RR;
+      return 0;
+    case SCHED_OTHER:
+      *policy = MUSL_SCHED_OTHER;
+      return 0;
+    default:
+      return MUSL_EINVAL;
+  }
+}
+
+int __abi_wrap_pthread_attr_setschedpolicy(musl_pthread_attr_t* attr,
+                                           int policy) {
+  int native_policy;
+  switch (policy) {
+    case MUSL_SCHED_FIFO:
+      native_policy = SCHED_FIFO;
+      break;
+    case MUSL_SCHED_RR:
+      native_policy = SCHED_RR;
+      break;
+    case MUSL_SCHED_OTHER:
+      native_policy = SCHED_OTHER;
+      break;
+    default:
+      return MUSL_EINVAL;
+  }
+
+  const int ret =
+      pthread_attr_setschedpolicy(PTHREAD_INTERNAL_ATTR(attr), native_policy);
+  return errno_to_musl_errno(ret);
+}
+
 int __abi_wrap_pthread_attr_getstacksize(const musl_pthread_attr_t* attr,
                                          size_t* stack_size) {
   int ret =
       pthread_attr_getstacksize(CONST_PTHREAD_INTERNAL_ATTR(attr), stack_size);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_getstack(const musl_pthread_attr_t* __restrict attr,
+                                     void** __restrict stackaddr,
+                                     size_t* __restrict stacksize) {
+  int ret = pthread_attr_getstack(CONST_PTHREAD_INTERNAL_ATTR(attr), stackaddr,
+                                  stacksize);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_attr_setstack(musl_pthread_attr_t* attr,
+                                     void* stackaddr,
+                                     size_t stacksize) {
+  int ret =
+      pthread_attr_setstack(PTHREAD_INTERNAL_ATTR(attr), stackaddr, stacksize);
   return errno_to_musl_errno(ret);
 }
 
@@ -532,5 +655,125 @@ int __abi_wrap_pthread_mutexattr_setpshared(musl_pthread_mutexattr_t* attr,
   }
   int ret =
       pthread_mutexattr_setpshared(PTHREAD_INTERNAL_MUTEX_ATTR(attr), pshared);
+  return errno_to_musl_errno(ret);
+}
+
+// Read-write lock API wrappers.
+int __abi_wrap_pthread_rwlock_init(
+    musl_pthread_rwlock_t* __restrict rwlock,
+    const musl_pthread_rwlockattr_t* __restrict attr) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  const pthread_rwlockattr_t* tmp = nullptr;
+  if (attr) {
+    tmp = CONST_PTHREAD_INTERNAL_RWLOCK_ATTR(attr);
+  }
+
+  const int ret = pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), tmp);
+  if (ret == 0) {
+    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+  }
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_destroy(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  if (!IsInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    // If the rwlock is not initialized, there's nothing to destroy.
+    return MUSL_EINVAL;
+  }
+
+  const int ret = pthread_rwlock_destroy(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_rdlock(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  // Ensure the rwlock is initialized. If not, lazily initialize it.
+  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    // If initialization fails, return an error.
+    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
+      return MUSL_EINVAL;
+    }
+    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+  }
+
+  const int ret = pthread_rwlock_rdlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_wrlock(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  // Ensure the rwlock is initialized. If not, lazily initialize it.
+  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    // If initialization fails, return an error.
+    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
+      return MUSL_EINVAL;
+    }
+    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+  }
+
+  const int ret = pthread_rwlock_wrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_unlock(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  // If not initialized, it's an invalid argument to unlock.
+  if (!IsInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    return MUSL_EINVAL;
+  }
+
+  const int ret = pthread_rwlock_unlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_tryrdlock(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  // Ensure the rwlock is initialized. If not, lazily initialize it.
+  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    // If initialization fails, return an error.
+    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
+      return MUSL_EINVAL;
+    }
+    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+  }
+
+  const int ret = pthread_rwlock_tryrdlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
+  if (!rwlock) {
+    return MUSL_EINVAL;
+  }
+
+  // Ensure the rwlock is initialized. If not, lazily initialize it.
+  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
+    // If initialization fails, return an error.
+    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
+      return MUSL_EINVAL;
+    }
+    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+  }
+
+  const int ret = pthread_rwlock_trywrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
   return errno_to_musl_errno(ret);
 }

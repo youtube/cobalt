@@ -209,6 +209,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(closedir);
+  REGISTER_SYMBOL(dup);
+  REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -278,10 +280,22 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
   map_["pthread_attr_getdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getschedpolicy);
+  map_["pthread_attr_getscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getscope);
+  map_["pthread_attr_getstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstack);
   map_["pthread_attr_getstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
   map_["pthread_attr_setdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setschedpolicy);
+  map_["pthread_attr_setscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setscope);
+  map_["pthread_attr_setstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstack);
   map_["pthread_attr_setstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
   map_["pthread_cond_broadcast"] =
@@ -344,6 +358,20 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["pthread_rwlock_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_destroy);
+  map_["pthread_rwlock_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_init);
+  map_["pthread_rwlock_rdlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_rdlock);
+  map_["pthread_rwlock_tryrdlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_tryrdlock);
+  map_["pthread_rwlock_trywrlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_trywrlock);
+  map_["pthread_rwlock_unlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_unlock);
+  map_["pthread_rwlock_wrlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_wrlock);
   map_["pthread_self"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
   map_["pthread_setspecific"] =

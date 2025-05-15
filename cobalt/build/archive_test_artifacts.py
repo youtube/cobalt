@@ -106,6 +106,13 @@ def create_archive(
         else:
           rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
           target_deps.add(rel_path)
+
+          # TODO: b/417685824 - Correct runtime_deps for modular builds.
+          if line.strip().startswith('starboard/') and line.strip().endswith(
+              '_loader'):
+            copied_loader = line.strip()[len('starboard/'):]
+            rel_path = os.path.relpath(os.path.join(tar_root, copied_loader))
+            target_deps.add(rel_path)
       combined_deps |= target_deps
 
       # Android tests and deps are bundled into one tar file per target.
