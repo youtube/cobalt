@@ -224,8 +224,7 @@ public class MediaDrmBridge {
       if (request == null) {
         try {
           // Some implementations let this method throw exceptions.
-          Log.i(
-              TAG, "Calling MediaDrm.closeSession(...) in createSession failure path.");
+          Log.i(TAG, "Calling mMediaDrm.closeSession(...) in createSession failure path.");
           mMediaDrm.closeSession(sessionId);
         } catch (Exception e) {
           Log.e(TAG, "closeSession failed", e);
@@ -246,7 +245,7 @@ public class MediaDrmBridge {
         try {
           // Some implementations let this method throw exceptions.
           Log.i(
-              TAG, "Calling MediaDrm.closeSession(...) in createSession NotProvisionedException path.");
+              TAG, "Calling mMediaDrm.closeSession(...) in createSession NotProvisionedException path.");
           mMediaDrm.closeSession(sessionId);
         } catch (Exception ex) {
           Log.e(TAG, "closeSession failed", ex);
@@ -283,7 +282,7 @@ public class MediaDrmBridge {
 
     try {
       try {
-        Log.i(TAG, "Calling MediaDrm.provideKeyResponse: sessionId=" + bytesToHexString(sessionId)
+        Log.i(TAG, "Calling mMediaDrm.provideKeyResponse: sessionId=" + bytesToHexString(sessionId)
               + ", response(bytes)=" + response.length);
         mMediaDrm.provideKeyResponse(sessionId, response);
       } catch (IllegalStateException e) {
@@ -342,14 +341,14 @@ public class MediaDrmBridge {
     try {
       // Some implementations don't have removeKeys.
       // https://bugs.chromium.org/p/chromium/issues/detail?id=475632
-      Log.i(TAG, "Calling MediaDrm.removeKeys(...)");
+      Log.i(TAG, "Calling mMediaDrm.removeKeys(...)");
       mMediaDrm.removeKeys(sessionId);
     } catch (Exception e) {
       Log.e(TAG, "removeKeys failed: ", e);
     }
     try {
       // Some implementations let this method throw exceptions.
-      Log.i(TAG, "Calling MediaDrm.closeSession(...)");
+      Log.i(TAG, "Calling mMediaDrm.closeSession(...)");
       mMediaDrm.closeSession(sessionId);
     } catch (Exception e) {
       Log.e(TAG, "closeSession failed: ", e);
@@ -365,7 +364,7 @@ public class MediaDrmBridge {
     }
     byte[] metrics;
     try {
-      Log.i(TAG, "Calling MediaDrm.getPropertyByteArray(\"metrics\")");
+      Log.i(TAG, "Calling mMediaDrm.getPropertyByteArray(\"metrics\")");
       metrics = mMediaDrm.getPropertyByteArray("metrics");
     } catch (Exception e) {
       Log.e(TAG, "Failed to retrieve DRM Metrics.");
@@ -382,7 +381,7 @@ public class MediaDrmBridge {
   private MediaDrmBridge(String keySystem, UUID schemeUUID, long nativeMediaDrmBridge)
       throws android.media.UnsupportedSchemeException {
     mSchemeUUID = schemeUUID;
-    Log.i(TAG, "Calling MediaDrm Ctor.");
+    Log.i(TAG, "Calling mMediaDrm Ctor.");
     mMediaDrm = new MediaDrm(schemeUUID);
 
     // Get info of hdcp connection
@@ -396,7 +395,7 @@ public class MediaDrmBridge {
           String.format("Invalid nativeMediaDrmBridge value: |%d|.", nativeMediaDrmBridge));
     }
 
-    Log.i(TAG, "Calling MediaDrm.setOnEventListener(...)");
+    Log.i(TAG, "Calling mMediaDrm.setOnEventListener(...)");
     mMediaDrm.setOnEventListener(
         new OnEventListener() {
           @Override
@@ -457,7 +456,7 @@ public class MediaDrmBridge {
           }
         });
 
-    Log.i(TAG, "Calling MediaDrm.setOnKeyStatusChangeListener(...)");
+    Log.i(TAG, "Calling mMediaDrm.setOnKeyStatusChangeListener(...)");
     mMediaDrm.setOnKeyStatusChangeListener(
         new MediaDrm.OnKeyStatusChangeListener() {
           @Override
@@ -474,14 +473,14 @@ public class MediaDrmBridge {
         },
         null);
 
-    Log.i(TAG, "Calling MediaDrm.setPropertyString(\"privacyMode\", \"disable\")");
+    Log.i(TAG, "Calling mMediaDrm.setPropertyString(\"privacyMode\", \"disable\")");
     mMediaDrm.setPropertyString("privacyMode", "disable");
-    Log.i(TAG, "Calling MediaDrm.setPropertyString(\"sessionSharing\", \"enable\")");
+    Log.i(TAG, "Calling mMediaDrm.setPropertyString(\"sessionSharing\", \"enable\")");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
     if (keySystem.equals("com.youtube.widevine.l3")) {
-      Log.i(TAG, "Calling MediaDrm.getPropertyString(\"securityLevel\")");
+      Log.i(TAG, "Calling mMediaDrm.getPropertyString(\"securityLevel\")");
       if (!mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
-        Log.i(TAG, "Calling MediaDrm.setPropertyString(\"securityLevel\", \"L3\")");
+        Log.i(TAG, "Calling mMediaDrm.setPropertyString(\"securityLevel\", \"L3\")");
         mMediaDrm.setPropertyString("securityLevel", "L3");
       }
     }
@@ -530,7 +529,7 @@ public class MediaDrmBridge {
     HashMap<String, String> optionalParameters = new HashMap<>();
     MediaDrm.KeyRequest request = null;
     try {
-      Log.i(TAG, "Calling MediaDrm.getKeyRequest: sessionId=" + bytesToHexString(sessionId)
+      Log.i(TAG, "Calling mMediaDrm.getKeyRequest: sessionId=" + bytesToHexString(sessionId)
           + ", mime = " + mime + ", data(bytes)=" + data.length + ", optionalParameters=(null)");
       request =
           mMediaDrm.getKeyRequest(
@@ -591,7 +590,7 @@ public class MediaDrmBridge {
     }
 
     try {
-      Log.i(TAG, "Calling MediaDrm.openSession()");
+      Log.i(TAG, "Calling mMediaDrm.openSession()");
       byte[] sessionId = mMediaDrm.openSession();
       // Make a clone here in case the underlying byte[] is modified.
       return sessionId.clone();
@@ -611,13 +610,13 @@ public class MediaDrmBridge {
     }
   }
 
-  @UsedByNative
   boolean createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
       Log.i(TAG, "MediaCryptoSession is already created");
       return true;
     }
-    Log.w(TAG, "MediaDrmBridge createMediaCryptoSession");
+
+    Log.i(TAG, "MediaDrmBridge createMediaCryptoSession");
     if (mMediaCrypto == null) {
       throw new IllegalStateException("Cannot create media crypto session with null mMediaCrypto.");
     }
@@ -652,7 +651,7 @@ public class MediaDrmBridge {
       try {
         // Some implementations let this method throw exceptions.
         Log.i(
-            TAG, "Calling MediaDrm.closeSession(...) in createMediaCryptoSession failure path.");
+            TAG, "Calling mMediaDrm.closeSession(...) in createMediaCryptoSession failure path.");
         mMediaDrm.closeSession(mMediaCryptoSession);
       } catch (Exception e) {
         Log.e(TAG, "closeSession failed: ", e);
@@ -675,14 +674,14 @@ public class MediaDrmBridge {
    */
   private boolean attemptProvisioning() {
     Log.i(TAG, "attemptProvisioning()");
-    Log.i(TAG, "Calling MediaDrm.getProvisionRequest()");
+    Log.i(TAG, "Calling mMediaDrm.getProvisionRequest()");
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
     String url = request.getDefaultUrl() + "&signedRequest=" + new String(request.getData());
     byte[] response = new CobaltHttpHelper().performDrmHttpPost(url);
     if (response == null) {
       return false;
     }
-    Log.i(TAG, "Calling MediaDrm.provideProvisionResponse(...)");
+    Log.i(TAG, "Calling mMediaDrm.provideProvisionResponse(...)");
     try {
       mMediaDrm.provideProvisionResponse(response);
       return true;
@@ -717,14 +716,14 @@ public class MediaDrmBridge {
       try {
         // Some implementations don't have removeKeys.
         // https://bugs.chromium.org/p/chromium/issues/detail?id=475632
-        Log.i(TAG, "Calling MediaDrm.removeKeys(...) in release loop.");
+        Log.i(TAG, "Calling mMediaDrm.removeKeys(...) in release loop.");
         mMediaDrm.removeKeys(sessionId.array());
       } catch (Exception e) {
         Log.e(TAG, "removeKeys failed: ", e);
       }
 
       try {
-        Log.i(TAG, "Calling MediaDrm.closeSession(...) in release loop.");
+        Log.i(TAG, "Calling mMediaDrm.closeSession(...) in release loop.");
         // Some implementations let this method throw exceptions.
         mMediaDrm.closeSession(sessionId.array());
       } catch (Exception e) {
@@ -740,7 +739,7 @@ public class MediaDrmBridge {
     if (mMediaCryptoSession != null) {
       try {
         Log.i(
-            TAG, "Calling MediaDrm.closeSession(...) for mMediaCryptoSession in release.");
+            TAG, "Calling mMediaDrm.closeSession(...) for mMediaCryptoSession in release.");
         // Some implementations let this method throw exceptions.
         mMediaDrm.closeSession(mMediaCryptoSession);
       } catch (Exception e) {
@@ -761,19 +760,19 @@ public class MediaDrmBridge {
 
   @SuppressWarnings("deprecation")
   private void releaseMediaDrmDeprecated(MediaDrm mediaDrm) {
-    Log.i(TAG, "Calling MediaDrm.release() (deprecated)");
+    Log.i(TAG, "Calling mMediaDrm.release() (deprecated)");
     mediaDrm.release();
   }
 
   @RequiresApi(28)
   private void closeMediaDrmV28(MediaDrm mediaDrm) {
-    Log.i(TAG, "Calling MediaDrm.close()");
+    Log.i(TAG, "Calling mMediaDrm.close()");
     mediaDrm.close();
   }
 
   @RequiresApi(29)
   private void getConnectedHdcpLevelInfoV29(MediaDrm mediaDrm) {
-    Log.i(TAG, "Calling MediaDrm.getConnectedHdcpLevel()");
+    Log.i(TAG, "Calling mMediaDrm.getConnectedHdcpLevel()");
     int hdcpLevel = mediaDrm.getConnectedHdcpLevel();
     switch (hdcpLevel) {
       case MediaDrm.HDCP_V1:

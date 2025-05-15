@@ -63,7 +63,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_; }
+  jobject GetMediaCrypto() const;
   void CallUpdateRequestCallback(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  const void* session_id,

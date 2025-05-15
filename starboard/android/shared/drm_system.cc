@@ -215,29 +215,10 @@ DrmSystem::DrmSystem(
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
   created_media_crypto_session_.store(true);
-  // Start();
 }
 
 void DrmSystem::Run() {
-  JniEnvExt* env = JniEnvExt::Get();
-  bool result = env->CallBooleanMethodOrAbort(
-      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
-  if (result) {
-    created_media_crypto_session_.store(true);
-  }
-  if (!result && j_media_crypto_) {
-    env->DeleteGlobalRef(j_media_crypto_);
-    j_media_crypto_ = NULL;
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(j_media_drm_bridge_);
-    }
-    deferred_session_update_requests_.clear();
-  }
+  // Do nothing here.
 }
 
 DrmSystem::~DrmSystem() {
@@ -395,6 +376,11 @@ const void* DrmSystem::GetMetrics(int* size) {
   env->ReleaseByteArrayElements(j_metrics, metrics_elements, JNI_ABORT);
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
+}
+
+jobject DrmSystem::GetMediaCrypto() const {
+  SB_LOG(INFO) << "DrmSystem::GetMediaCrypto >";
+  return j_media_crypto_;
 }
 
 void DrmSystem::CallUpdateRequestCallback(int ticket,
