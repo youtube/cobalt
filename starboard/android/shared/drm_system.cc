@@ -224,12 +224,54 @@ DrmSystem::DrmSystem(
   Start();
 }
 
+void DrmSystem::ScheduleTask(const std::function<void()>& task) {
+  std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+  pending_tasks_.push(task);
+
+  condition_.notify_one();
+}
+
+void DrmSystem::StopThread() {
+  running_ = false;
+  condition_.notify_all();
+  SB_LOG(INFO) << "Stop signal sent to scheduler." << std::endl;
+}
+
 void DrmSystem::Run() {
-  // Do nothing here.
+  SB_CHECK(!running_);
+
+  running_ = true;
+  SB_LOG(INFO) << "Thread loop started.";
+
+  while (running_.load()) {
+    std::function<void()> task;
+    {
+      std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+      // Wait until there's a task or the scheduler is stopped
+      condition_.wait(
+          lock, [this] { return !pending_tasks_.empty() || !running_.load(); });
+
+      // If scheduler is stopped and no more tasks, exit
+      if (!running_.load() && pending_tasks_.empty()) {
+        break;
+      }
+
+      SB_CHECK(!pending_tasks_.empty());
+      task = std::move(pending_tasks_.front());
+      pending_tasks_.pop();
+    }
+
+    SB_CHECK(task != nullptr);
+
+    task();
+  }
+  SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+
+  StopThread();
   Join();
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -359,7 +401,8 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
-  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow the
+  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow
+  // the
   //       player worker to handle the retry logic.
   static int64_t first_us = CurrentMonotonicTime();
   static int64_t last_log_us = 0;
@@ -441,8 +484,8 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
-  // HDCP has lost, update the statuses of all keys in all known sessions to be
-  // restricted.
+  // HDCP has lost, update the statuses of all keys in all known sessions to
+  // be restricted.
   ScopedLock scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;
