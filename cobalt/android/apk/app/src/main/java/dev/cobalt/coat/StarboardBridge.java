@@ -23,14 +23,12 @@ import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.os.Build;
 import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
-import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
@@ -478,25 +476,22 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public boolean isMicrophoneDisconnected() {
-    // A check specifically for microphones is not available before API 28, so it is assumed that a
-    // connected input audio device is a microphone.
-    AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
-    AudioDeviceInfo[] devices = audioManager.getDevices(GET_DEVICES_INPUTS);
-    if (devices.length > 0) {
-      return false;
-    }
+    return !hasAvailableMicrophone();
+  }
 
-    // fallback to check for BT voice capable RCU
-    InputManager inputManager = (InputManager) appContext.getSystemService(Context.INPUT_SERVICE);
-    final int[] inputDeviceIds = inputManager.getInputDeviceIds();
-    for (int inputDeviceId : inputDeviceIds) {
-      final InputDevice inputDevice = inputManager.getInputDevice(inputDeviceId);
-      final boolean hasMicrophone = inputDevice.hasMicrophone();
-      if (hasMicrophone) {
-        return false;
+  public boolean hasAvailableMicrophone() {
+      AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
+      AudioDeviceInfo[] audioInputDevices = audioManager.getDevices(GET_DEVICES_INPUTS);
+      for (AudioDeviceInfo device : audioInputDevices) {
+          if (device.getType() == AudioDeviceInfo.TYPE_BUILTIN_MIC
+               || device.getType() == AudioDeviceInfo.TYPE_USB_DEVICE
+               || device.getType() == AudioDeviceInfo.TYPE_USB_HEADSET
+               || device.getType() == AudioDeviceInfo.TYPE_WIRED_HEADSET
+               || device.getType() == AudioDeviceInfo.TYPE_BLE_HEADSET) {
+              return true;
+          }
       }
-    }
-    return true;
+      return false;
   }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
