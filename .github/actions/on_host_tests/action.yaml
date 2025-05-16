@@ -21,26 +21,18 @@ runs:
       shell: bash
       run: |
         set -x
-
-        test_dir="${GITHUB_WORKSPACE}/unit_test"
-        echo "test_dir=${test_dir}" >> $GITHUB_ENV
-
-        mkdir -p ${test_dir}
-        cd ${test_dir}
-        tar xvf ../test_artifacts.tar.gz
+        mkdir -p unit_test/
+        cd unit_test/
+        tar xzf ../test_artifacts.tar.gz
     - name: Run Tests
       id: run-tests
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+        LD_LIBRARY_PATH: unit_test/out/${{ matrix.platform}}_${{ matrix.config }}/starboard:unit_test/out/${{ matrix.platform}}_${{ matrix.config }}
       run: |
         set -x
         env
-
-        # Explicitly point to libraries in extracted dir.
-        LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform}}_${{ matrix.config }}"
-        export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
@@ -53,7 +45,7 @@ runs:
         mkdir -p ${test_output}
 
         failed_suites=""
-        cd "${test_dir}"
+        cd unit_test/
 
         for test_binary_path in $(cat out/${{ matrix.platform}}_${{ matrix.config }}/test_targets.json | jq -cr '.executables | join(" ")'); do
           test_binary=$(basename "${test_binary_path}")
@@ -81,6 +73,7 @@ runs:
                 --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
             }
+
             if [[ ! -f ${xml_path} ]]; then
               # Test binary crashed. Generate a fake JUnit XML report with the last run test.
               last_run_line=$(grep "[ RUN      ]" "${log_path}" | tail -n 1)
@@ -92,14 +85,18 @@ runs:
                 if [[ -z "${test_name}" ]]; then test_name="UnknownTest"; fi
                 if [[ -z "${test_suite}" ]]; then test_suite="UnknownSuite"; fi
 
-                # Extract all logs after the last RUN line and escape the 5 xml characters: &, <, >, ", and '.
-                log_tail_content=$(echo "${log_path}" | sed "1,/${last_run_line}/d" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g; s/"/\&quot;/g; s/'"'"'/\&apos;/g'))
+                # Extract all logs after the last RUN line and escape the 5 xml characters: &, <, >, ", and '. Plus newline.
+                log_tail_content=$(sed "1,/${escaped_last_run_line}/d" "${log_path}")
+                encoded_log=$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' -e 's/"/\&quot;/g' -e "s/'/\&apos;/g" | tr -n '\n' '&#10;')
+
 
                 echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" >> "${xml_path}"
                 echo "<testsuites tests=\"1\" failures=\"1\" disabled=\"0\" errors=\"1\" time=\"0\">"  >> "${xml_path}"
                 echo "  <testsuite name=\"${test_suite}\" tests=\"1\" failures=\"0\" disabled=\"0\" errors=\"1\" time=\"0\" timestamp=\"${test_date}\">" >> "${xml_path}"
                 echo "    <testcase name=\"${test_name}\" classname=\"${test_suite}\" time=\"0\">" >> "${xml_path}"
-                echo "      <error message=\"CRASHED: ${log_tail_content}\" />" >> "${xml_path}"
+                echo "      <error message=\"Test crashed\">" >> "${xml_path}"
+                echo "        <![CDATA[ ${encoded_log} ]]>" >> "${xml_path}"
+                echo "      </error>" >> "${xml_path}"
                 echo "    </testcase>" >> "${xml_path}"
                 echo "  </testsuite>" >> "${xml_path}"
                 echo "</testsuites>" >> "${xml_path}"
@@ -108,7 +105,7 @@ runs:
           fi
         done
         echo "Finished running tests..."
-        if [ -n "${failed_suites}" ]; then
+        if [[ -n "${failed_suites}" ]]; then
           echo "Test suites failed:${failed_suites}"
           # Fail the job so it's easy to retrigger.
           exit 1
