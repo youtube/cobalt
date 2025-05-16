@@ -204,15 +204,8 @@ test("media_unittests") {
 
   if (is_cobalt) {
     # TODO(cobalt, b/379934658): add starboard_renderer_test.
-<<<<<<< HEAD
-    # TODO(cobalt, b/379936173): enable starboard_utils_test.
-    # TODO(cobalt, b/379934533): enable bidirectional_fit_reuse_allocator_test.
-    # TODO(cobalt, b/380335617): enable progressive demuxer tests.
     # TODO(cobalt, b/410073969): add starboard_renderer_client_test.
-    # deps += ["//media/starboard:unit_tests"]
-=======
     deps += ["//media/starboard:unit_tests"]
->>>>>>> e7123e5a288 (Enable //media/starboard:unit_tests (#5206))
   }
 
   data = [
