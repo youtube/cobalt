@@ -224,7 +224,7 @@ DrmSystem::DrmSystem(
   Start();
 }
 
-void DrmSystem::ScheduleTask(const std::function<void()>& task) {
+void DrmSystem::ScheduleTask(const std::function<void(JniEnvExt*)>& task) {
   std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
   pending_tasks_.push(task);
 
@@ -244,7 +244,9 @@ void DrmSystem::Run() {
   SB_LOG(INFO) << "Thread loop started.";
 
   while (running_.load()) {
-    std::function<void()> task;
+    JniEnvExt* env = JniEnvExt::Get();
+
+    std::function<void(JniEnvExt*)> task;
     {
       std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
       // Wait until there's a task or the scheduler is stopped
@@ -263,7 +265,7 @@ void DrmSystem::Run() {
 
     SB_CHECK(task != nullptr);
 
-    task();
+    task(env);
   }
   SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
 }
@@ -373,6 +375,12 @@ void DrmSystem::UpdateSession(int ticket,
                                 ? kSbDrmStatusSuccess
                                 : kSbDrmStatusUnknownError,
                             error_msg.c_str(), session_id, session_id_size);
+
+  if (update_success == JNI_TRUE) {
+    ScheduleTask([this](JniEnvExt* env) {
+      env->CallVoidMethodOrAbort(j_media_drm_bridge_, "runPendingTasks", "()V");
+    });
+  }
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {

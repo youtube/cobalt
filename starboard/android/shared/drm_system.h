@@ -115,7 +115,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // From Thread.
   void Run() override;
 
-  void ScheduleTask(const std::function<void()>& task);
+  void ScheduleTask(const std::function<void(JniEnvExt*)>& task);
   void StopThread();
 
   const std::string key_system_;
@@ -139,7 +139,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::vector<uint8_t> metrics_;
 
   std::mutex pending_tasks_mutex_;
-  std::queue<std::function<void()>> pending_tasks_;
+  std::queue<std::function<void(JniEnvExt*)>> pending_tasks_;
 
   std::condition_variable
       condition_;              // Used to signal task availability or stop

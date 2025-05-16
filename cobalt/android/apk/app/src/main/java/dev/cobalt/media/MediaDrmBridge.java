@@ -204,6 +204,25 @@ public class MediaDrmBridge {
       this.mime = mime;
     }
   }
+  LicenseRequestArgs pendingLicenseRequest;
+
+  @UsedByNative
+  void runPendingTasks() {
+    if (pendingLicenseRequest != null) {
+      Log.i(TAG, "Handle pending license request.");
+      try {
+        createSessionInternal(pendingLicenseRequest);
+      } catch (NotProvisionedException e) {
+        Log.e(TAG, "Met Provisioning error while handling pending license request.", e);
+        return;
+      }
+      pendingLicenseRequest = null;
+
+      return;
+    }
+
+    Log.i(TAG, "There is no pending task.");
+  }
 
   @UsedByNative
   void createSession(int ticket, byte[] initData, String mime) {
@@ -215,6 +234,7 @@ public class MediaDrmBridge {
       createSessionInternal(args);
     } catch(NotProvisionedException e) {
       Log.i(TAG, "Device not provisioned. Start provisioning.");
+      pendingLicenseRequest = args;
       startProvisioning(ticket);
       return;
     } catch(Exception e) {
@@ -616,7 +636,7 @@ public class MediaDrmBridge {
       Log.e(TAG, "Unable to set media drm session", e3);
       try {
         // Some implementations let this method throw exceptions.
-        Log.i(TAG, "Calling mMediaDrm.closeSession(...) in createMediaCryptoSession failure path.");
+        Log.i(TAG, "Calling mMediaDrm.closeSession(...).");
         mMediaDrm.closeSession(mMediaCryptoSession);
       } catch (Exception e) {
         Log.e(TAG, "closeSession failed: ", e);
