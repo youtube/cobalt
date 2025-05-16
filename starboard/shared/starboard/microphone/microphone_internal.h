@@ -16,7 +16,9 @@
 #define STARBOARD_SHARED_STARBOARD_MICROPHONE_MICROPHONE_INTERNAL_H_
 
 #include "starboard/microphone.h"
-#include "starboard/shared/internal_only.h"
+// Comment internal_only.h out because we have to to check microphone
+// permission in CobaltWebContentsDelegate to address b/406257490
+// #include "starboard/shared/internal_only.h"
 
 struct SbMicrophonePrivate {
   virtual ~SbMicrophonePrivate() {}
