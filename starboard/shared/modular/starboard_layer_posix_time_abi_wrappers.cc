@@ -30,6 +30,28 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   return retval;
 }
 
+int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
+                               int flags,
+                               struct musl_timespec* mts,
+                               struct musl_timespec* mremain) {
+  if (!mts) {
+    return MUSL_EFAULT;
+  }
+
+  struct timespec ts;
+  struct timespec remain;
+  ts.tv_sec = mts->tv_sec;
+  ts.tv_nsec = mts->tv_nsec;
+  int retval = clock_nanosleep(musl_clock_id_to_clock_id(musl_clock_id),
+                               musl_nanosleep_flags_to_nanosleep_flags(flags),
+                               &ts, mremain ? &remain : nullptr);
+  if (mremain) {
+    mremain->tv_sec = remain.tv_sec;
+    mremain->tv_nsec = remain.tv_nsec;
+  }
+  return errno_to_musl_errno(retval);
+}
+
 int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
   if (!mtv) {
     return -1;

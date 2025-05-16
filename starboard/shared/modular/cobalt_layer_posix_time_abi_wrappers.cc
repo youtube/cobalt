@@ -23,6 +23,15 @@ int clock_gettime(clockid_t clk_id, struct timespec* ts) {
   return __abi_wrap_clock_gettime(clk_id, ts);
 }
 
+int __abi_wrap_clock_nanosleep(clockid_t clk_id,
+                               int flags,
+                               struct timespec* ts,
+                               struct timespec* remain);
+
+int clock_nanosleep(clockid_t clk_id, struct timespec* ts) {
+  return __abi_wrap_clock_nanosleep(clk_id, ts);
+}
+
 int __abi_wrap_gettimeofday(struct timeval* tp, void* tzp);
 
 int gettimeofday(struct timeval* tp, void* tzp) {
