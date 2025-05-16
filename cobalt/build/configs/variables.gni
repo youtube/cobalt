@@ -17,7 +17,6 @@
 
 import("//$starboard_path/platform_configuration/configuration.gni")
 
-cobalt_toolchain = default_toolchain
 sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
 
 declare_args() {
