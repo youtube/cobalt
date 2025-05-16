@@ -109,7 +109,7 @@ source_set("starboard") {
     "//media/base",
     "//media/renderers",
     "//mojo/public/cpp/bindings:bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//url",
   ]
@@ -146,7 +146,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//media:test_support",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
