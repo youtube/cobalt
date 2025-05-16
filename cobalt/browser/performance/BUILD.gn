@@ -24,9 +24,6 @@ source_set("performance") {
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
     "//starboard:starboard_group",
+    "//starboard/common",
   ]
-
-  if (is_starboard) {
-    deps += [ "//starboard/common" ]
-  }
 }
