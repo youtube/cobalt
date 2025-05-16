@@ -25,6 +25,10 @@
 extern "C" {
 #endif
 
+#if SB_IS(ARCH_ARM)
+#define MUSL_REDIR_TIME64 1
+#endif
+
 #define MUSL_PTHREAD_CREATE_JOINABLE 0
 #define MUSL_PTHREAD_CREATE_DETACHED 1
 
@@ -98,7 +102,7 @@ typedef void* musl_pthread_key_t;
 struct musl_sched_param {
   int sched_priority;
   int __reserved1;
-#if _REDIR_TIME64
+#if MUSL_REDIR_TIME64
   long __reserved2[4];
 #else
   struct {
