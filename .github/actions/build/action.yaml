@@ -7,6 +7,9 @@ inputs:
   test_root_target:
     description: "The root target from which to deduce what tests to run."
     required: true
+  test_targets_json_file:
+    description: "The path to the file the test targets are written to."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -32,23 +35,21 @@ runs:
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
         id: changed-files
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
         run: |
           set -x
           cd src
-          changed_files=($(git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}))
-          # Convert the bash array to a JSON array.
-          changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
-          echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
+          git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > ${CHANGED_FILES_LIST}
         shell: bash
-      # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
       - name: Calculate test targets
         if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
-          CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
+          CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
-          TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
@@ -58,9 +59,12 @@ runs:
           sed -n '/^{/,$p' -i gn_desc.json
 
           changed_files_arg=""
-          if [[ -n "${CHANGED_FILES_JSON}" ]]; then
-            changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
-          fi
+
+          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
+          # Since the output of the script below isn't currently used the arg is disabled.
+          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
+          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
+          # fi
 
           vpython3 cobalt/build/test_targets.py \
               --root-target "${ROOT_TARGET}" \
@@ -69,20 +73,18 @@ runs:
               --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
           # Currently, override with static test targets, TODO(b/382508397)
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
-          echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
-
-          test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
+          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Archive test target results
+      - name: Archive test target JSON
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }} Test targets
+          name: ${{ matrix.platform }}_test_targets_json
           path: |
             src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
             src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
@@ -92,8 +94,8 @@ runs:
         run: |
           set -ex
           cd src
-          TEST_TARGETS=$(cat ${{ steps.calculate-test-targets.outputs.test_targets_json_file }} | jq -cr '.test_targets | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
         env:
@@ -109,7 +111,7 @@ runs:
           set -ex
           cd src
           out_dir=out/${{ matrix.platform }}_${{ matrix.config }}
-          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir ${out_dir} \
+          tools/licenses/licenses.py license_file --gn-target cobalt:gn_all --gn-out-dir ${out_dir} \
             > ${out_dir}/licenses_cobalt.txt
         shell: bash
       - name: Archive Android APKs
@@ -128,14 +130,4 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
-outputs:
-  test_targets_count:
-    description: The number of test targets build.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_count || 0 }}
-  test_targets_json:
-    description: The test targets in a JSON array.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
-  test_targets_json_file:
-    description: The generated test targets json file path.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}
+          test_targets_json_file: ${{ inputs.test_targets_json_file }}
