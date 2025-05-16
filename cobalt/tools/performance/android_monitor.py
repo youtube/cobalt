@@ -47,6 +47,8 @@ g_all_monitoring_data = []
 g_script_start_time_for_filename = ''
 # Event to signal threads to stop.
 g_stop_event = threading.Event()
+_EXPECTED_FORMAT_STR = 'Expected format "key1=val1,key2=val2,...,' +\
+    'key(n)=val(n)"'
 
 
 def _run_adb_command(command_list_or_str: Union[List[str], str],
@@ -157,7 +159,7 @@ def _stop_package(package_name: str) -> bool:
   return True
 
 
-def _launch_cobalt(package_name: str, activity_name: str, url: str):
+def _launch_cobalt(package_name: str, activity_name: str, flags: str):
   """Launches the Cobalt application with a specified URL.
 
   Args:
@@ -165,9 +167,8 @@ def _launch_cobalt(package_name: str, activity_name: str, url: str):
     activity_name: The main activity name of Cobalt.
     url: The URL to pass to Cobalt as a command-line argument.
   """
-  print(f'Attempting to launch Cobalt ({package_name}) with URL: {url}...')
   command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--url="{url}"\'')  # Line 90
+                 f'--esa commandLineArgs \'{flags}\'')
   stdout, stderr = _run_adb_command(command_str, shell=True)
   if stderr:
     print(f'Error launching Cobalt: {stderr}')
@@ -667,6 +668,12 @@ def main():
       default=_DEFAULT_OUTPUT_DIRECTORY,
       help='Output directory.',
   )
+  parser.add_argument(
+      '--flags',
+      type=str,
+      default='',
+      help=f'Cobalt CLI & Experiment flags. {_EXPECTED_FORMAT_STR}',
+  )
   args = parser.parse_args()
 
   global g_script_start_time_for_filename
@@ -682,6 +689,7 @@ def main():
   print(f'Interval: {poll_interval_milliseconds}ms')
   print(f'Output Dir: {output_directory}')
   print(f'Output Formats: {args.output}')
+  print(f'Cobalt Flags: {args.flags}')
   print('---------------------\n')
 
   if args.output in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
@@ -711,7 +719,27 @@ def main():
     print(f'\'{args.package}\' running. Stopping it first.')
     _stop_package(args.package)
 
-  _launch_cobalt(args.package, args.activity, args.url)
+  def _parse_flags(flags: str):
+    flags = f'--remote-allow-origins=*,--url="{args.url}",'
+    cobalt_flags = args.flags.split(',')
+    for flag_kv in cobalt_flags:
+      if flag_kv:
+        # we will not override URL with these Cobalt flags
+        if 'url' in flag_kv:
+          raise ValueError('Overriding the --url flag inside of the cobalt' +
+                           'flags is disallowed in this script')
+        kv = flag_kv.split('=')
+        if len(kv) != 2:
+          raise ValueError(f'{_EXPECTED_FORMAT_STR}')
+
+        flags += f'--{kv[0]}={kv[1]},'
+    flags = flags[:len(flags) - 1]
+    return flags
+
+  flags = _parse_flags(args.flags)
+  print(f'Attempting to launch Cobalt ({args.package}) with URL:' +\
+        f'{args.url}...')
+  _launch_cobalt(args.package, args.activity, flags)
 
   print(f'\nStarting data polling immediately for {args.package}...')
 
