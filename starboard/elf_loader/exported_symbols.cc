@@ -271,6 +271,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
   REGISTER_WRAPPER(connect);
+  REGISTER_WRAPPER(clock_nanosleep);
   if (errno_translation()) {
     REGISTER_WRAPPER(__errno_location);
   } else {
