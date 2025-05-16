@@ -17,41 +17,25 @@ CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() =
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
-#if BUILDFLAG(IS_ANDROIDTV)
   const GURL& url = navigation_handle()->GetURL();
   if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
-    LOG(INFO) << "Throttle result nav throttle cancel";
+    LOG(WARNING) << "Navigation throttle canceling navigation due to "
+                    "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
-#endif
-
   return content::NavigationThrottle::PROCEED;
 }
 
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
-#if BUILDFLAG(IS_ANDROIDTV)
   if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
-    LOG(INFO) << "Throttle result nav throttle cancel";
+    LOG(WARNING) << "Navigation throttle canceling navigation due to "
+                    "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
-#endif
-  return content::NavigationThrottle::PROCEED;
-}
-
-// Called when a request will fail.
-content::NavigationThrottle::ThrottleCheckResult
-CobaltHttpsOnlyNavigationThrottle::WillFailRequest() {
-#if BUILDFLAG(IS_ANDROIDTV)
-  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
-    LOG(INFO) << "Throttle result nav throttle cancel";
-    return content::NavigationThrottle::ThrottleCheckResult(
-        content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
-  }
-#endif
   return content::NavigationThrottle::PROCEED;
 }
 

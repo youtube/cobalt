@@ -11,11 +11,6 @@
 namespace content {
 class CobaltHttpsOnlyNavigationThrottle : public content::NavigationThrottle {
  public:
-  // static std::unique_ptr<CobaltHttpsOnlyNavigationThrottle>
-  // MaybeCreateThrottleFor(content::NavigationHandle* handle/*,
-  //     std::unique_ptr<SecurityBlockingPageFactory> blocking_page_factory,
-  //     PrefService* prefs*/);
-
   CobaltHttpsOnlyNavigationThrottle(content::NavigationHandle* handle);
   ~CobaltHttpsOnlyNavigationThrottle() override;
 
@@ -27,13 +22,8 @@ class CobaltHttpsOnlyNavigationThrottle : public content::NavigationThrottle {
   content::NavigationThrottle::ThrottleCheckResult WillStartRequest() override;
   content::NavigationThrottle::ThrottleCheckResult WillRedirectRequest()
       override;
-  content::NavigationThrottle::ThrottleCheckResult WillFailRequest() override;
-  // content::NavigationThrottle::ThrottleCheckResult WillProcessResponse()
-  // override;
 
   const char* GetNameForLogging() override;
-
-  // static void set_timeout_for_testing(int timeout_in_seconds);
 };
 
 }  // namespace content

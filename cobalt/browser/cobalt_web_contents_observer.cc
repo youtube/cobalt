@@ -74,16 +74,9 @@ enum {
 };
 }  // namespace
 
-void CobaltWebContentsObserver::DidStartNavigation(
-    content::NavigationHandle* navigation_handle) {
-  LOG(INFO) << "Attempting navigation to: " << navigation_handle->GetURL();
-}
-
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
   LOG(INFO) << "Navigated to: " << navigation_handle->GetURL();
-  LOG(INFO) << "Navigation has committed: "
-            << navigation_handle->HasCommitted();
 #if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
