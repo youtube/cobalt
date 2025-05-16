@@ -25,7 +25,7 @@ TimeDeltaInterpolator::TimeDeltaInterpolator(const base::TickClock* tick_clock)
 TimeDeltaInterpolator::~TimeDeltaInterpolator() = default;
 
 base::TimeDelta TimeDeltaInterpolator::StartInterpolating() {
-  // DCHECK(!interpolating_);
+  DCHECK(!interpolating_);
   reference_ = tick_clock_->NowTicks();
   interpolating_ = true;
   return lower_bound_;
