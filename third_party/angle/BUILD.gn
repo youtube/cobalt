@@ -463,7 +463,7 @@ template("angle_common_lib") {
       all_dependent_configs = [ ":angle_disable_pool_alloc" ]
     }
 
-    if (is_linux || is_chromeos) {
+    if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
       libs = [ "dl" ]
     }
 
