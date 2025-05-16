@@ -12,30 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
+
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
   if (!mts) {
+    errno = EFAULT;
     return -1;
   }
 
   // The type from platform toolchain.
   // Map the MUSL clock_id constants to platform constants.
   clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
+  if (clock_id < 0) {
+    errno = EINVAL;
+    return -1;
+  }
   struct timespec ts;  // The type from platform toolchain.
   int retval = clock_gettime(clock_id, &ts);
   mts->tv_sec = ts.tv_sec;
   mts->tv_nsec = ts.tv_nsec;
-  return retval;
-}
-
-int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc) {
-  time_t t = time(NULL);  // The type from platform toolchain (may be 32-bits).
-  int64_t retval = static_cast<int64_t>(t);
-  if (musl_tloc) {
-    *musl_tloc = retval;
-  }
   return retval;
 }
 
