@@ -37,6 +37,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
 
 /** A wrapper of the android MediaDrm class. */
 @UsedByNative
@@ -209,6 +210,12 @@ public class MediaDrmBridge {
   @UsedByNative
   void runPendingTasks() {
     if (pendingLicenseRequest != null) {
+      Log.i(TAG, "Wait for pending license request.");
+      try {
+        Thread.sleep(1_000);
+      } catch(Exception e) {
+        // Do nothing.
+      }
       Log.i(TAG, "Handle pending license request.");
       try {
         createSessionInternal(pendingLicenseRequest);
@@ -234,7 +241,8 @@ public class MediaDrmBridge {
       createSessionInternal(args);
     } catch(NotProvisionedException e) {
       Log.i(TAG, "Device not provisioned. Start provisioning.");
-      pendingLicenseRequest = args;
+      pendingLicenseRequest = new LicenseRequestArgs(
+        /*ticket=*/Integer.MIN_VALUE, initData, mime);
       startProvisioning(ticket);
       return;
     } catch(Exception e) {
@@ -277,7 +285,7 @@ public class MediaDrmBridge {
       }
 
       // Success!
-      Log.i(TAG, String.format("createSession(): Session (%s) created.", bytesToHexString(sessionId)));
+      Log.i(TAG, "createSession(): Session (%s) created.", bytesToHexString(sessionId));
     } catch (NotProvisionedException e) {
       Log.e(TAG, "Device not provisioned", e);
       return;
@@ -321,9 +329,7 @@ public class MediaDrmBridge {
         // reported as an exception.
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
-      Log.i(
-          TAG, String.format("Key successfully added for session %s", bytesToHexString(sessionId)));
-      return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
+      Log.i(TAG, String.format("Key successfully added for session %s", bytesToHexString(sessionId)));
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
       Log.e(TAG, "Failed to provide key response", e);
@@ -349,6 +355,15 @@ public class MediaDrmBridge {
               + " StackTrace: "
               + android.util.Log.getStackTraceString(e));
     }
+
+    isKeyUpdated = true;
+    return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
+  }
+
+  private boolean isKeyUpdated = false;
+  @UsedByNative
+  boolean isKeyLoaded() {
+    return isKeyUpdated;
   }
 
   /**
@@ -364,6 +379,10 @@ public class MediaDrmBridge {
       return;
     }
 
+    if (Arrays.equals(sessionId, FIRST_DRM_SESSION_ID)) {
+      Log.i(TAG, "Close session: nothing to for the first session.");
+      return;
+    }
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "Invalid sessionId in closeSession(): " + bytesToHexString(sessionId));
       return;
@@ -377,6 +396,7 @@ public class MediaDrmBridge {
     } catch (Exception e) {
       Log.e(TAG, "removeKeys failed: ", e);
     }
+
     try {
       // Some implementations let this method throw exceptions.
       Log.i(TAG, "Calling mMediaDrm.closeSession(...)");
@@ -491,6 +511,11 @@ public class MediaDrmBridge {
 
   /** Convert byte array to hex string for logging. */
   private static String bytesToHexString(byte[] bytes) {
+    try {
+      return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (Exception e) {
+      // Go to the fallback.
+    }
     StringBuilder hexString = new StringBuilder();
     for (int i = 0; i < bytes.length; ++i) {
       hexString.append(HEX_CHAR_LOOKUP[bytes[i] >>> 4]);

@@ -406,24 +406,19 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
   SB_DCHECK(j_media_crypto_);
-  // The actual decryption will take place by calling |queueSecureInputBuffer|
-  // in the decoders.  Our existence implies that there is enough information
-  // to perform the decryption.
-  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow
-  // the
-  //       player worker to handle the retry logic.
-  static int64_t first_us = CurrentMonotonicTime();
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean is_key_loaded =
+      env->CallBooleanMethodOrAbort(j_media_drm_bridge_, "isKeyLoaded", "()Z");
+
   static int64_t last_log_us = 0;
   if (int64_t now_us = CurrentMonotonicTime();
-      (now_us - first_us) < 5'000'000) {
-    if (last_log_us == 0 || (now_us - last_log_us) > 1'000'000) {
-      SB_LOG(INFO) << "DrmSystem::Decrypt < Retry";
-      last_log_us = now_us;
-    }
-    return kRetry;
+      (now_us - last_log_us) > 1'000'000) {
+    SB_LOG(INFO) << "DrmSystem::Decrypt: is_key_loaded="
+                 << (is_key_loaded ? "true" : "false");
+    last_log_us = now_us;
   }
 
-  return kSuccess;
+  return is_key_loaded == JNI_TRUE ? kSuccess : kRetry;
 }
 
 const void* DrmSystem::GetMetrics(int* size) {
