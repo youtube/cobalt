@@ -23,6 +23,6 @@ source_set("h5vcc_accessibility") {
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
   ]
 }

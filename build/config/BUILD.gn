@@ -215,7 +215,7 @@ config("default_libs") {
     # Targets should choose to explicitly link frameworks they require. Since
     # linking can have run-time side effects, nothing should be listed here.
     libs = []
-  } else if (is_linux || is_chromeos) {
+  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     libs = [
       "dl",
       "pthread",

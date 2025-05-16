@@ -67,4 +67,5 @@ template("modular_executable") {
 
 set_defaults("modular_executable") {
   configs = default_shared_library_configs
+  configs -= [ "//build/config/compiler:no_unresolved_symbols" ]
 }

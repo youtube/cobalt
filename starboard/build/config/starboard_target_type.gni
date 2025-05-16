@@ -34,6 +34,10 @@ if (starboard_target_type == "") {
 template("starboard_platform_target") {
   target(starboard_target_type, target_name) {
     forward_variables_from(invoker, [ "extra_configs" ])
+    visibility = [
+      ":starboard_group",
+      ":starboard_group($default_toolchain)",
+    ]
 
     if (starboard_target_type == "shared_library") {
       output_extension = starboard_shared_library_extension
