@@ -338,6 +338,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
   map_["pthread_key_delete"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_key_delete);
+  map_["pthread_kill"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_kill);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =

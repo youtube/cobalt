@@ -15,6 +15,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 
 #include <pthread.h>
+#include <signal.h>
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
@@ -847,5 +848,10 @@ int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
   }
 
   const int ret = pthread_rwlock_trywrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_kill(musl_pthread_t thread, int sig) {
+  int ret = pthread_kill(reinterpret_cast<pthread_t>(thread), sig);
   return errno_to_musl_errno(ret);
 }
