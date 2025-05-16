@@ -464,12 +464,6 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
                     static_cast<const char*>(session_id) + session_id_size);
   }
 
-  LOG(INFO) << "Receiving session update request notification from drm "
-               "system ("
-            << sb_drm << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id_copy.value_or("n/a");
-
   const uint8_t* begin = static_cast<const uint8_t*>(content);
   const uint8_t* end = begin + content_size;
   const std::vector<uint8_t> content_copy(begin, end);
