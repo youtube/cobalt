@@ -40,7 +40,8 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider);
+                   decode_target_graphics_context_provider,
+               bool may_reduce_quality_for_speed);
   ~VideoDecoder() override;
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
@@ -83,13 +84,15 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   void UpdateDecodeTarget_Locked(const scoped_refptr<CpuVideoFrame>& frame);
 
+  const bool may_reduce_quality_for_speed_;
+
   // The following callbacks will be initialized in Initialize() and won't be
   // changed during the life time of this class.
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
 
-  int current_frame_height_ = 0;
   int current_frame_width_ = 0;
+  int current_frame_height_ = 0;
   int frames_being_decoded_ = 0;
   Dav1dContext* dav1d_context_ = NULL;
 
