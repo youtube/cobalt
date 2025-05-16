@@ -209,6 +209,136 @@ TEST(PosixThreadAttrTest, SchedPolicyAttr) {
   EXPECT_EQ(ret, 0) << "pthread_attr_destroy failed: " << strerror(ret);
 }
 
+// Simple thread function that does nothing.
+static void* NopThreadFunc(void* arg) {
+  // A very short sleep can sometimes help ensure the thread is fully "live".
+  usleep(1000);  // Sleep for 1ms.
+  return nullptr;
+}
+
+TEST(PosixThreadAttrTest, GetAttrNp) {
+  pthread_attr_t creation_attrs;
+  int ret = pthread_attr_init(&creation_attrs);
+  ASSERT_EQ(ret, 0) << "pthread_attr_init (creation_attrs) failed: "
+                    << strerror(ret);
+
+  // Set attributes for the thread to be created.
+  ret = pthread_attr_setdetachstate(&creation_attrs, PTHREAD_CREATE_JOINABLE);
+  ASSERT_EQ(ret, 0)
+      << "pthread_attr_setdetachstate (PTHREAD_CREATE_JOINABLE) failed: "
+      << strerror(ret);
+
+  // Set stack size.
+  ret = pthread_attr_setstacksize(&creation_attrs, kStackSize);
+  ASSERT_EQ(ret, 0) << "pthread_attr_setstacksize failed for size "
+                    << kStackSize << ": " << strerror(ret);
+
+  pthread_t thread;
+  ret = pthread_create(&thread, &creation_attrs, NopThreadFunc, nullptr);
+  ASSERT_EQ(ret, 0) << "pthread_create failed: " << strerror(ret);
+
+  pthread_attr_t retrieved_attrs;
+  ret = pthread_getattr_np(thread, &retrieved_attrs);
+  ASSERT_EQ(ret, 0) << "pthread_getattr_np failed: " << strerror(ret);
+
+  // Verify retrieved attributes:
+  // 1. Detach state.
+  int detach_state = -1;
+  ret = pthread_attr_getdetachstate(&retrieved_attrs, &detach_state);
+  EXPECT_EQ(ret, 0) << "pthread_attr_getdetachstate (retrieved_attrs) failed: "
+                    << strerror(ret);
+  EXPECT_EQ(detach_state, PTHREAD_CREATE_JOINABLE);
+
+  // 2. Stack size.
+  size_t stack_size = 0;
+  ret = pthread_attr_getstacksize(&retrieved_attrs, &stack_size);
+  EXPECT_EQ(ret, 0) << "pthread_attr_getstacksize (retrieved_attrs) failed: "
+                    << strerror(ret);
+  EXPECT_GE(stack_size, kStackSize);
+
+  // Clean up.
+  void* thread_result;
+  ret = pthread_join(thread, &thread_result);
+  EXPECT_EQ(ret, 0) << "pthread_join failed: " << strerror(ret);
+
+  ret = pthread_attr_destroy(&creation_attrs);
+  EXPECT_EQ(ret, 0) << "pthread_attr_destroy (creation_attrs) failed: "
+                    << strerror(ret);
+
+  ret = pthread_attr_destroy(&retrieved_attrs);
+  EXPECT_EQ(ret, 0) << "pthread_attr_destroy (retrieved_attrs) failed: "
+                    << strerror(ret);
+}
+
+TEST(PosixThreadAttrTest, SchedParam) {
+  pthread_attr_t creation_attrs;
+  int ret = pthread_attr_init(&creation_attrs);
+  ASSERT_EQ(ret, 0) << "pthread_attr_init (creation_attrs) failed: "
+                    << strerror(ret);
+
+  // Ensure thread is joinable for cleanup.
+  ret = pthread_attr_setdetachstate(&creation_attrs, PTHREAD_CREATE_JOINABLE);
+  ASSERT_EQ(ret, 0)
+      << "pthread_attr_setdetachstate (PTHREAD_CREATE_JOINABLE) failed: "
+      << strerror(ret);
+
+  pthread_t target_thread;
+  ret = pthread_create(&target_thread, &creation_attrs, NopThreadFunc, nullptr);
+  ASSERT_EQ(ret, 0) << "pthread_create (target_thread) failed: "
+                    << strerror(ret);
+
+  // Helper lambda to test setting and getting a specific policy and priority.
+  auto test_runtime_sched_param = [&](pthread_t th, int policy_to_set,
+                                      const char* policy_name) {
+    struct sched_param new_param = {};
+    if (policy_to_set == SCHED_OTHER) {
+      new_param.sched_priority = 0;
+    } else {
+      new_param.sched_priority = 1;
+    }
+
+    const int set_ret = pthread_setschedparam(th, policy_to_set, &new_param);
+    if (set_ret == EPERM) {
+      SB_DLOG(INFO) << "pthread_setschedparam for policy: " << policy_to_set
+                    << " failed due to permissions";
+      return;
+    } else if (set_ret == ENOTSUP) {
+      SB_DLOG(INFO) << "pthread_setschedparam for policy: " << policy_to_set
+                    << " is not supported.";
+      return;
+    } else {
+      EXPECT_EQ(set_ret, 0) << "pthread_setschedparam (to " << policy_name
+                            << ") failed unexpectedly: " << strerror(set_ret);
+      if (set_ret == 0) {
+        int current_policy;
+        struct sched_param current_param;
+        const int get_ret =
+            pthread_getschedparam(th, &current_policy, &current_param);
+        EXPECT_EQ(get_ret, 0)
+            << "pthread_getschedparam (after set " << policy_name
+            << ") failed: " << strerror(get_ret);
+        EXPECT_EQ(current_policy, policy_to_set);
+        EXPECT_EQ(current_param.sched_priority, new_param.sched_priority);
+      }
+    }
+  };
+
+  test_runtime_sched_param(target_thread, SCHED_OTHER, "SCHED_OTHER");
+
+  test_runtime_sched_param(target_thread, SCHED_FIFO, "SCHED_FIFO");
+
+  test_runtime_sched_param(target_thread, SCHED_RR, "SCHED_RR");
+
+  // Clean up.
+  void* thread_result;
+  ret = pthread_join(target_thread, &thread_result);
+  EXPECT_EQ(ret, 0) << "pthread_join (target_thread) failed: " << strerror(ret);
+
+  ret = pthread_attr_destroy(&creation_attrs);
+  EXPECT_EQ(ret, 0) << "pthread_attr_destroy (creation_attrs) failed: "
+                    << strerror(ret);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
