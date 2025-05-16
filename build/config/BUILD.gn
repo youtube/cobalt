@@ -218,7 +218,7 @@ config("default_libs") {
       "CoreText.framework",
       "Foundation.framework",
     ]
-  } else if (is_linux || is_chromeos) {
+  } else if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     libs = [
       "dl",
       "pthread",

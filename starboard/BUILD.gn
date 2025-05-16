@@ -111,6 +111,12 @@ if (is_cobalt_hermetic_build) {
       "//starboard/client_porting/eztime",
     ]
 
+    if (current_toolchain == default_toolchain) {
+      data_deps = [ ":starboard($starboard_toolchain)" ]
+    } else {
+      deps += [ ":starboard($starboard_toolchain)" ]
+    }
+
     if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
@@ -125,24 +131,25 @@ if (is_cobalt_hermetic_build) {
       deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
     }
 
-    if (sb_is_evergreen) {
-      public_deps += [ "//starboard/elf_loader:sabi_string" ]
-    } else {
-      deps += [ ":starboard($starboard_toolchain)" ]
-    }
-
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen) {
-      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
+      public_deps += [
+        "//starboard/elf_loader:sabi_string",
+        "//third_party/llvm-project/libunwind:unwind",
+      ]
     }
   }
 } else {
   group("starboard_group") {
-    deps = [ "//starboard($starboard_toolchain)" ]
     public_deps = [
       ":starboard_headers_only",
       "//starboard/client_porting/eztime",
     ]
+    if (is_android) {
+      public_deps += [ "//starboard($starboard_toolchain)" ]
+    } else {
+      deps = [ "//starboard($starboard_toolchain)" ]
+    }
   }
 }
 
