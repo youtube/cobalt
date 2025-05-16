@@ -732,7 +732,7 @@ def main():
         if len(kv) != 2:
           raise ValueError(f'{_EXPECTED_FORMAT_STR}')
 
-        flags += f'--{kv[0]}="{kv[1]}",'
+        flags += f'--{kv[0]}={kv[1]},'
     flags = flags[:len(flags) - 1]
     return flags
 
