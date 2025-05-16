@@ -304,16 +304,13 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
     PrintAllocations(true, 16);
   }
 
-  // Assert that everything was freed.
-  // Note that in some unit tests this may
-  // not be the case.
-  if (allocated_blocks_.size() != 0) {
-    SB_DLOG(ERROR) << allocated_blocks_.size() << " blocks still allocated.";
-  }
+  // Check that everything was freed.  Note that in some unit tests this may not
+  // be the case.
+  SB_LOG_IF(ERROR, allocated_blocks_.size() != 0)
+      << allocated_blocks_.size() << " blocks still allocated.";
 
-  for (std::vector<void*>::iterator iter = fallback_allocations_.begin();
-       iter != fallback_allocations_.end(); ++iter) {
-    fallback_allocator_->Free(*iter);
+  for (auto fallback_allocation : fallback_allocations_) {
+    fallback_allocator_->Free(fallback_allocation);
   }
 }
 

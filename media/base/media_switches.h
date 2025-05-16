@@ -225,6 +225,7 @@ MEDIA_EXPORT extern const base::FeatureParam<bool>
     kEnforceSystemEchoCancellationAllowNsInTandem;
 #endif
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)

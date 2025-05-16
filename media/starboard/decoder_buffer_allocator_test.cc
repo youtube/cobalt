@@ -28,8 +28,10 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_switches.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,27 +43,17 @@
 namespace media {
 namespace {
 
+using ::testing::Bool;
+using ::testing::Combine;
 using ::testing::Values;
 
-std::vector<std::string> ReadAllocationLogFile(const std::string& name) {
-  LOG(INFO) << "Loading " << name << " ...";
-
-  base::FilePath file_path = GetTestDataFilePath(name);
-
-  int64_t file_size = 0;
-  CHECK(base::GetFileSize(file_path, &file_size))
-      << "Failed to get file size for '" << name << "'";
-  CHECK_GE(file_size, 0);
-
-  std::string buffer;
-
-  buffer.resize(static_cast<size_t>(file_size));
-  CHECK_EQ(file_size, base::ReadFile(file_path, buffer.data(), file_size))
-      << "Failed to read '" << name << "'";
-
-  return base::SplitStringUsingSubstr(buffer, "\n", base::TRIM_WHITESPACE,
-                                      base::SPLIT_WANT_NONEMPTY);
-}
+struct Operation {
+  enum class Type { kAllocate, kFree } operation_type;
+  std::string pointer;
+  DemuxerStream::Type buffer_type;
+  int size;
+  int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
+};
 
 int StringToInt(base::StringPiece input) {
   int result;
@@ -71,19 +63,31 @@ int StringToInt(base::StringPiece input) {
   return result;
 }
 
-class DecoderBufferAllocatorTest
-    : public ::testing::TestWithParam<std::string> {
- protected:
-  struct Operation {
-    enum class Type { kAllocate, kFree } operation_type;
-    std::string pointer;
-    DemuxerStream::Type buffer_type;
-    int size;
-    int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
-  };
+const std::vector<Operation>& ReadAllocationLogFile(const std::string& name) {
+  static std::unordered_map<std::string, std::vector<Operation>>
+      name_to_operations_map;
+  auto iter = name_to_operations_map.find(name);
 
-  void SetUp() {
-    auto allocations = ReadAllocationLogFile(GetParam());
+  if (iter == name_to_operations_map.end()) {
+    LOG(INFO) << "Loading " << name << " ...";
+
+    base::FilePath file_path = GetTestDataFilePath(name);
+
+    int64_t file_size = 0;
+    CHECK(base::GetFileSize(file_path, &file_size))
+        << "Failed to get file size for '" << name << "'";
+    CHECK_GE(file_size, 0);
+
+    std::string buffer;
+
+    buffer.resize(static_cast<size_t>(file_size));
+    CHECK_EQ(file_size, base::ReadFile(file_path, buffer.data(), file_size))
+        << "Failed to read '" << name << "'";
+
+    auto allocations = base::SplitStringUsingSubstr(
+        buffer, "\n", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+
+    std::vector<Operation> operations;
     std::unordered_set<std::string> pointers;
 
     for (auto&& allocation : allocations) {
@@ -110,22 +114,41 @@ class DecoderBufferAllocatorTest
 
         pointers.insert(pointer);
 
-        operations_.emplace_back(Operation{Operation::Type::kAllocate, pointer,
-                                           buffer_type, size, alignment});
+        operations.emplace_back(Operation{Operation::Type::kAllocate, pointer,
+                                          buffer_type, size, alignment});
       } else {
         // In the format of "free <pointer> <buffer_type> <size>"
         CHECK_EQ(tokens.size(), 4);
         CHECK_EQ(tokens[0], "free");
         CHECK_EQ(pointers.erase(pointer), 1);
 
-        operations_.emplace_back(
+        operations.emplace_back(
             Operation{Operation::Type::kFree, pointer, buffer_type, size});
       }
     }
+
+    iter =
+        name_to_operations_map.insert(std::make_pair(name, operations)).first;
   }
 
-  std::vector<Operation> operations_;
+  return iter->second;
+}
+
+class DecoderBufferAllocatorTest
+    : public ::testing::TestWithParam<std::tuple<std::string, bool>> {
+ protected:
+  void SetUp() {
+    scoped_list.InitWithFeatureState(
+        kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
+        std::get<1>(GetParam()));
+  }
+
+  base::test::ScopedFeatureList scoped_list;
 };
+
+TEST_P(DecoderBufferAllocatorTest, VerifyAndCacheAllocationLogs) {
+  ReadAllocationLogFile(std::get<0>(GetParam()));
+}
 
 TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
   DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
@@ -135,7 +158,9 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
   base::Time last_allocate_time = start_time;
   int free_operations_since_last_allocate = 0;
 
-  for (auto&& operation : operations_) {
+  const auto& operations = ReadAllocationLogFile(std::get<0>(GetParam()));
+
+  for (auto&& operation : operations) {
     if (operation.operation_type == Operation::Type::kAllocate) {
       CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
 
@@ -160,7 +185,7 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   LOG(INFO) << "DecoderBufferAllocator reached max allocated of "
             << max_allocated << ", and max capacity of " << max_capacity;
-  LOG(INFO) << "Total " << operations_.size()
+  LOG(INFO) << "Total " << operations.size()
             << " allocate/free operations take "
             << (base::Time::Now() - start_time).InMicroseconds()
             << " microseconds.";
@@ -204,8 +229,9 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
       std::unordered_map<std::string, void*> pointer_to_pointer_map;
       size_t max_allocated = 0;
       size_t max_capacity = 0;
+      const auto& operations = ReadAllocationLogFile(std::get<0>(GetParam()));
 
-      for (auto&& operation : operations_) {
+      for (auto&& operation : operations) {
         if (operation.buffer_type != buffer_type) {
           continue;
         }
@@ -239,17 +265,22 @@ TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(DecoderBufferAllocatorTests,
-                        DecoderBufferAllocatorTest,
-                        Values("starboard/allocations_1La4QzGeaaQ.txt",
-                               "starboard/allocations_8k.txt",
-                               "starboard/allocations_PMwaIrjiz8w.txt"),
-                        [](const ::testing::TestParamInfo<std::string>& info) {
-                          std::string name = info.param;
-                          std::replace(name.begin(), name.end(), '.', '_');
-                          std::replace(name.begin(), name.end(), '/', '_');
-                          return name;
-                        });
+INSTANTIATE_TEST_CASE_P(
+    DecoderBufferAllocatorTests,
+    DecoderBufferAllocatorTest,
+    Combine(Values("starboard/allocations_1La4QzGeaaQ.txt",
+                   "starboard/allocations_8k.txt",
+                   "starboard/allocations_PMwaIrjiz8w.txt"),
+            Bool()),
+    [](const ::testing::TestParamInfo<std::tuple<std::string, bool>>& info) {
+      std::string name = std::get<0>(info.param);
+      std::replace(name.begin(), name.end(), '.', '_');
+      std::replace(name.begin(), name.end(), '/', '_');
+
+      name += std::get<1>(info.param) ? "_in_place_allocator"
+                                      : "_default_allocator";
+      return name;
+    });
 
 }  // namespace
 }  // namespace media

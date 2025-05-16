@@ -77,12 +77,10 @@ source_set("starboard") {
 
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
       "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
-      "decoder_buffer_allocator_strategy.cc",
       "decoder_buffer_allocator_strategy.h",
       "decoder_buffer_memory_info.h",
       "sbplayer_bridge.cc",
