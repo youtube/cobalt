@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
@@ -32,12 +33,22 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
 
 int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
                                int flags,
-                               struct musl_timespec* mts,
+                               const struct musl_timespec* mts,
                                struct musl_timespec* mremain) {
+#if 0
+  return MUSL_EINVAL;
+#else
   if (!mts) {
     return MUSL_EFAULT;
   }
-
+  if (mts->tv_sec < 0) {
+    // Invalid relativer time.
+    return MUSL_EINVAL;
+  }
+  if ((flags & ~MUSL_TIMER_ABSTIME) != 0) {
+    // Invalid flags.
+    return MUSL_EINVAL;
+  }
   struct timespec ts;
   struct timespec remain;
   ts.tv_sec = mts->tv_sec;
@@ -50,6 +61,7 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
     mremain->tv_nsec = remain.tv_nsec;
   }
   return errno_to_musl_errno(retval);
+#endif
 }
 
 int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {

@@ -118,6 +118,11 @@ inline int musl_nanosleep_flags_to_nanosleep_flags(int musl_flags) {
 SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);
 
+SB_EXPORT int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
+                                         int flags,
+                                         const struct timespec* ts,
+                                         struct timespec* remain);
+
 SB_EXPORT int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);
 
 SB_EXPORT int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc);
