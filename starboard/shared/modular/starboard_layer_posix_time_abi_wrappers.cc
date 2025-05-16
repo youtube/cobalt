@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
@@ -28,6 +29,40 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   mts->tv_sec = ts.tv_sec;
   mts->tv_nsec = ts.tv_nsec;
   return retval;
+}
+
+int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
+                               int flags,
+                               const struct musl_timespec* mts,
+                               struct musl_timespec* mremain) {
+  if (!mts) {
+    return MUSL_EFAULT;
+  }
+  if (mts->tv_sec < 0) {
+    // Invalid relative time.
+    return MUSL_EINVAL;
+  }
+  if ((flags & ~MUSL_TIMER_ABSTIME) != 0) {
+    // Invalid flags.
+    return MUSL_EINVAL;
+  }
+  struct timespec ts;
+  struct timespec remain;
+  ts.tv_sec = mts->tv_sec;
+  ts.tv_nsec = mts->tv_nsec;
+  clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
+  if (clock_id < 0 || clock_id == CLOCK_PROCESS_CPUTIME_ID ||
+      clock_id == MUSL_CLOCK_THREAD_CPUTIME_ID) {
+    return MUSL_EINVAL;
+  }
+  int retval =
+      clock_nanosleep(clock_id, musl_nanosleep_flags_to_nanosleep_flags(flags),
+                      &ts, mremain ? &remain : nullptr);
+  if (mremain) {
+    mremain->tv_sec = remain.tv_sec;
+    mremain->tv_nsec = remain.tv_nsec;
+  }
+  return errno_to_musl_errno(retval);
 }
 
 int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc) {
