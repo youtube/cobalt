@@ -18,12 +18,16 @@
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/jni_env_ext.h"
-#endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #if BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/android/shared/audio_permission_requester.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #include "starboard/android/shared/starboard_bridge.h"
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 using starboard::android::shared::StarboardBridge;
 #endif  // BUILDFLAG(IS_ANDROID)
@@ -32,24 +36,15 @@ namespace cobalt {
 
 namespace {
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA) && BUILDFLAG(IS_ANDROID)
 bool RequestRecordAudioPermission() {
-  auto* env = starboard::android::shared::JniEnvExt::Get();
-  jobject j_audio_permission_requester =
-      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
-          "getAudioPermissionRequester",
-          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
-  jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "()Z");
-
-  return j_permission == JNI_TRUE;
-}
+#if BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+  JNIEnv* env = AttachCurrentThread();
+  return starboard::android::shared::RequestRecordAudioPermission(env);
 #else
-bool RequestRecordAudioPermission() {
   // It is expected that all 3P will have system-level permissions.
   return true;
-}
 #endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
+}
 
 const blink::MediaStreamDevice* GetRequestedDeviceOrDefault(
     const blink::MediaStreamDevices& devices,
@@ -118,7 +113,7 @@ bool CobaltWebContentsDelegate::CheckMediaAccessPermission(
 
 void CobaltWebContentsDelegate::CloseContents(content::WebContents* source) {
 #if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->CloseApp(env);
 #endif
