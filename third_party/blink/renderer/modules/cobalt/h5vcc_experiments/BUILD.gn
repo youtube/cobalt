@@ -12,17 +12,35 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//testing/test.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h5vcc_experiments") {
   sources = [
+    "experiments_utils.cc",
+    "experiments_utils.h",
     "h_5_vcc_experiments.cc",
     "h_5_vcc_experiments.h",
   ]
 
   deps = [
     "//base",
-    "//cobalt/browser:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_experiments/public/mojom:mojom_blink",
+  ]
+}
+
+static_library("test_support") {
+  testonly = true
+  sources = [
+    "experiments_utils.cc",
+    "experiments_utils.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/h5vcc_experiments/public/mojom:mojom_blink",
+    "//third_party/blink/renderer/bindings:generate_bindings_all",
   ]
 }
