@@ -456,6 +456,10 @@ BASE_FEATURE(kEnforceSystemEchoCancellation,
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// When enabled, Cobalt stores allocation meta data in place for DecoderBuffers.
+BASE_FEATURE(kCobaltDecoderBufferAllocatorWithInPlaceMetadata,
+             "CobaltDecoderBufferAllocatorWithInPlaceMetadata",
+             base::FEATURE_DISABLED_BY_DEFAULT);
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
