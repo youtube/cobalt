@@ -406,7 +406,7 @@ component("core") {
   }
 
   if (is_cobalt && use_starboard_media) {
-    deps += [ "//starboard($starboard_toolchain)" ]
+    deps += [ "//starboard:starboard_group" ]
   }
 }
 

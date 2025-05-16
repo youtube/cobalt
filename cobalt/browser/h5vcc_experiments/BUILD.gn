@@ -27,6 +27,6 @@ source_set("h5vcc_experiments") {
     "//components/prefs",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
   ]
 }
