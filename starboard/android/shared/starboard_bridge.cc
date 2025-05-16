@@ -301,6 +301,39 @@ SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
 }
 
+SB_EXPORT_ANDROID bool StarboardBridge::IsMicrophoneDisconnected(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isMicrophoneDisconnected(env,
+                                                       j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::IsMicrophoneMute(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isMicrophoneMute(env, j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID ScopedJavaLocalRef<jobject>
+StarboardBridge::GetAudioPermissionRequester(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAudioPermissionRequester(env,
+                                                          j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID void StarboardBridge::ResetVideoSurface(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_resetVideoSurface(env, j_starboard_bridge_);
+}
+
+SB_EXPORT_ANDROID void StarboardBridge::SetVideoSurfaceBounds(JNIEnv* env,
+                                                              int x,
+                                                              int y,
+                                                              int width,
+                                                              int height) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_setVideoSurfaceBounds(env, j_starboard_bridge_, x,
+                                                    y, width, height);
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

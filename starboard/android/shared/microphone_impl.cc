@@ -12,22 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/microphone/microphone_internal.h"
-
-#include <SLES/OpenSLES.h>
-#include <SLES/OpenSLES_Android.h>
+#include "starboard/android/shared/microphone_impl.h"
 
 #include <algorithm>
 #include <cstddef>
 #include <memory>
-#include <queue>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-using starboard::android::shared::JniEnvExt;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/AudioPermissionRequester_jni.h"
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace starboard {
 namespace android {
@@ -45,52 +44,6 @@ bool CheckReturnValue(SLresult result) {
 }
 }  // namespace
 
-class SbMicrophoneImpl : public SbMicrophonePrivate {
- public:
-  SbMicrophoneImpl();
-  ~SbMicrophoneImpl() override;
-
-  bool Open() override;
-  bool Close() override;
-  int Read(void* out_audio_data, int audio_data_size) override;
-
-  void SetPermission(bool is_granted);
-  static bool IsMicrophoneDisconnected();
-  static bool IsMicrophoneMute();
-
- private:
-  enum State { kWaitPermission, kPermissionGranted, kOpened, kClosed };
-
-  static void SwapAndPublishBuffer(SLAndroidSimpleBufferQueueItf buffer_object,
-                                   void* context);
-  void SwapAndPublishBuffer();
-
-  bool CreateAudioRecorder();
-  void DeleteAudioRecorder();
-
-  void ClearBuffer();
-
-  bool RequestAudioPermission();
-  bool StartRecording();
-  bool StopRecording();
-
-  SLObjectItf engine_object_;
-  SLEngineItf engine_;
-  SLObjectItf recorder_object_;
-  SLRecordItf recorder_;
-  SLAndroidSimpleBufferQueueItf buffer_object_;
-  SLAndroidConfigurationItf config_object_;
-
-  // Keeps track of the microphone's current state.
-  State state_;
-  // Audio data that has been delivered to the buffer queue.
-  Mutex delivered_queue_mutex_;
-  std::queue<int16_t*> delivered_queue_;
-  // Audio data that is ready to be read.
-  Mutex ready_queue_mutex_;
-  std::queue<int16_t*> ready_queue_;
-};
-
 SbMicrophoneImpl::SbMicrophoneImpl()
     : engine_object_(nullptr),
       engine_(nullptr),
@@ -104,32 +57,31 @@ SbMicrophoneImpl::~SbMicrophoneImpl() {
   Close();
 }
 
+// static
 bool SbMicrophoneImpl::RequestAudioPermission() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject j_audio_permission_requester =
-      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
-          "getAudioPermissionRequester",
-          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
-  jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "(J)Z",
-      reinterpret_cast<intptr_t>(this));
-  return j_permission;
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_audio_permission_requester =
+      StarboardBridge::GetInstance()->GetAudioPermissionRequester(env);
+
+  jboolean j_permission =
+      Java_AudioPermissionRequester_requestRecordAudioPermission(
+          env, j_audio_permission_requester);
+  return j_permission == JNI_TRUE;
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneDisconnected() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneDisconnected", "()Z");
-  return j_microphone;
+      StarboardBridge::GetInstance()->IsMicrophoneDisconnected(env);
+  return j_microphone == JNI_TRUE;
 }
 
 // static
 bool SbMicrophoneImpl::IsMicrophoneMute() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean j_microphone =
-      env->CallStarboardBooleanMethodOrAbort("isMicrophoneMute", "()Z");
-  return j_microphone;
+  JNIEnv* env = AttachCurrentThread();
+  jboolean j_microphone = StarboardBridge::GetInstance()->IsMicrophoneMute(env);
+  return j_microphone == JNI_TRUE;
 }
 
 bool SbMicrophoneImpl::Open() {
