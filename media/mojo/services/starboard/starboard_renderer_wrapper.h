@@ -72,6 +72,7 @@ class StarboardRendererWrapper final
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
+  void Render(RenderCallback callback) override;
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
