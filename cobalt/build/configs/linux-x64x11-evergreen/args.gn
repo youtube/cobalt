@@ -9,3 +9,10 @@ enable_pkeys = false
 
 # We don't implement the necessary APIs for mdns.
 enable_mdns = false
+
+# This brings in libraries we can't have in hermetic builds.
+use_system_libdrm = false
+
+# This brings in libraries we can't have in hermetic builds, and our decoding
+# is done under Starboard, so we can disable decoders at the Chromium level.
+rtc_use_h264 = false

@@ -252,7 +252,7 @@ component("gl") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone:buildflags" ]
-    if (use_egl && !is_fuchsia) {
+    if (use_egl && !is_fuchsia && !is_cobalt_hermetic_build) {
       data_deps += [
         "//third_party/angle:libEGL",
         "//third_party/angle:libGLESv2",

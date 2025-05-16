@@ -37,8 +37,8 @@ except ImportError as e:
 _DEFAULT_COBALT_PACKAGE_NAME = 'dev.cobalt.coat'
 _DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
 _DEFAULT_COBALT_URL = 'https://youtube.com/tv/watch?v=1La4QzGeaaQ'
-# Default polling interval now 10 seconds.
-_DEFAULT_POLL_INTERVAL_SECONDS = 10
+# Default polling interval now 100 milliseconds.
+_DEFAULT_POLL_INTERVAL_MILLISECONDS = 100
 _DEFAULT_OUTPUT_DIRECTORY = 'cobalt_monitoring_data'
 # --- End Global Configuration Defaults ---
 
@@ -47,6 +47,8 @@ g_all_monitoring_data = []
 g_script_start_time_for_filename = ''
 # Event to signal threads to stop.
 g_stop_event = threading.Event()
+_EXPECTED_FORMAT_STR = 'Expected format "key1=val1,key2=val2,...,' +\
+    'key(n)=val(n)"'
 
 
 def _run_adb_command(command_list_or_str: Union[List[str], str],
@@ -58,7 +60,7 @@ def _run_adb_command(command_list_or_str: Union[List[str], str],
     command_list_or_str: A list of command arguments or a single string
                          command.
     shell: If True, the command is executed through the shell.
-    timeout: Maximum time in seconds to wait for the command to complete.
+    timeout: Maximum time in milliseconds to wait for the command to complete.
 
   Returns:
     A tuple (stdout, stderr_msg). stdout is a string.
@@ -157,7 +159,7 @@ def _stop_package(package_name: str) -> bool:
   return True
 
 
-def _launch_cobalt(package_name: str, activity_name: str, url: str):
+def _launch_cobalt(package_name: str, activity_name: str, flags: str):
   """Launches the Cobalt application with a specified URL.
 
   Args:
@@ -165,9 +167,8 @@ def _launch_cobalt(package_name: str, activity_name: str, url: str):
     activity_name: The main activity name of Cobalt.
     url: The URL to pass to Cobalt as a command-line argument.
   """
-  print(f'Attempting to launch Cobalt ({package_name}) with URL: {url}...')
   command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'--url="{url}"\'')  # Line 90
+                 f'--esa commandLineArgs \'{flags}\'')
   stdout, stderr = _run_adb_command(command_str, shell=True)
   if stderr:
     print(f'Error launching Cobalt: {stderr}')
@@ -335,7 +336,7 @@ def _data_polling_loop(package_name: str, poll_interval: int):
 
   Args:
     package_name: The Android package name to monitor.
-    poll_interval: The polling interval in seconds.
+    poll_interval: The polling interval in milliseconds.
   """
   print('Starting data polling thread (meminfo and GraphicBufferAllocator)...')
   iteration = 0
@@ -383,11 +384,16 @@ def _data_polling_loop(package_name: str, poll_interval: int):
     g_all_monitoring_data.append(current_snapshot_data)
 
     # Accurate sleep considering processing time.
-    start_sleep_time = time.monotonic()
-    while time.monotonic() - start_sleep_time < poll_interval:
+    def _get_time_ms():
+      return time.monotonic_ns() / 1000
+
+    start_sleep_time = _get_time_ms()
+    while _get_time_ms() - start_sleep_time < poll_interval:
       if g_stop_event.is_set():
         break
-      time.sleep(0.1)  # Check stop event frequently during poll interval.
+      # Check stop event frequently during poll interval.
+      # This enables checks ~2 times before the interval should pass.
+      time.sleep(1 / poll_interval / 2)
     if g_stop_event.is_set():
       break
 
@@ -653,8 +659,8 @@ def main():
   parser.add_argument(
       '--interval',
       type=int,
-      default=_DEFAULT_POLL_INTERVAL_SECONDS,
-      help='Polling interval (s).',
+      default=_DEFAULT_POLL_INTERVAL_MILLISECONDS,
+      help='Polling interval (ms).',
   )
   parser.add_argument(
       '--outdir',
@@ -662,21 +668,28 @@ def main():
       default=_DEFAULT_OUTPUT_DIRECTORY,
       help='Output directory.',
   )
+  parser.add_argument(
+      '--flags',
+      type=str,
+      default='',
+      help=f'Cobalt CLI & Experiment flags. {_EXPECTED_FORMAT_STR}',
+  )
   args = parser.parse_args()
 
   global g_script_start_time_for_filename
   g_script_start_time_for_filename = time.strftime('%Y%m%d_%H%M%S',
                                                    time.localtime())
   output_directory = args.outdir
-  poll_interval_seconds = args.interval
+  poll_interval_milliseconds = args.interval
 
   print('--- Configuration ---')
   print(f'Package: {args.package}')
   print(f'Activity: {args.activity}')
   print(f'URL: {args.url}')
-  print(f'Interval: {poll_interval_seconds}s')
+  print(f'Interval: {poll_interval_milliseconds}ms')
   print(f'Output Dir: {output_directory}')
   print(f'Output Formats: {args.output}')
+  print(f'Cobalt Flags: {args.flags}')
   print('---------------------\n')
 
   if args.output in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
@@ -706,7 +719,27 @@ def main():
     print(f'\'{args.package}\' running. Stopping it first.')
     _stop_package(args.package)
 
-  _launch_cobalt(args.package, args.activity, args.url)
+  def _parse_flags(flags: str):
+    flags = f'--remote-allow-origins=*,--url="{args.url}",'
+    cobalt_flags = args.flags.split(',')
+    for flag_kv in cobalt_flags:
+      if flag_kv:
+        # we will not override URL with these Cobalt flags
+        if 'url' in flag_kv:
+          raise ValueError('Overriding the --url flag inside of the cobalt' +
+                           'flags is disallowed in this script')
+        kv = flag_kv.split('=')
+        if len(kv) != 2:
+          raise ValueError(f'{_EXPECTED_FORMAT_STR}')
+
+        flags += f'--{kv[0]}={kv[1]},'
+    flags = flags[:len(flags) - 1]
+    return flags
+
+  flags = _parse_flags(args.flags)
+  print(f'Attempting to launch Cobalt ({args.package}) with URL:' +\
+        f'{args.url}...')
+  _launch_cobalt(args.package, args.activity, flags)
 
   print(f'\nStarting data polling immediately for {args.package}...')
 
@@ -716,12 +749,12 @@ def main():
 
   polling_thread = threading.Thread(
       target=_data_polling_loop,
-      args=(args.package, poll_interval_seconds),
+      args=(args.package, poll_interval_milliseconds),
       daemon=True,
   )
   polling_thread.start()
 
-  print(f'\nPolling every {poll_interval_seconds}s. Output in'
+  print(f'\nPolling every {poll_interval_milliseconds}ms. Output in'
         f' \'{output_directory}\'. Ctrl+C to stop & save.')
 
   try:
@@ -736,7 +769,7 @@ def main():
 
   print('Waiting for data polling thread to complete...')
   if polling_thread.is_alive():
-    polling_thread.join(timeout=poll_interval_seconds + 10)
+    polling_thread.join(timeout=poll_interval_milliseconds + 10 * 1000)
   print('\nData polling stopped.')
 
   filename_base = f'monitoring_data_{g_script_start_time_for_filename}'
