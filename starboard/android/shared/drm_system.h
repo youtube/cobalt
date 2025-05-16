@@ -21,6 +21,9 @@
 #include <memory>
 
 #include <atomic>
+#include <condition_variable>
+#include <mutex>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -63,7 +66,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_; }
+  jobject GetMediaCrypto() const;
   void CallUpdateRequestCallback(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  const void* session_id,
@@ -112,6 +115,9 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // From Thread.
   void Run() override;
 
+  void ScheduleTask(const std::function<void(JniEnvExt*)>& task);
+  void StopThread();
+
   const std::string key_system_;
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
@@ -131,6 +137,13 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::atomic_bool created_media_crypto_session_{false};
 
   std::vector<uint8_t> metrics_;
+
+  std::mutex pending_tasks_mutex_;
+  std::queue<std::function<void(JniEnvExt*)>> pending_tasks_;
+
+  std::condition_variable
+      condition_;              // Used to signal task availability or stop
+  std::atomic<bool> running_;  // Flag to control the Run loop
 };
 
 }  // namespace shared

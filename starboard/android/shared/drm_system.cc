@@ -22,6 +22,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
+#include "starboard/common/time.h"
 
 namespace {
 
@@ -45,6 +46,7 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 const jint REQUEST_TYPE_INITIAL = 0;
 const jint REQUEST_TYPE_RENEWAL = 1;
 const jint REQUEST_TYPE_RELEASE = 2;
+const jint REQUEST_TYPE_INDIVIDUALIZATION = 3;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
@@ -58,6 +60,9 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
   }
   if (request_type == REQUEST_TYPE_RELEASE) {
     return kSbDrmSessionRequestTypeLicenseRelease;
+  }
+  if (request_type == REQUEST_TYPE_INDIVIDUALIZATION) {
+    return kSbDrmSessionRequestTypeIndividualizationRequest;
   }
   SB_NOTREACHED();
   return kSbDrmSessionRequestTypeLicenseRequest;
@@ -214,33 +219,61 @@ DrmSystem::DrmSystem(
   }
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
+  created_media_crypto_session_.store(true);
+
   Start();
 }
 
-void DrmSystem::Run() {
-  JniEnvExt* env = JniEnvExt::Get();
-  bool result = env->CallBooleanMethodOrAbort(
-      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
-  if (result) {
-    created_media_crypto_session_.store(true);
-  }
-  if (!result && j_media_crypto_) {
-    env->DeleteGlobalRef(j_media_crypto_);
-    j_media_crypto_ = NULL;
-    return;
-  }
+void DrmSystem::ScheduleTask(const std::function<void(JniEnvExt*)>& task) {
+  std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+  pending_tasks_.push(task);
 
-  ScopedLock scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(j_media_drm_bridge_);
+  condition_.notify_one();
+}
+
+void DrmSystem::StopThread() {
+  running_ = false;
+  condition_.notify_all();
+  SB_LOG(INFO) << "Stop signal sent to scheduler." << std::endl;
+}
+
+void DrmSystem::Run() {
+  SB_CHECK(!running_);
+
+  running_ = true;
+  SB_LOG(INFO) << "Thread loop started.";
+
+  while (running_.load()) {
+    JniEnvExt* env = JniEnvExt::Get();
+
+    std::function<void(JniEnvExt*)> task;
+    {
+      std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+      // Wait until there's a task or the scheduler is stopped
+      condition_.wait(
+          lock, [this] { return !pending_tasks_.empty() || !running_.load(); });
+
+      // If scheduler is stopped and no more tasks, exit
+      if (!running_.load() && pending_tasks_.empty()) {
+        break;
+      }
+
+      SB_CHECK(!pending_tasks_.empty());
+      task = std::move(pending_tasks_.front());
+      pending_tasks_.pop();
     }
-    deferred_session_update_requests_.clear();
+
+    SB_CHECK(task != nullptr);
+
+    task(env);
   }
+  SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+
+  StopThread();
   Join();
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -342,6 +375,12 @@ void DrmSystem::UpdateSession(int ticket,
                                 ? kSbDrmStatusSuccess
                                 : kSbDrmStatusUnknownError,
                             error_msg.c_str(), session_id, session_id_size);
+
+  if (update_success == JNI_TRUE) {
+    ScheduleTask([this](JniEnvExt* env) {
+      env->CallVoidMethodOrAbort(j_media_drm_bridge_, "runPendingTasks", "()V");
+    });
+  }
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -367,12 +406,19 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
   SB_DCHECK(j_media_crypto_);
-  // The actual decryption will take place by calling |queueSecureInputBuffer|
-  // in the decoders.  Our existence implies that there is enough information
-  // to perform the decryption.
-  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow the
-  //       player worker to handle the retry logic.
-  return kSuccess;
+  JniEnvExt* env = JniEnvExt::Get();
+  jboolean is_key_loaded =
+      env->CallBooleanMethodOrAbort(j_media_drm_bridge_, "isKeyLoaded", "()Z");
+
+  static int64_t last_log_us = 0;
+  if (int64_t now_us = CurrentMonotonicTime();
+      (now_us - last_log_us) > 1'000'000) {
+    SB_LOG(INFO) << "DrmSystem::Decrypt: is_key_loaded="
+                 << (is_key_loaded ? "true" : "false");
+    last_log_us = now_us;
+  }
+
+  return is_key_loaded == JNI_TRUE ? kSuccess : kRetry;
 }
 
 const void* DrmSystem::GetMetrics(int* size) {
@@ -394,6 +440,11 @@ const void* DrmSystem::GetMetrics(int* size) {
   env->ReleaseByteArrayElements(j_metrics, metrics_elements, JNI_ABORT);
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
+}
+
+jobject DrmSystem::GetMediaCrypto() const {
+  SB_LOG(INFO) << "DrmSystem::GetMediaCrypto >";
+  return j_media_crypto_;
 }
 
 void DrmSystem::CallUpdateRequestCallback(int ticket,
@@ -436,8 +487,8 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
-  // HDCP has lost, update the statuses of all keys in all known sessions to be
-  // restricted.
+  // HDCP has lost, update the statuses of all keys in all known sessions to
+  // be restricted.
   ScopedLock scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;

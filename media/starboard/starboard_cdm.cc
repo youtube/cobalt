@@ -331,12 +331,14 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
             << sb_drm_ << ") with type: " << type
             << ", message size: " << message.size();
 
+  /*
   auto session_iterator =
       std::find(session_list_.begin(), session_list_.end(), session_id.value());
   if (session_iterator == session_list_.end()) {
     LOG(ERROR) << "Unknown session id: " << session_id.value() << ".";
     return;
   }
+  */
 
   task_runner_->PostTask(
       FROM_HERE,
@@ -463,12 +465,6 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
         std::string(static_cast<const char*>(session_id),
                     static_cast<const char*>(session_id) + session_id_size);
   }
-
-  LOG(INFO) << "Receiving session update request notification from drm "
-               "system ("
-            << sb_drm << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id_copy.value_or("n/a");
 
   const uint8_t* begin = static_cast<const uint8_t*>(content);
   const uint8_t* end = begin + content_size;
