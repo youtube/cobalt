@@ -484,7 +484,9 @@ static_library("c_internal") {
     "src/time/__month_to_secs.c",
     "src/time/__tm_to_secs.c",
     "src/time/__year_to_secs.c",
+    "src/time/clock.c",
     "src/time/strftime.c",
+    "src/time/time.c",
   ]
 
   if (musl_arch == "i386" || musl_arch == "x86_64" || musl_arch == "aarch64") {

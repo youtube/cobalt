@@ -3,7 +3,14 @@
 
 #include "../../include/time.h"
 
-hidden int __clock_gettime(clockid_t, struct timespec *);
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+hidden static inline int __clock_gettime(clockid_t clockid,
+                                         struct timespec* tp) {
+  clock_gettime(clockid, tp);
+}
+#else
+hidden int __clock_gettime(clockid_t, struct timespec*);
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 hidden int __clock_nanosleep(clockid_t, int, const struct timespec *, struct timespec *);
 
 hidden char *__asctime_r(const struct tm *, char *);
