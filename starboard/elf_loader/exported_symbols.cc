@@ -268,8 +268,6 @@ ExportedSymbols::ExportedSymbols() {
   }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
   map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
-  map_["gettimeofday"] =
-      reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
   map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
   map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
