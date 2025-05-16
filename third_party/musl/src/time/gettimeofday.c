@@ -1,6 +1,5 @@
 #include <time.h>
 #include <sys/time.h>
-#include "syscall.h"
 
 int gettimeofday(struct timeval *restrict tv, void *restrict tz)
 {
