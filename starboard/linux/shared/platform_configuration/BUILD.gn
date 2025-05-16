@@ -17,6 +17,7 @@ config("compiler_flags") {
   cflags_c = []
   cflags_cc = []
   defines = []
+  asmflags = []
   ldflags = [ "-Wl,--error-limit=0" ]
 
   if (is_debug) {

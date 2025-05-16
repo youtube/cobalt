@@ -25,7 +25,8 @@ source_set("h5vcc_system") {
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
+    "//starboard/common",
   ]
 
   if (is_starboard) {

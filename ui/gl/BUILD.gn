@@ -188,7 +188,7 @@ component("gl") {
   }
 
   if (use_ozone) {
-    if (!is_fuchsia) {
+    if (!is_fuchsia && !is_cobalt_hermetic_build) {
       data_deps += [
         "//third_party/angle:libEGL",
         "//third_party/angle:libGLESv2",
