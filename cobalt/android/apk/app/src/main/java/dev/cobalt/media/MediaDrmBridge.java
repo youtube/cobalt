@@ -33,6 +33,7 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -198,26 +199,35 @@ public class MediaDrmBridge {
     public final int ticket;
     public final byte[] initData;
     public final String mime;
+    public final byte[] bridgeSessionId;
 
     public LicenseRequestArgs(int ticket, byte[] initData, String mime) {
       this.ticket = ticket;
       this.initData = initData;
       this.mime = mime;
+      this.bridgeSessionId = null;
+    }
+
+    public LicenseRequestArgs(LicenseRequestArgs args, byte[] bridgeSessionId) {
+      this.ticket = args.ticket;
+      this.initData = args.initData;
+      this.mime = args.mime;
+      this.bridgeSessionId = bridgeSessionId;
     }
   }
-  LicenseRequestArgs pendingLicenseRequest;
+  ArrayList<LicenseRequestArgs> pendingLicenseRequests = new ArrayList<>();
 
   private static final int kProvisioningWaitMs = 20_000;
   private static final int kProvisioningCheckIntervalMs = 300;
 
-  void handlePengindLicenseRequest() {
+  void handlePengindLicenseRequest(LicenseRequestArgs args) {
     long startTimeMs = System.currentTimeMillis();
     long endTimeMs = startTimeMs + kProvisioningWaitMs;
+    boolean completed = false;
 
     while (System.currentTimeMillis() < endTimeMs) {
       try {
-        createSessionInternal(pendingLicenseRequest);
-        pendingLicenseRequest = null;
+        createSessionInternal(args);
         break;
       } catch (NotProvisionedException e) {
         Log.e(TAG, "Met Provisioning error while handling pending license request. Will try again after interval(msec)=" + kProvisioningCheckIntervalMs);
@@ -233,7 +243,7 @@ public class MediaDrmBridge {
     }
 
     long elapsedMs = System.currentTimeMillis() - startTimeMs;
-    if (pendingLicenseRequest != null) {
+    if (completed) {
       Log.i(TAG, "Provisioning is completed: elapsed(msec)=" + elapsedMs);
     } else {
       Log.e(TAG, "Provisioning is not completed: elapsed(msec)=" + elapsedMs);
@@ -242,12 +252,13 @@ public class MediaDrmBridge {
 
   @UsedByNative
   void runPendingTasks() {
-    if (pendingLicenseRequest != null) {
-      handlePengindLicenseRequest();
-      return;
+    while (pendingLicenseRequests.size() > 0) {
+      LicenseRequestArgs args = pendingLicenseRequests.remove(0);
+      Log.i(TAG, "Handling pending license request.");
+      handlePengindLicenseRequest(args);
     }
 
-    Log.i(TAG, "There is no pending task.");
+    Log.i(TAG, "There is no more pending task.");
   }
 
   @UsedByNative
@@ -260,9 +271,10 @@ public class MediaDrmBridge {
       createSessionInternal(args);
     } catch(NotProvisionedException e) {
       Log.i(TAG, "Device not provisioned. Start provisioning.");
-      pendingLicenseRequest = new LicenseRequestArgs(
-        /*ticket=*/Integer.MIN_VALUE, initData, mime);
-      startProvisioning(ticket);
+      byte[] bridgeSessionId = generateBridgeSessiondId();
+
+      pendingLicenseRequests.add(new LicenseRequestArgs(args, bridgeSessionId));
+      startProvisioning(ticket, bridgeSessionId);
       return;
     } catch(Exception e) {
       Log.e(TAG, "Device not provisioned", e);
@@ -277,6 +289,8 @@ public class MediaDrmBridge {
 
     createMediaCryptoSession();
 
+    int ticket = args.ticket;
+
     try {
       sessionId = openSession();
       if (sessionId == null) {
@@ -284,9 +298,10 @@ public class MediaDrmBridge {
         return;
       }
 
-      if (usingFirstSessionId) {
-        assert mediaDrmFirstSessionId == null;
-        mediaDrmFirstSessionId = sessionId;
+      if (args.bridgeSessionId != null) {
+        Log.i(TAG, "Register session id: bridgeSessionId=" + bytesToHexString(args.bridgeSessionId) + ", mediaDrmSessionId=" + bytesToHexString(sessionId));
+        mBridgeSessionIds.put(ByteBuffer.wrap(args.bridgeSessionId), ByteBuffer.wrap(sessionId));
+        ticket = Integer.MIN_VALUE;
       }
 
       newSessionOpened = true;
@@ -317,8 +332,21 @@ public class MediaDrmBridge {
 
     mSessionIds.put(ByteBuffer.wrap(sessionId), args.mime);
 
-    if (Arrays.equals(sessionId, mediaDrmFirstSessionId)) {
-      sessionId = FIRST_DRM_SESSION_ID;
+    byte[] bridgeSessionId = null;
+    for (HashMap.Entry<ByteBuffer, ByteBuffer> entry : mBridgeSessionIds.entrySet()) {
+      ByteBuffer val = entry.getValue();
+      if (val == null) {
+        continue;
+      }
+      if (Arrays.equals(val.array(), sessionId)) {
+        bridgeSessionId = entry.getKey().array();
+        break;
+      }
+    }
+
+    if (bridgeSessionId != null) {
+      Log.i(TAG, "Replace session id with bridge session id: sessionId=" + bytesToHexString(sessionId) + ", bridgeSessionId=" + bytesToHexString(bridgeSessionId));
+      sessionId = bridgeSessionId;
     }
     onSessionMessage(args.ticket, sessionId, request);
   }
@@ -333,8 +361,8 @@ public class MediaDrmBridge {
   UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     assert mMediaDrm != null;
 
-    if (Arrays.equals(sessionId, FIRST_DRM_SESSION_ID)) {
-      Log.i(TAG, "Handle provision response.");
+    if (mBridgeSessionIds.containsKey(ByteBuffer.wrap(sessionId))) {
+      Log.i(TAG, "Handle provision response. sessionId=" + bytesToHexString(sessionId));
       return handleProvisionResponse(response);
     }
 
@@ -407,13 +435,14 @@ public class MediaDrmBridge {
       return;
     }
 
-    if (Arrays.equals(sessionId, FIRST_DRM_SESSION_ID)) {
-      if (mediaDrmFirstSessionId == null) {
-        Log.i(TAG, "No MediaDrm session is created for " + bytesToHexString(FIRST_DRM_SESSION_ID));
+    if (mBridgeSessionIds.containsKey(ByteBuffer.wrap(sessionId))) {
+      ByteBuffer mediaDrmSessionId = mBridgeSessionIds.get(ByteBuffer.wrap(sessionId));
+      if (mediaDrmSessionId == null) {
+        Log.i(TAG, "No MediaDrm session is created for " + bytesToHexString(sessionId));
         return;
       }
 
-      sessionId = mediaDrmFirstSessionId;
+      sessionId = mediaDrmSessionId.array();
       Log.i(TAG, "Close first session: " + bytesToHexString(sessionId));
     }
 
@@ -707,13 +736,22 @@ public class MediaDrmBridge {
     Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToHexString(mMediaCryptoSession));
   }
 
-  private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
+  // private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
   private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
 
-  private boolean usingFirstSessionId = false;
-  private byte[] mediaDrmFirstSessionId;
+  // private boolean usingFirstSessionId = false;
+  // private byte[] mediaDrmFirstSessionId;
 
   private static int provisioningInFlight = 0;
+
+  private static int mSessionIdCount = 0;
+  private static HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();
+
+  private byte[] generateBridgeSessiondId() {
+    byte[] sessionId = ("cobalt.sid." + mSessionIdCount++).getBytes();
+    mBridgeSessionIds.put(ByteBuffer.wrap(sessionId), null);
+    return sessionId;
+  }
 
   /**
    * Attempt to get the device that we are currently running on provisioned.
@@ -721,17 +759,15 @@ public class MediaDrmBridge {
    * @return whether provisioning was successful or not.
    */
   // Provisioning should be singletone activity.
-  private void startProvisioning(int ticket) {
+  private void startProvisioning(int ticket, byte[] bridgeSessionId) {
     provisioningInFlight++;
     Log.i(TAG, "start provisioning(): provisioningInFlight=" + provisioningInFlight);
 
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
 
-    usingFirstSessionId = true;
-
     nativeOnSessionMessage(
         mNativeMediaDrmBridge,
-        ticket, FIRST_DRM_SESSION_ID, INDIVIDUALIZATION_REQUEST_TYPE, request.getData());
+        ticket, bridgeSessionId, INDIVIDUALIZATION_REQUEST_TYPE, request.getData());
   }
 
   private UpdateSessionResult handleProvisionResponse(byte[] response) {
