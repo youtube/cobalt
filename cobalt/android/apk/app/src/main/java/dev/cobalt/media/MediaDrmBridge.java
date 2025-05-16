@@ -265,6 +265,11 @@ public class MediaDrmBridge {
         return;
       }
 
+      if (usingFirstSessionId) {
+        assert mediaDrmFirstSessionId == null;
+        mediaDrmFirstSessionId = sessionId;
+      }
+
       newSessionOpened = true;
       if (sessionExists(sessionId)) {
         Log.e(TAG, "Opened session that already exists.");
@@ -292,6 +297,10 @@ public class MediaDrmBridge {
     }
 
     mSessionIds.put(ByteBuffer.wrap(sessionId), args.mime);
+
+    if (Arrays.equals(sessionId, mediaDrmFirstSessionId)) {
+      sessionId = FIRST_DRM_SESSION_ID;
+    }
     onSessionMessage(args.ticket, sessionId, request);
   }
 
@@ -380,9 +389,15 @@ public class MediaDrmBridge {
     }
 
     if (Arrays.equals(sessionId, FIRST_DRM_SESSION_ID)) {
-      Log.i(TAG, "Close session: nothing to for the first session.");
-      return;
+      if (mediaDrmFirstSessionId == null) {
+        Log.i(TAG, "No MediaDrm session is created for " + bytesToHexString(FIRST_DRM_SESSION_ID));
+        return;
+      }
+
+      sessionId = mediaDrmFirstSessionId;
+      Log.i(TAG, "Close first session: " + bytesToHexString(sessionId));
     }
+
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "Invalid sessionId in closeSession(): " + bytesToHexString(sessionId));
       return;
@@ -676,16 +691,22 @@ public class MediaDrmBridge {
   private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
   private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
 
+  private boolean usingFirstSessionId = false;
+  private byte[] mediaDrmFirstSessionId;
+
   /**
    * Attempt to get the device that we are currently running on provisioned.
    *
    * @return whether provisioning was successful or not.
    */
+  // Provisioning should be singletone activity.
   private void startProvisioning(int ticket) {
     Log.i(TAG, "start provisioning()");
     Log.i(TAG, "Calling mMediaDrm.getProvisionRequest()");
 
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
+
+    usingFirstSessionId = true;
 
     nativeOnSessionMessage(
         mNativeMediaDrmBridge,
