@@ -331,14 +331,12 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
             << sb_drm_ << ") with type: " << type
             << ", message size: " << message.size();
 
-  /*
   auto session_iterator =
       std::find(session_list_.begin(), session_list_.end(), session_id.value());
   if (session_iterator == session_list_.end()) {
     LOG(ERROR) << "Unknown session id: " << session_id.value() << ".";
     return;
   }
-  */
 
   task_runner_->PostTask(
       FROM_HERE,

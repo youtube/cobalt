@@ -207,24 +207,43 @@ public class MediaDrmBridge {
   }
   LicenseRequestArgs pendingLicenseRequest;
 
+  private static final int kProvisioningWaitMs = 20_000;
+  private static final int kProvisioningCheckIntervalMs = 300;
+
+  void handlePengindLicenseRequest() {
+    long startTimeMs = System.currentTimeMillis();
+    long endTimeMs = startTimeMs + kProvisioningWaitMs;
+
+    while (System.currentTimeMillis() < endTimeMs) {
+      try {
+        createSessionInternal(pendingLicenseRequest);
+        pendingLicenseRequest = null;
+        break;
+      } catch (NotProvisionedException e) {
+        Log.e(TAG, "Met Provisioning error while handling pending license request. Will try again after interval(msec)=" + kProvisioningCheckIntervalMs);
+      }
+
+      try {
+        Thread.sleep(kProvisioningCheckIntervalMs);
+      } catch (InterruptedException e) {
+        System.err.println("Polling interrupted: " + e.getMessage());
+        Thread.currentThread().interrupt();
+        return;
+      }
+    }
+
+    long elapsedMs = System.currentTimeMillis() - startTimeMs;
+    if (pendingLicenseRequest != null) {
+      Log.i(TAG, "Provisioning is completed: elapsed(msec)=" + elapsedMs);
+    } else {
+      Log.e(TAG, "Provisioning is not completed: elapsed(msec)=" + elapsedMs);
+    }
+  }
+
   @UsedByNative
   void runPendingTasks() {
     if (pendingLicenseRequest != null) {
-      Log.i(TAG, "Wait for pending license request.");
-      try {
-        Thread.sleep(1_000);
-      } catch(Exception e) {
-        // Do nothing.
-      }
-      Log.i(TAG, "Handle pending license request.");
-      try {
-        createSessionInternal(pendingLicenseRequest);
-      } catch (NotProvisionedException e) {
-        Log.e(TAG, "Met Provisioning error while handling pending license request.", e);
-        return;
-      }
-      pendingLicenseRequest = null;
-
+      handlePengindLicenseRequest();
       return;
     }
 
@@ -694,6 +713,8 @@ public class MediaDrmBridge {
   private boolean usingFirstSessionId = false;
   private byte[] mediaDrmFirstSessionId;
 
+  private static int provisioningInFlight = 0;
+
   /**
    * Attempt to get the device that we are currently running on provisioned.
    *
@@ -701,8 +722,8 @@ public class MediaDrmBridge {
    */
   // Provisioning should be singletone activity.
   private void startProvisioning(int ticket) {
-    Log.i(TAG, "start provisioning()");
-    Log.i(TAG, "Calling mMediaDrm.getProvisionRequest()");
+    provisioningInFlight++;
+    Log.i(TAG, "start provisioning(): provisioningInFlight=" + provisioningInFlight);
 
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
 
@@ -725,7 +746,8 @@ public class MediaDrmBridge {
           UpdateSessionResult.Status.FAILURE,
           e.getMessage());
     }
-    Log.i(TAG, "provideProvisionResponse succeeded");
+    provisioningInFlight--;
+    Log.i(TAG, "provideProvisionResponse succeeded: provisioningInFlight=" + provisioningInFlight);
 
     return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
   }
