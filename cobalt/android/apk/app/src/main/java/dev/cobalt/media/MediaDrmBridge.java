@@ -233,7 +233,7 @@ public class MediaDrmBridge {
       }
 
       // Success!
-      Log.d(TAG, "Session is created: sessionId=" + sessionIdString(sessionId));
+      Log.d(TAG, "Session is created: sessionId=" + bytesToString(sessionId));
       mSessionIds.put(ByteBuffer.wrap(sessionId), mime);
       onSessionMessage(ticket, sessionId, request);
     } catch (NotProvisionedException e) {
@@ -283,7 +283,7 @@ public class MediaDrmBridge {
         // reported as an exception.
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
-      Log.d(TAG, "Key successfully added for sessionId=" + sessionIdString(sessionId));
+      Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
       return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
@@ -326,7 +326,7 @@ public class MediaDrmBridge {
     }
 
     if (!sessionExists(sessionId)) {
-      Log.e(TAG, "Invalid sessionId in closeSession(): sessionId=" + sessionIdString(sessionId));
+      Log.e(TAG, "Invalid sessionId in closeSession(): sessionId=" + bytesToString(sessionId));
       return;
     }
 
@@ -344,7 +344,7 @@ public class MediaDrmBridge {
       Log.e(TAG, "closeSession failed: ", e);
     }
     mSessionIds.remove(ByteBuffer.wrap(sessionId));
-    Log.d(TAG, "Session closed: sessionId=" + sessionIdString(sessionId));
+    Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
   }
 
   @UsedByNative
@@ -392,7 +392,7 @@ public class MediaDrmBridge {
               return;
             }
             if (!sessionExists(sessionId)) {
-              Log.e(TAG, "EventListener: Invalid session id=" + sessionIdString(sessionId));
+              Log.e(TAG, "EventListener: Invalid session id=" + bytesToString(sessionId));
               return;
             }
 
@@ -465,7 +465,7 @@ public class MediaDrmBridge {
     }
   }
 
-  private static String sessionIdString(byte[] bytes) {
+  private static String bytesToString(byte[] bytes) {
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (Exception e) {
@@ -638,7 +638,7 @@ public class MediaDrmBridge {
       return false;
     }
 
-    Log.d(TAG, "MediaCrypto Session created: sessionId=" + sessionIdString(mMediaCryptoSession));
+    Log.d(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
 
     return true;
   }
@@ -710,7 +710,7 @@ public class MediaDrmBridge {
       } catch (Exception e) {
         Log.e(TAG, "closeSession failed: ", e);
       }
-      Log.d(TAG, "Successfully closed session: sessionId=", sessionIdString(sessionId));
+      Log.d(TAG, "Successfully closed session: sessionId=", bytesToString(sessionId));
     }
     mSessionIds.clear();
 
