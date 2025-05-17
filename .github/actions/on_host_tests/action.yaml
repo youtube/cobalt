@@ -36,6 +36,7 @@ runs:
         out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
         LD_LIBRARY_PATH="${out_dir}/starboard"
         LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
+        export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
