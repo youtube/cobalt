@@ -259,7 +259,7 @@ static_library("video_encoder_test_environment") {
   ]
 }
 
-if (use_vaapi || use_v4l2_codec) {
+if (use_linux_video_acceleration) {
   static_library("image_processor") {
     testonly = true
     sources = [
