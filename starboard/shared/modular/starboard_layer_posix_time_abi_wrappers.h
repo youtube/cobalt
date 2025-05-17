@@ -104,8 +104,24 @@ inline int musl_clock_id_to_clock_id(int musl_clock_id) {
   }
 }
 
+#define MUSL_TIMER_ABSTIME 1
+
+inline int musl_nanosleep_flags_to_nanosleep_flags(int musl_flags) {
+  switch (musl_flags) {
+    case MUSL_TIMER_ABSTIME:
+      return TIMER_ABSTIME;
+    default:
+      return musl_flags;
+  }
+}
+
 SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);
+
+SB_EXPORT int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
+                                         int flags,
+                                         const struct timespec* ts,
+                                         struct timespec* remain);
 
 SB_EXPORT int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);
 

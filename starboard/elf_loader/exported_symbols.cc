@@ -260,6 +260,8 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] =
       reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  map_["clock_nanosleep"] =
+      reinterpret_cast<const void*>(&__abi_wrap_clock_nanosleep);
   if (errno_translation()) {
     map_["__errno_location"] =
         reinterpret_cast<const void*>(__abi_wrap___errno_location);
