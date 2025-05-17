@@ -224,6 +224,7 @@ static_library("starboard_platform") {
     "media_is_supported.cc",
     "media_is_video_supported.cc",
     "microphone_impl.cc",
+    "microphone_impl.h",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",

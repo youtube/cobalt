@@ -78,6 +78,14 @@ class StarboardBridge {
 
   void CloseApp(JNIEnv* env);
 
+  bool IsMicrophoneDisconnected(JNIEnv* env);
+  bool IsMicrophoneMute(JNIEnv* env);
+  ScopedJavaLocalRef<jobject> GetAudioPermissionRequester(JNIEnv* env);
+
+  void ResetVideoSurface(JNIEnv* env);
+
+  void SetVideoSurfaceBounds(JNIEnv* env, int x, int y, int width, int height);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
