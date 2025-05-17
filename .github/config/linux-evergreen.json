@@ -10,6 +10,7 @@
     "base",
     "base_perftests",
     "base_unittests",
+    "blink_unittests",
     "boringssl_ssl_tests",
     "cobalt",
     "crypto_unittests",
