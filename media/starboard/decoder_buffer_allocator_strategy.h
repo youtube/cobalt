@@ -22,12 +22,17 @@
 
 namespace media {
 
+template <typename ReuseAllocatorBase>
 class BidirectionalFitDecoderBufferAllocatorStrategy
     : public DecoderBufferAllocator::Strategy {
  public:
   BidirectionalFitDecoderBufferAllocatorStrategy(
       std::size_t initial_capacity,
-      std::size_t allocation_increment);
+      std::size_t allocation_increment)
+      : birectional_fit_allocator_(&fallback_allocator_,
+                                   initial_capacity,
+                                   kSmallAllocationThreshold,
+                                   allocation_increment) {}
 
   void* Allocate(DemuxerStream::Type type,
                  size_t size,
@@ -52,7 +57,7 @@ class BidirectionalFitDecoderBufferAllocatorStrategy
   static constexpr size_t kSmallAllocationThreshold = 512;
 
   StarboardMemoryAllocator fallback_allocator_;
-  BidirectionalFitReuseAllocator birectional_fit_allocator_;
+  BidirectionalFitReuseAllocator<ReuseAllocatorBase> birectional_fit_allocator_;
 };
 
 }  // namespace media
