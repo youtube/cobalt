@@ -37,6 +37,7 @@ _ALLOW_TESTS = {
     '//net:net_unittests',
     '//skia:skia_unittests',
     '//starboard/nplb:nplb',
+    '//third_party/blink/renderer/controller:blink_unittests',
     '//third_party/blink/renderer/platform/heap:blink_heap_perftests',
     '//third_party/blink/renderer/platform/heap:blink_heap_unittests',
     '//third_party/blink/renderer/platform/wtf:wtf_unittests',
