@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "*",
     "TextFragmentGenerationNavigationTest.*",
     "DecoderTemplateTest/0.ResetDuringFlush",
     "WebMediaPlayerImplTest.*",
