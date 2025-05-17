@@ -29,10 +29,13 @@ runs:
       shell: bash
       env:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
-        LD_LIBRARY_PATH: unit_test/out/${{ matrix.platform}}_${{ matrix.config }}/starboard:unit_test/out/${{ matrix.platform}}_${{ matrix.config }}
       run: |
         set -x
         env
+
+        out_dir="${GITHUB_WORKSPACE}/unit_test/out/${{ matrix.platform}}_${{ matrix.config }}"
+        LD_LIBRARY_PATH="${out_dir}/starboard"
+        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${out_dir}"
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
