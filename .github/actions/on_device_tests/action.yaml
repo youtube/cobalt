@@ -90,8 +90,12 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -uxe
+        shopt -s globstar nullglob
+
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
@@ -99,6 +103,25 @@ runs:
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
         gsutil -q cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
+
+        # TODO: Temporarily check gtest xmls for failures to workaround MH bug.
+        has_crashes="false"
+        has_failures="false"
+        test_xmls=$(${test_output}/**/*.xml)
+        if grep -e '<failure' -e '<error'; then
+          echo "::error::Found failures in the test xml."
+          has_failures="true"
+        fi
+
+        num_test_targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr '. | length')
+        if [ ${#log_files[@]} -ne ${num_test_targets} ]; then
+          echo "::error::Missing test result xml file(s). Expected ${num_test_targets}, got ${#log_files[@]}"
+          has_crashes="true"
+        fi
+
+        if [[ "${has_failures}" == "true" || "${has_crashes}" == "true" ]]; then
+          exit 1
+        fi
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
