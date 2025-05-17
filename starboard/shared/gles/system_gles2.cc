@@ -15,7 +15,200 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
+#include <map>
+#include <tuple>
+#include "starboard/common/log.h"
 #include "starboard/gles.h"
+
+#define GL_MEM_TRACE(x) trace_##x
+
+enum Objects { Buffers = 0, Textures = 1, Renderbuffers = 2 };
+
+const char* type2str(Objects type) {
+  switch (type) {
+    case Buffers:
+      return "buffers";
+    case Textures:
+      return "textures";
+    case Renderbuffers:
+      return "renderbuffers";
+    default:
+      SB_NOTREACHED();
+  }
+}
+
+using MemObjects = std::map<GLuint, size_t>;
+struct TrackedMemObject {
+  GLuint active = 0;
+  MemObjects objects;
+  size_t total_allocation = 0;
+};
+
+TrackedMemObject* getObjects() {
+  static TrackedMemObject objects[3] = {
+      TrackedMemObject(),
+      TrackedMemObject(),
+      TrackedMemObject(),
+  };
+  return objects;
+}
+
+void genObjects(Objects type, GLsizei n, GLuint* objects) {
+  TrackedMemObject& tracked_object = getObjects()[type];
+  MemObjects& map = tracked_object.objects;
+  for (GLsizei i = 0; i < n; i++) {
+    GLuint object_id = objects[i];
+    auto existing = map.find(object_id);
+    SB_CHECK(existing == map.end());
+    map.insert(std::make_pair(object_id, 0));
+    SB_LOG(ERROR) << "GLTRACE: added type:" << type2str(type)
+                  << " object:" << object_id << " p:" << &tracked_object;
+  }
+}
+void deleteObjects(Objects type, GLsizei n, const GLuint* objects) {
+  TrackedMemObject& tracked_object = getObjects()[type];
+  MemObjects& map = tracked_object.objects;
+  for (GLsizei i = 0; i < n; i++) {
+    GLuint object_id = objects[i];
+    auto existing = map.find(object_id);
+    SB_CHECK(existing != map.end());
+    if (existing->second != 0) {
+      SB_LOG(ERROR) << "GLTRACE: Released alloc for type:" << type2str(type)
+                    << " size: " << existing->second
+                    << " total:" << tracked_object.total_allocation << " (MB:"
+                    << (tracked_object.total_allocation / (1024 * 1024)) << ")";
+    }
+    tracked_object.total_allocation -= existing->second;
+    map.erase(existing);
+  }
+}
+void bindObject(Objects type, GLuint object) {
+  TrackedMemObject& tracked_object = getObjects()[type];
+  MemObjects& map = tracked_object.objects;
+  tracked_object.active = object;
+  if (object == 0)
+    return;
+  auto existing = map.find(object);
+  if (existing == map.end()) {
+    SB_LOG(ERROR) << "GLTRACE:  Cannot find object to bind, type:"
+                  << type2str(type) << " object:" << object;
+    SB_CHECK(existing != map.end());
+  }
+}
+void reportAllocation(Objects type, size_t estimated_allocation) {
+  TrackedMemObject& tracked_object = getObjects()[type];
+  MemObjects& map = tracked_object.objects;
+  auto existing = map.find(tracked_object.active);
+  SB_CHECK(existing != map.end());
+  // First subtract the previous allocation
+  tracked_object.total_allocation -= existing->second;
+  // update and add
+  existing->second = estimated_allocation;
+  tracked_object.total_allocation += existing->second;
+  SB_LOG(ERROR) << "GLTRACE: Alloc for type:" << type2str(type)
+                << " size: " << estimated_allocation
+                << " total:" << tracked_object.total_allocation
+                << " (MB:" << (tracked_object.total_allocation / (1024 * 1024))
+                << ")";
+}
+
+// Buffers
+void GL_MEM_TRACE(glGenBuffers)(GLsizei n, GLuint* buffers) {
+  glGenBuffers(n, buffers);
+  genObjects(Buffers, n, buffers);
+}
+void GL_MEM_TRACE(glDeleteBuffers)(GLsizei n, const GLuint* buffers) {
+  glDeleteBuffers(n, buffers);
+  deleteObjects(Buffers, n, buffers);
+}
+void GL_MEM_TRACE(glBindBuffer)(GLenum target, GLuint buffer) {
+  glBindBuffer(target, buffer);
+  bindObject(Buffers, buffer);
+}
+void GL_MEM_TRACE(glBufferData)(GLenum target,
+                                GLsizeiptr size,
+                                const void* data,
+                                GLenum usage) {
+  glBufferData(target, size, data, usage);
+  reportAllocation(Buffers, size);
+}
+
+// Textures
+void GL_MEM_TRACE(glGenTextures)(GLsizei n, GLuint* textures) {
+  glGenTextures(n, textures);
+  genObjects(Textures, n, textures);
+}
+void GL_MEM_TRACE(glDeleteTextures)(GLsizei n, const GLuint* textures) {
+  glDeleteTextures(n, textures);
+  deleteObjects(Textures, n, textures);
+}
+void GL_MEM_TRACE(glBindTexture)(GLenum target, GLuint texture) {
+  glBindTexture(target, texture);
+  bindObject(Textures, texture);
+}
+
+size_t estimate_bytes_per_pixel(GLenum format) {
+  switch (format) {
+    case GL_RGB:
+      return 3;
+    case GL_RGBA:
+      return 4;
+    case GL_LUMINANCE:
+    case GL_ALPHA:
+      return 1;
+    default:
+      return 4;  // overcount
+  }
+}
+
+void GL_MEM_TRACE(glTexImage2D)(GLenum target,
+                                GLint level,
+                                GLint internalformat,
+                                GLsizei width,
+                                GLsizei height,
+                                GLint border,
+                                GLenum format,
+                                GLenum type,
+                                const void* pixels) {
+  glTexImage2D(target, level, internalformat, width, height, border, format,
+               type, pixels);
+  reportAllocation(Textures, width * height * estimate_bytes_per_pixel(format));
+}
+void GL_MEM_TRACE(glTexSubImage2D)(GLenum target,
+                                   GLint level,
+                                   GLint xoffset,
+                                   GLint yoffset,
+                                   GLsizei width,
+                                   GLsizei height,
+                                   GLenum format,
+                                   GLenum type,
+                                   const void* pixels) {
+  glTexSubImage2D(target, level, xoffset, yoffset, width, height, format, type,
+                  pixels);
+  reportAllocation(Textures, width * height * estimate_bytes_per_pixel(format));
+}
+
+// Renderbuffers
+void GL_MEM_TRACE(glGenRenderbuffers)(GLsizei n, GLuint* renderbuffers) {
+  glGenRenderbuffers(n, renderbuffers);
+  genObjects(Renderbuffers, n, renderbuffers);
+}
+void GL_MEM_TRACE(glDeleteRenderbuffers)(GLsizei n,
+                                         const GLuint* renderbuffers) {
+  glDeleteRenderbuffers(n, renderbuffers);
+  deleteObjects(Renderbuffers, n, renderbuffers);
+}
+void GL_MEM_TRACE(glBindRenderbuffer)(GLenum target, GLuint renderbuffer) {
+  glBindRenderbuffer(target, renderbuffer);
+  bindObject(Renderbuffers, renderbuffer);
+}
+void GL_MEM_TRACE(glRenderbufferStorage)(GLenum target,
+                                         GLenum internalformat,
+                                         GLsizei width,
+                                         GLsizei height) {
+  glRenderbufferStorage(target, internalformat, width, height);
+  reportAllocation(Renderbuffers, width * height * 4);
+}
 
 namespace {
 
@@ -23,16 +216,16 @@ const SbGlesInterface g_sb_gles_interface = {
     &glActiveTexture,
     &glAttachShader,
     &glBindAttribLocation,
-    &glBindBuffer,
+    &GL_MEM_TRACE(glBindBuffer),
     &glBindFramebuffer,
-    &glBindRenderbuffer,
-    &glBindTexture,
+    &GL_MEM_TRACE(glBindRenderbuffer),
+    &GL_MEM_TRACE(glBindTexture),
     &glBlendColor,
     &glBlendEquation,
     &glBlendEquationSeparate,
     &glBlendFunc,
     &glBlendFuncSeparate,
-    &glBufferData,
+    &GL_MEM_TRACE(glBufferData),
     &glBufferSubData,
     &glCheckFramebufferStatus,
     &glClear,
@@ -48,12 +241,12 @@ const SbGlesInterface g_sb_gles_interface = {
     &glCreateProgram,
     &glCreateShader,
     &glCullFace,
-    &glDeleteBuffers,
+    &GL_MEM_TRACE(glDeleteBuffers),
     &glDeleteFramebuffers,
     &glDeleteProgram,
-    &glDeleteRenderbuffers,
+    &GL_MEM_TRACE(glDeleteRenderbuffers),
     &glDeleteShader,
-    &glDeleteTextures,
+    &GL_MEM_TRACE(glDeleteTextures),
     &glDepthFunc,
     &glDepthMask,
     &glDepthRangef,
@@ -69,11 +262,11 @@ const SbGlesInterface g_sb_gles_interface = {
     &glFramebufferRenderbuffer,
     &glFramebufferTexture2D,
     &glFrontFace,
-    &glGenBuffers,
+    &GL_MEM_TRACE(glGenBuffers),
     &glGenerateMipmap,
     &glGenFramebuffers,
-    &glGenRenderbuffers,
-    &glGenTextures,
+    &GL_MEM_TRACE(glGenRenderbuffers),
+    &GL_MEM_TRACE(glGenTextures),
     &glGetActiveAttrib,
     &glGetActiveUniform,
     &glGetAttachedShaders,
@@ -114,7 +307,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glPolygonOffset,
     &glReadPixels,
     &glReleaseShaderCompiler,
-    &glRenderbufferStorage,
+    &GL_MEM_TRACE(glRenderbufferStorage),
     &glSampleCoverage,
     &glScissor,
     &glShaderBinary,
@@ -125,12 +318,12 @@ const SbGlesInterface g_sb_gles_interface = {
     &glStencilMaskSeparate,
     &glStencilOp,
     &glStencilOpSeparate,
-    &glTexImage2D,
+    &GL_MEM_TRACE(glTexImage2D),
     &glTexParameterf,
     &glTexParameterfv,
     &glTexParameteri,
     &glTexParameteriv,
-    &glTexSubImage2D,
+    &GL_MEM_TRACE(glTexSubImage2D),
     &glUniform1f,
     &glUniform1fv,
     &glUniform1i,
