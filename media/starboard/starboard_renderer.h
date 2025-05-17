@@ -32,6 +32,7 @@
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/video_frame.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -105,6 +106,13 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
       UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  SbDecodeTarget GetSbDecodeTarget();
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
+  void set_decode_target_graphics_context_provider(
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func);
 
  private:
   enum State {
@@ -221,6 +229,10 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
+
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
 
   // WeakPtrFactory should be defined last (after all member variables).
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
