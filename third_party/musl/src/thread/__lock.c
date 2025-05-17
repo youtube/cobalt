@@ -1,3 +1,14 @@
+#if defined(STARBOARD)
+#include "lock.h"
+
+void __lock(pthread_mutex_t* m) {
+  pthread_mutex_lock(m);
+}
+
+void __unlock(pthread_mutex_t* m) {
+  pthread_mutex_unlock(m);
+}
+#else
 #include "pthread_impl.h"
 
 /* This lock primitive combines a flag (in the sign bit) and a
@@ -60,3 +71,4 @@ void __unlock(volatile int *l)
 		}
 	}
 }
+#endif
