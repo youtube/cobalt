@@ -62,5 +62,4 @@ int main(int argc, char** argv) {
       WTF::BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
                     base::Unretained(&test_suite)));
 }
-
 #endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
