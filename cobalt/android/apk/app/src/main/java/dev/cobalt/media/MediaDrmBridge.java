@@ -35,6 +35,7 @@ import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -232,9 +233,7 @@ public class MediaDrmBridge {
       }
 
       // Success!
-      Log.d(
-          TAG,
-          String.format("createSession(): Session (%s) created.", bytesToHexString(sessionId)));
+      Log.d(TAG, "Session is created: sessionId=" + bytesToString(sessionId));
       mSessionIds.put(ByteBuffer.wrap(sessionId), mime);
       onSessionMessage(ticket, sessionId, request);
     } catch (NotProvisionedException e) {
@@ -284,8 +283,7 @@ public class MediaDrmBridge {
         // reported as an exception.
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
-      Log.d(
-          TAG, String.format("Key successfully added for session %s", bytesToHexString(sessionId)));
+      Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
       return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
@@ -328,7 +326,7 @@ public class MediaDrmBridge {
     }
 
     if (!sessionExists(sessionId)) {
-      Log.e(TAG, "Invalid sessionId in closeSession(): " + bytesToHexString(sessionId));
+      Log.e(TAG, "Invalid sessionId in closeSession(): sessionId=" + bytesToString(sessionId));
       return;
     }
 
@@ -346,7 +344,7 @@ public class MediaDrmBridge {
       Log.e(TAG, "closeSession failed: ", e);
     }
     mSessionIds.remove(ByteBuffer.wrap(sessionId));
-    Log.d(TAG, String.format("Session %s closed", bytesToHexString(sessionId)));
+    Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
   }
 
   @UsedByNative
@@ -394,9 +392,7 @@ public class MediaDrmBridge {
               return;
             }
             if (!sessionExists(sessionId)) {
-              Log.e(
-                  TAG,
-                  String.format("EventListener: Invalid session %s", bytesToHexString(sessionId)));
+              Log.e(TAG, "EventListener: Invalid session id=" + bytesToString(sessionId));
               return;
             }
 
@@ -466,6 +462,14 @@ public class MediaDrmBridge {
     if (keySystem.equals("com.youtube.widevine.l3")
         && !mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
       mMediaDrm.setPropertyString("securityLevel", "L3");
+    }
+  }
+
+  private static String bytesToString(byte[] bytes) {
+    try {
+      return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
+    } catch (Exception e) {
+      return "hex(" + bytesToHexString(bytes) + ")";
     }
   }
 
@@ -634,9 +638,7 @@ public class MediaDrmBridge {
       return false;
     }
 
-    Log.d(
-        TAG,
-        String.format("MediaCrypto Session created: %s", bytesToHexString(mMediaCryptoSession)));
+    Log.d(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
 
     return true;
   }
@@ -692,24 +694,23 @@ public class MediaDrmBridge {
     }
 
     // Close all open sessions.
-    for (ByteBuffer sessionId : mSessionIds.keySet()) {
+    for (ByteBuffer sessionIdByteBuffer : mSessionIds.keySet()) {
+      byte[] sessionId = sessionIdByteBuffer.array();
       try {
         // Some implementations don't have removeKeys.
         // https://bugs.chromium.org/p/chromium/issues/detail?id=475632
-        mMediaDrm.removeKeys(sessionId.array());
+        mMediaDrm.removeKeys(sessionId);
       } catch (Exception e) {
         Log.e(TAG, "removeKeys failed: ", e);
       }
 
       try {
         // Some implementations let this method throw exceptions.
-        mMediaDrm.closeSession(sessionId.array());
+        mMediaDrm.closeSession(sessionId);
       } catch (Exception e) {
         Log.e(TAG, "closeSession failed: ", e);
       }
-      Log.d(
-          TAG,
-          String.format("Successfully closed session (%s)", bytesToHexString(sessionId.array())));
+      Log.d(TAG, "Successfully closed session: sessionId=", bytesToString(sessionId));
     }
     mSessionIds.clear();
 
