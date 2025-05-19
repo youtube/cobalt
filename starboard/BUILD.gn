@@ -22,10 +22,7 @@ if (!is_cobalt) {
   group("gn_all") {
     testonly = true
 
-    deps = [
-      ":default",
-      "//starboard/client_porting/icu_init",
-    ]
+    deps = [ ":default" ]
     if (enable_test_targets) {
       deps += [
         ":starboard_unittest",
@@ -104,10 +101,7 @@ if (!is_cobalt) {
 if (is_cobalt_hermetic_build) {
   group("starboard_group") {
     deps = []
-    public_deps = [
-      ":starboard_headers_only",
-      "//starboard/client_porting/eztime",
-    ]
+    public_deps = [ ":starboard_headers_only" ]
 
     if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
@@ -146,11 +140,20 @@ if (is_cobalt_hermetic_build) {
   }
 } else {
   group("starboard_group") {
+<<<<<<< HEAD
     deps = [ "//starboard($starboard_toolchain)" ]
     public_deps = [
       ":starboard_headers_only",
       "//starboard/client_porting/eztime",
     ]
+=======
+    public_deps = [ ":starboard_headers_only" ]
+    if (is_android) {
+      public_deps += [ "//starboard($starboard_toolchain)" ]
+    } else {
+      deps = [ "//starboard($starboard_toolchain)" ]
+    }
+>>>>>>> 3344b2e5c95 (Move eztime out of Starboard (#5765))
   }
 }
 
@@ -306,7 +309,6 @@ if (current_toolchain == starboard_toolchain) {
     }
     if (sb_is_evergreen_compatible) {
       deps += [
-        "//starboard/client_porting/eztime:eztime_test",
         "//starboard/extension:extension_test",
         "//starboard/loader_app:app_key_files_test",
         "//starboard/loader_app:app_key_test",

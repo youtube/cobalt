@@ -516,8 +516,13 @@ static_library("c_internal") {
   }
 
   deps = [
+<<<<<<< HEAD
     "//starboard:starboard_headers_only",
     "//starboard/client_porting/eztime",
+=======
+    "//starboard:starboard_group",
+    "//cobalt/common/eztime",
+>>>>>>> 3344b2e5c95 (Move eztime out of Starboard (#5765))
     "//starboard/common:common_headers_only",
   ]
 }
