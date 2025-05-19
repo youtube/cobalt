@@ -286,7 +286,7 @@ public class MediaDrmBridge {
       Log.e(TAG, "Failed to provide key response", e);
       release();
       return UpdateSessionResult.Failure(
-          "Update session failed because we were denied by server.", e);
+          "Update session failed due to lack of provisioning.", e);
     } catch (DeniedByServerException e) {
       Log.e(TAG, "Failed to provide key response.", e);
       release();
