@@ -7,8 +7,6 @@ services:
         - ghcr.io/youtube/cobalt/linux:latest
     image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
-    environment:
-      - DEPOT_TOOLS_UPDATE=0
   unittest:
     build:
       context: cobalt/docker/unittest

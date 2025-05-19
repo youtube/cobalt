@@ -2,7 +2,7 @@ name: android_26.android
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize, labeled]
+    types: [opened, reopened, synchronize, labeled, ready_for_review]
     branches:
       - '26.android'
   push:

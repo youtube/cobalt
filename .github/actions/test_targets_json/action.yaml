@@ -1,0 +1,24 @@
+name: Test Targets JSON
+description: Parses test target JSON file
+runs:
+  using: "composite"
+  steps:
+    - name: Download Test Targets Json
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ matrix.platform }}_test_targets_json
+        path:
+    - name: Test target count
+      id: parse-json
+      run: |
+        test_targets_json="$(cat test_targets.json | jq -cr '.test_targets')"
+        echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+        echo "test_targets_count=$(echo "${test_targets_json}" | jq -cr 'length')" >> $GITHUB_OUTPUT
+      shell: bash
+outputs:
+  test_targets_count:
+    description: The number of test targets.
+    value: ${{ steps.parse-json.outputs.test_targets_count }}
+  test_targets_json:
+    description: The test targets in a JSON array.
+    value: '${{ steps.parse-json.outputs.test_targets_json }}'
