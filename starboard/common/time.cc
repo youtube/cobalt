@@ -20,6 +20,17 @@
 #include "starboard/common/log.h"
 
 namespace starboard {
+namespace {
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+};
+
+auto ToMicroseconds(const struct timeval& tv) {
+  return tv.tv_sec * kMicrosecond + tv.tv_usec;
+};
+
+}  // namespace
 
 int64_t CurrentMonotonicTime() {
   struct timespec ts;
@@ -27,8 +38,8 @@ int64_t CurrentMonotonicTime() {
     SB_NOTREACHED() << "clock_gettime(CLOCK_MONOTONIC) failed.";
     return 0;
   }
-  return (static_cast<int64_t>(ts.tv_sec) * 1000000) +
-         (static_cast<int64_t>(ts.tv_nsec) / 1000);
+  return ToMicroseconds(ts);
+  ;
 }
 
 int64_t CurrentMonotonicThreadTime() {
@@ -37,8 +48,8 @@ int64_t CurrentMonotonicThreadTime() {
     // This is expected to happen on some systems, like Windows.
     return 0;
   }
-  return (static_cast<int64_t>(ts.tv_sec) * 1000000) +
-         (static_cast<int64_t>(ts.tv_nsec) / 1000);
+  return ToMicroseconds(ts);
+  ;
 }
 
 int64_t CurrentPosixTime() {
@@ -47,7 +58,7 @@ int64_t CurrentPosixTime() {
     SB_NOTREACHED() << "Could not determine time of day.";
     return 0;
   }
-  return (static_cast<int64_t>(tv.tv_sec) * 1000000) + tv.tv_usec;
+  return ToMicroseconds(tv);
 }
 
 }  // namespace starboard
