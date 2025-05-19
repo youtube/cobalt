@@ -115,9 +115,19 @@ public class MediaDrmBridge {
     // Descriptive error message or details, in the scenario where the update session call failed.
     private String mErrorMessage;
 
-    public UpdateSessionResult(Status status, String errorMessage) {
+    private UpdateSessionResult(Status status, String errorMessage) {
       this.mIsSuccess = status == Status.SUCCESS;
       this.mErrorMessage = errorMessage;
+    }
+
+    public static UpdateSessionResult Success() {
+      return new UpdateSessionResult(Status.SUCCESS, "");
+    }
+
+    public static UpdateSessionResult Failure(String errorMessage, Throwable e) {
+      return new UpdateSessionResult(
+          Status.FAILURE,
+          errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
     @UsedByNative
@@ -251,18 +261,14 @@ public class MediaDrmBridge {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Null MediaDrm object when calling updateSession(). StackTrace: "
-              + android.util.Log.getStackTraceString(new Throwable()));
+      return UpdateSessionResult.Failure(
+          "Null MediaDrm object when calling updateSession().", new Throwable());
     }
 
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Failed to update session because it does not exist. StackTrace: "
-              + android.util.Log.getStackTraceString(new Throwable()));
+      return UpdateSessionResult.Failure(
+          "Failed to update session because it does not exist.", new Throwable());
     }
 
     try {
@@ -274,31 +280,23 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
-      return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
+      return UpdateSessionResult.Success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
       Log.e(TAG, "Failed to provide key response", e);
       release();
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Update session failed due to lack of provisioning. StackTrace: "
-              + android.util.Log.getStackTraceString(e));
+      return UpdateSessionResult.Failure(
+          "Update session failed due to lack of provisioning.", e);
     } catch (DeniedByServerException e) {
       Log.e(TAG, "Failed to provide key response.", e);
       release();
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Update session failed because we were denied by server. StackTrace: "
-              + android.util.Log.getStackTraceString(e));
+      return UpdateSessionResult.Failure(
+          "Update session failed because we were denied by server.", e);
     } catch (Exception e) {
       Log.e(TAG, "", e);
       release();
-      return new UpdateSessionResult(
-          UpdateSessionResult.Status.FAILURE,
-          "Update session failed. Caught exception: "
-              + e.getMessage()
-              + " StackTrace: "
-              + android.util.Log.getStackTraceString(e));
+      return UpdateSessionResult.Failure(
+          "Update session failed. Caught exception: " + e.getMessage(), e);
     }
   }
 
