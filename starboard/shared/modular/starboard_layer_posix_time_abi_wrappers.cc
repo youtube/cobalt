@@ -30,17 +30,6 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   return retval;
 }
 
-int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp) {
-  if (!mtv) {
-    return -1;
-  }
-  struct timeval tv;  // The type from platform toolchain.
-  int retval = gettimeofday(&tv, NULL);
-  mtv->tv_sec = tv.tv_sec;
-  mtv->tv_usec = tv.tv_usec;
-  return retval;
-}
-
 int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc) {
   time_t t = time(NULL);  // The type from platform toolchain (may be 32-bits).
   int64_t retval = static_cast<int64_t>(t);

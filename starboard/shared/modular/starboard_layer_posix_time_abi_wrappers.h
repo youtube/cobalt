@@ -47,10 +47,7 @@ struct musl_timespec {
   int : 8 * (sizeof(int64_t) - sizeof(__MUSL_LONG_TYPE)) *
       (__SB_BYTE_ORDER != 4321);
 };
-struct musl_timeval {
-  int64_t /* time_t */ tv_sec;
-  int64_t /* suseconds_t */ tv_usec;
-};
+
 struct musl_tm {
   int32_t /* int */ tm_sec;
   int32_t /* int */ tm_min;
@@ -106,8 +103,6 @@ inline int musl_clock_id_to_clock_id(int musl_clock_id) {
 
 SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);
-
-SB_EXPORT int __abi_wrap_gettimeofday(struct musl_timeval* mtv, void* tzp);
 
 SB_EXPORT int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc);
 
