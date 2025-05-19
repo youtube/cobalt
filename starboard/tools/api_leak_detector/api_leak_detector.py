@@ -206,6 +206,9 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'write',
+    'rand',
+    'srand',
+    'rand_r',
 ]
 
 
