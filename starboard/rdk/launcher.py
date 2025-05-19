@@ -349,6 +349,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     """
     logging.info('Killing existing processes')
     self._PexpectSendLine(
+        'systemctl stop wpeframework')
+    self._PexpectSendLine(
         'pkill -9 -ef "(cobalt)|(crashpad_handler)|(elf_loader)"')
     self._WaitForPrompt()
     # Print the return code of pkill. 0 if a process was halted
