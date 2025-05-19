@@ -262,6 +262,8 @@ int pthread_rwlock_unlock(pthread_rwlock_t*);
 int pthread_rwlock_tryrdlock(pthread_rwlock_t*);
 int pthread_rwlock_trywrlock(pthread_rwlock_t*);
 
+int pthread_kill(pthread_t, int);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
