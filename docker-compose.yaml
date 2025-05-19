@@ -7,6 +7,13 @@ services:
         - ghcr.io/youtube/cobalt/linux:latest
     image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
+  raspi:
+    build:
+      context: cobalt/docker/raspi
+      cache_from:
+        - ghcr.io/youtube/cobalt/raspi:latest
+    image: ghcr.io/youtube/cobalt/raspi:latest
+    platform: linux/amd64
   unittest:
     build:
       context: cobalt/docker/unittest
