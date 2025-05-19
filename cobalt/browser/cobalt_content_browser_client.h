@@ -15,6 +15,8 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include <string>
+
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
@@ -48,6 +50,7 @@ class VideoGeometrySetterService;
 
 class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
+class CobaltContentBrowserClientTest;
 
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
@@ -122,8 +125,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
+  static const std::string COBALT_BRAND_NAME;
+  static const std::string COBALT_MAJOR_VERSION;
+  static const std::string COBALT_VERSION;
+
  private:
   void CreateVideoGeometrySetterService();
+  friend class CobaltContentBrowserClientTest;
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;

@@ -33,6 +33,7 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
+#include "components/embedder_support/user_agent_utils.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -56,6 +57,10 @@
 
 namespace cobalt {
 
+const std::string CobaltContentBrowserClient::COBALT_BRAND_NAME = "Cobalt";
+const std::string CobaltContentBrowserClient::COBALT_MAJOR_VERSION = "26";
+const std::string CobaltContentBrowserClient::COBALT_VERSION = "26.lts.0-qa";
+
 namespace {
 
 constexpr base::FilePath::CharType kCacheDirname[] = FILE_PATH_LITERAL("Cache");
@@ -75,7 +80,12 @@ constexpr base::FilePath::CharType kTrustTokenFilename[] =
 }  // namespace
 
 std::string GetCobaltUserAgent() {
-// TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
+  // TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
+  absl::optional<std::string> custom_ua =
+      embedder_support::GetUserAgentFromCommandLine();
+  if (custom_ua.has_value()) {
+    return custom_ua.value();
+  }
 #if BUILDFLAG(IS_ANDROID)
   const UserAgentPlatformInfo platform_info;
   static const std::string user_agent_str = platform_info.ToString();
@@ -92,14 +102,13 @@ std::string GetCobaltUserAgent() {
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   blink::UserAgentMetadata metadata;
 
-#define COBALT_BRAND_NAME "Cobalt"
-#define COBALT_MAJOR_VERSION "26"
-#define COBALT_VERSION "26.lts.0-qa"
-  metadata.brand_version_list.emplace_back(COBALT_BRAND_NAME,
-                                           COBALT_MAJOR_VERSION);
-  metadata.brand_full_version_list.emplace_back(COBALT_BRAND_NAME,
-                                                COBALT_VERSION);
-  metadata.full_version = COBALT_VERSION;
+  metadata.brand_version_list.emplace_back(
+      CobaltContentBrowserClient::COBALT_BRAND_NAME,
+      CobaltContentBrowserClient::COBALT_MAJOR_VERSION);
+  metadata.brand_full_version_list.emplace_back(
+      CobaltContentBrowserClient::COBALT_BRAND_NAME,
+      CobaltContentBrowserClient::COBALT_VERSION);
+  metadata.full_version = CobaltContentBrowserClient::COBALT_VERSION;
   metadata.platform = "Starboard";
   metadata.architecture = content::GetCpuArchitecture();
   metadata.model = content::BuildModelInfo();
@@ -169,6 +178,7 @@ std::string CobaltContentBrowserClient::GetReducedUserAgent() {
   return GetCobaltUserAgent();
 }
 
+// TODO(b/418281123): Investigate integrating with embedder_support library
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgentMetadata();

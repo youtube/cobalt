@@ -60,6 +60,10 @@ std::string GetFullUserAgent(
     ForceMajorVersionToMinorPosition force_major_to_minor =
         ForceMajorVersionToMinorPosition::kDefault);
 
+// Returns the user-agent commandline string, if it is valid.
+// Otherwise, returns std::nullopt.
+absl::optional<std::string> GetUserAgentFromCommandLine();
+
 // Returns the reduced user agent string for Chrome.
 // TODO(crbug.com/1291612): modify to accept an optional PrefService*.
 std::string GetReducedUserAgent(

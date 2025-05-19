@@ -64,6 +64,7 @@ source_set("browser") {
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
+    "//components/embedder_support:browser_util",
     "//components/js_injection/browser:browser",
     "//components/metrics",
     "//components/metrics:test_support",
