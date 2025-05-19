@@ -42,6 +42,20 @@ Below is a simple usage command:
 vpython3 $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
 ```
 
+**Tip:** To avoid the script from placing the resulting plots and csv files into
+you local checkout, utilize the `--outdir` flag to specify somewhere outside of
+your checkout.
+
+### Testing
+
+In order to execute Python unit tests, the command below will use the python unittest
+module to run any tests named after a specific pattern:
+
+```
+vpython3 -m unittest discover -s </path/to/test/directory> -p '*TEST PATTERN*.py'
+```
+
+
 ### Pylint
 
 Like all other python scripts in open source, they should follow the

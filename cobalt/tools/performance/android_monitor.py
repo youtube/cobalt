@@ -1,6 +1,18 @@
-# Copyright 2025 The Chromium Authors
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
+#!/usr/bin/env python3
+#
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 """Monitors application memory and graphic buffer allocator usage on Android.
 
 This script connects to an Android device via ADB to collect memory
@@ -16,10 +28,11 @@ import argparse
 import csv
 import os
 import re
-import subprocess
 import threading
 import time
-from typing import List, Dict, Tuple, Union, Optional
+from typing import Dict, Union, Optional
+
+from adb_command_runner import run_adb_command
 
 # Plotting library imports (conditionally imported)
 # _MATPLOTLIB_AVAILABLE is a global indicating if plotting dependencies are met.
@@ -44,86 +57,10 @@ _DEFAULT_OUTPUT_DIRECTORY = 'cobalt_monitoring_data'
 
 # Global variables for shared state.
 g_all_monitoring_data = []
-g_script_start_time_for_filename = ''
 # Event to signal threads to stop.
 g_stop_event = threading.Event()
 _EXPECTED_FORMAT_STR = 'Expected format "key1=val1,key2=val2,...,' +\
     'key(n)=val(n)"'
-
-
-def _run_adb_command(command_list_or_str: Union[List[str], str],
-                     shell: bool = False,
-                     timeout: int = 30) -> Tuple[str, Optional[str]]:
-  """Helper function to run ADB commands.
-
-  Args:
-    command_list_or_str: A list of command arguments or a single string
-                         command.
-    shell: If True, the command is executed through the shell.
-    timeout: Maximum time in milliseconds to wait for the command to complete.
-
-  Returns:
-    A tuple (stdout, stderr_msg). stdout is a string.
-    stderr_msg is None on success, or an error message string on
-    failure/timeout.
-  """
-  try:
-    if shell and isinstance(command_list_or_str, list):
-      command_to_run = ' '.join(command_list_or_str)
-    else:  # Handles str for shell=True, and list for shell=False
-      command_to_run = command_list_or_str
-    with subprocess.Popen(
-        command_to_run,
-        shell=shell,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        errors='replace',
-        encoding='utf-8',
-    ) as process:
-      stdout, stderr = process.communicate(timeout=timeout)
-
-      if process.returncode != 0:
-        cmd_str_repr = (
-            command_to_run if isinstance(command_to_run, str) else
-            ' '.join(command_list_or_str))
-        # Expected failures for specific commands
-        # (e.g., pidof not finding process)
-        is_expected_pidof_fail = ('pidof' in cmd_str_repr and
-                                  process.returncode == 1)
-        is_expected_meminfo_fail = ('dumpsys meminfo' in cmd_str_repr and
-                                    ('No process found' in (stderr or '') or
-                                     'No services match' in (stderr or '')))
-        is_expected_sf_fail = ('dumpsys SurfaceFlinger' in cmd_str_repr and
-                               stderr and
-                               'service not found' in (stderr or '').lower())
-
-        if not (is_expected_pidof_fail or is_expected_meminfo_fail or
-                is_expected_sf_fail) and stderr:
-          print(f'Stderr for \'{cmd_str_repr}\': {stderr.strip()}')
-        return (
-            stdout.strip() if stdout else '',
-            stderr.strip() if stderr else
-            f'Command failed with return code {process.returncode}',
-        )
-      return stdout.strip() if stdout else '', None
-  except subprocess.TimeoutExpired:
-    cmd_str_repr = (
-        command_list_or_str if isinstance(command_list_or_str, str) else
-        ' '.join(command_list_or_str))
-    print(f'Command timed out: {cmd_str_repr}')
-    if ('process' in locals() and hasattr(process, 'poll') and
-        process.poll() is None):  # Line 65
-      process.kill()
-      process.communicate()
-    return None, 'Command timed out'
-  except Exception as e:  # pylint: disable=broad-except
-    # Catching broad exception for robustness against unexpected adb issues.
-    cmd_str_repr = (
-        command_list_or_str if isinstance(command_list_or_str, str) else
-        ' '.join(command_list_or_str))
-    print(f'Exception running command {cmd_str_repr}: {e}')
-    return None, str(e)
 
 
 def _is_package_running(package_name: str) -> bool:
@@ -135,7 +72,7 @@ def _is_package_running(package_name: str) -> bool:
   Returns:
     True if the package is running (pid found), False otherwise.
   """
-  stdout, _ = _run_adb_command(['adb', 'shell', 'pidof', package_name])
+  stdout, _ = run_adb_command(['adb', 'shell', 'pidof', package_name])
   return bool(stdout and stdout.strip().isdigit())
 
 
@@ -149,7 +86,7 @@ def _stop_package(package_name: str) -> bool:
     True if the stop command was issued successfully, False otherwise.
   """
   print(f'Attempting to stop package \'{package_name}\'...')
-  _, stderr = _run_adb_command(
+  _, stderr = run_adb_command(
       ['adb', 'shell', 'am', 'force-stop', package_name])
   if stderr:
     print(f'Error stopping package \'{package_name}\': {stderr}')
@@ -169,7 +106,7 @@ def _launch_cobalt(package_name: str, activity_name: str, flags: str):
   """
   command_str = (f'adb shell am start -n {package_name}/{activity_name} '
                  f'--esa commandLineArgs \'{flags}\'')
-  stdout, stderr = _run_adb_command(command_str, shell=True)
+  stdout, stderr = run_adb_command(command_str, shell=True)
   if stderr:
     print(f'Error launching Cobalt: {stderr}')
   else:
@@ -190,7 +127,7 @@ def _get_meminfo_data_internal(
     'Private Dirty'). Returns None if data cannot be parsed or command fails.
   """
   command = ['adb', 'shell', 'dumpsys', 'meminfo', package_name]
-  output, error_msg = _run_adb_command(command)
+  output, error_msg = run_adb_command(command)
   if error_msg or not output:
     return None
 
@@ -307,7 +244,7 @@ def _get_surface_flinger_gba_kb() -> Dict[str, Optional[float]]:
     A dictionary containing 'GraphicBufferAllocator KB' as a float or None.
   """
   stats = {'GraphicBufferAllocator KB': None}
-  stdout, stderr_msg = _run_adb_command(
+  stdout, stderr_msg = run_adb_command(
       ['adb', 'shell', 'dumpsys', 'SurfaceFlinger'])
   if stdout is None:
     return stats
@@ -630,8 +567,7 @@ def _plot_monitoring_data_from_df(
     return False
 
 
-def main():
-  """Main function to parse arguments, run monitoring, and output results."""
+def _parse_cli_args():
   parser = argparse.ArgumentParser(
       description=(
           'Monitor Cobalt application (meminfo, GraphicBufferAllocator) and'
@@ -675,22 +611,25 @@ def main():
       help=f'Cobalt CLI & Experiment flags. {_EXPECTED_FORMAT_STR}',
   )
   args = parser.parse_args()
-
-  global g_script_start_time_for_filename
-  g_script_start_time_for_filename = time.strftime('%Y%m%d_%H%M%S',
-                                                   time.localtime())
-  output_directory = args.outdir
-  poll_interval_milliseconds = args.interval
-
   print('--- Configuration ---')
   print(f'Package: {args.package}')
   print(f'Activity: {args.activity}')
   print(f'URL: {args.url}')
-  print(f'Interval: {poll_interval_milliseconds}ms')
-  print(f'Output Dir: {output_directory}')
+  print(f'Interval: {args.interval}ms')
+  print(f'Output Dir: {args.outdir}')
   print(f'Output Formats: {args.output}')
   print(f'Cobalt Flags: {args.flags}')
   print('---------------------\n')
+
+  return args
+
+
+def main():
+  """Main function to parse arguments, run monitoring, and output results."""
+  args = _parse_cli_args()
+
+  output_directory = args.outdir
+  poll_interval_milliseconds = args.interval
 
   if args.output in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
     print('CRITICAL ERROR: Plotting requested but pandas/matplotlib are not'
@@ -706,7 +645,7 @@ def main():
       output_directory = '.'  # Fallback to current directory.
 
   print('Checking ADB connection...')
-  stdout_dev, stderr_dev = _run_adb_command(['adb', 'devices'])
+  stdout_dev, stderr_dev = run_adb_command(['adb', 'devices'])
   if stderr_dev or not stdout_dev \
       or 'List of devices attached' not in stdout_dev:  # pylint: disable=g-backslash-continuation
     print('ADB not working. Exiting.')
@@ -772,7 +711,8 @@ def main():
     polling_thread.join(timeout=poll_interval_milliseconds + 10 * 1000)
   print('\nData polling stopped.')
 
-  filename_base = f'monitoring_data_{g_script_start_time_for_filename}'
+  time_for_file_name = time.strftime('%Y%m%d_%H%M%S', time.localtime())
+  filename_base = f'monitoring_data_{time_for_file_name}'
   output_filename_base_with_dir = os.path.join(output_directory, filename_base)
 
   if args.output in ('csv', 'both'):
