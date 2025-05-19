@@ -69,12 +69,6 @@ int64_t ExtractTimestamp(const std::string& str) {
   return strtoull(timestamp.c_str(), NULL, 10) * kDrainFileAgeUnitUsec;
 }
 
-// Converts a POSIX microseconds timestamp to a Windows microseconds timestamp.
-int64_t PosixTimeToWindowsTime(int64_t posix_time) {
-  // Add number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
-  return posix_time + 11644473600000000ULL;
-}
-
 bool IsExpired(const std::string& filename) {
   const int64_t timestamp = ExtractTimestamp(filename);
   return timestamp + kDrainFileMaximumAgeUsec <

@@ -75,12 +75,6 @@ TEST_F(DrainFileTest, SunnyDay) {
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), kAppKeyOne));
 }
 
-// Converts a POSIX microseconds timestamp to a Windows microseconds timestamp.
-int64_t PosixTimeToWindowsTime(int64_t posix_time) {
-  // Add number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
-  return posix_time + 11644473600000000ULL;
-}
-
 // Drain file creation should ignore expired files, even if it has a matching
 // app key.
 TEST_F(DrainFileTest, SunnyDayIgnoreExpired) {

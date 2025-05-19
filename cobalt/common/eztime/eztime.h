@@ -18,9 +18,6 @@
 #include <sys/types.h>
 #include <limits>
 
-// TODO FIXME #include "base/check.h"
-// #include "starboard/types.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
