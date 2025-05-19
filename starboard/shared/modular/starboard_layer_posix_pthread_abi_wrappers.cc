@@ -15,6 +15,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 
 #include <pthread.h>
+#include <signal.h>
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
@@ -426,6 +427,16 @@ int __abi_wrap_pthread_getname_np(musl_pthread_t thread,
   return pthread_getname_np(reinterpret_cast<pthread_t>(thread), name, len);
 }
 
+int __abi_wrap_pthread_getattr_np(musl_pthread_t thread,
+                                  musl_pthread_attr_t* attr) {
+  if (!attr) {
+    return MUSL_EINVAL;
+  }
+  const int ret = pthread_getattr_np(reinterpret_cast<pthread_t>(thread),
+                                     PTHREAD_INTERNAL_ATTR(attr));
+  return errno_to_musl_errno(ret);
+}
+
 int __abi_wrap_pthread_attr_init(musl_pthread_attr_t* attr) {
   int ret = pthread_attr_init(PTHREAD_INTERNAL_ATTR(attr));
   return errno_to_musl_errno(ret);
@@ -564,6 +575,68 @@ int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
     d = PTHREAD_CREATE_DETACHED;
   }
   int ret = pthread_attr_setdetachstate(PTHREAD_INTERNAL_ATTR(attr), d);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_getschedparam(musl_pthread_t thread,
+                                     int* policy,
+                                     struct musl_sched_param* param) {
+  if (!policy || !param) {
+    return MUSL_EINVAL;
+  }
+
+  int native_policy;
+  struct sched_param native_param;
+  const int ret = pthread_getschedparam(reinterpret_cast<pthread_t>(thread),
+                                        &native_policy, &native_param);
+  if (ret != 0) {
+    return errno_to_musl_errno(ret);
+  }
+
+  param->sched_priority = native_param.sched_priority;
+
+  switch (native_policy) {
+    case SCHED_FIFO:
+      *policy = MUSL_SCHED_FIFO;
+      return 0;
+    case SCHED_RR:
+      *policy = MUSL_SCHED_RR;
+      return 0;
+    case SCHED_OTHER:
+      *policy = MUSL_SCHED_OTHER;
+      return 0;
+    default:
+      return MUSL_EINVAL;
+  }
+}
+
+int __abi_wrap_pthread_setschedparam(musl_pthread_t thread,
+                                     int policy,
+                                     const struct musl_sched_param* param) {
+  if (!param) {
+    return MUSL_EINVAL;
+  }
+
+  int native_policy;
+  switch (policy) {
+    case MUSL_SCHED_FIFO:
+      native_policy = SCHED_FIFO;
+      break;
+    case MUSL_SCHED_RR:
+      native_policy = SCHED_RR;
+      break;
+    case MUSL_SCHED_OTHER:
+      native_policy = SCHED_OTHER;
+      break;
+    default:
+      return MUSL_EINVAL;
+  }
+
+  struct sched_param native_param;
+  native_param.sched_priority = param->sched_priority;
+
+  const int ret = pthread_setschedparam(reinterpret_cast<pthread_t>(thread),
+                                        native_policy, &native_param);
   return errno_to_musl_errno(ret);
 }
 
@@ -775,5 +848,10 @@ int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
   }
 
   const int ret = pthread_rwlock_trywrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_kill(musl_pthread_t thread, int sig) {
+  int ret = pthread_kill(reinterpret_cast<pthread_t>(thread), sig);
   return errno_to_musl_errno(ret);
 }
