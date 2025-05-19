@@ -18,8 +18,6 @@
 
 package dev.cobalt.media;
 
-import static dev.cobalt.media.Log.TAG;
-
 import android.media.DeniedByServerException;
 import android.media.MediaCrypto;
 import android.media.MediaCryptoException;
@@ -31,11 +29,11 @@ import android.media.UnsupportedSchemeException;
 import android.os.Build;
 import android.util.Base64;
 import androidx.annotation.RequiresApi;
-import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +43,7 @@ import java.util.UUID;
 /** A wrapper of the android MediaDrm class. */
 @UsedByNative
 public class MediaDrmBridge {
+  private static final String TAG = "CobaltDrm";
   // Implementation Notes:
   // - A media crypto session (mMediaCryptoSession) is opened after MediaDrm
   //   is created. This session will NOT be added to mSessionIds and will only
@@ -206,31 +205,122 @@ public class MediaDrmBridge {
     }
   }
 
+  class LicenseRequestArgs {
+    public final int ticket;
+    public final byte[] initData;
+    public final String mime;
+    public final byte[] bridgeSessionId;
+
+    public LicenseRequestArgs(int ticket, byte[] initData, String mime) {
+      this.ticket = ticket;
+      this.initData = initData;
+      this.mime = mime;
+      this.bridgeSessionId = null;
+    }
+
+    public LicenseRequestArgs(LicenseRequestArgs args, byte[] bridgeSessionId) {
+      this.ticket = args.ticket;
+      this.initData = args.initData;
+      this.mime = args.mime;
+      this.bridgeSessionId = bridgeSessionId;
+    }
+  }
+  ArrayList<LicenseRequestArgs> pendingLicenseRequests = new ArrayList<>();
+
+  private static final int kProvisioningWaitMs = 20_000;
+  private static final int kProvisioningCheckIntervalMs = 300;
+
+  void handlePengindLicenseRequest(LicenseRequestArgs args) {
+    long startTimeMs = System.currentTimeMillis();
+    long endTimeMs = startTimeMs + kProvisioningWaitMs;
+    boolean completed = false;
+
+    while (System.currentTimeMillis() < endTimeMs) {
+      try {
+        createSessionInternal(args);
+        break;
+      } catch (NotProvisionedException e) {
+        Log.e(TAG, "Met Provisioning error while handling pending license request. Will try again after interval(msec)=" + kProvisioningCheckIntervalMs);
+      }
+
+      try {
+        Thread.sleep(kProvisioningCheckIntervalMs);
+      } catch (InterruptedException e) {
+        System.err.println("Polling interrupted: " + e.getMessage());
+        Thread.currentThread().interrupt();
+        return;
+      }
+    }
+
+    long elapsedMs = System.currentTimeMillis() - startTimeMs;
+    if (completed) {
+      Log.i(TAG, "Provisioning is completed: elapsed(msec)=" + elapsedMs);
+    } else {
+      Log.e(TAG, "Provisioning is not completed: elapsed(msec)=" + elapsedMs);
+    }
+  }
+
+  @UsedByNative
+  void runPendingTasks() {
+    while (false && pendingLicenseRequests.size() > 0) {
+      LicenseRequestArgs args = pendingLicenseRequests.remove(0);
+      Log.i(TAG, "Handling pending license request.");
+      handlePengindLicenseRequest(args);
+    }
+
+    Log.i(TAG, "There is no more pending task.");
+  }
+
   @UsedByNative
   void createSession(int ticket, byte[] initData, String mime) {
     Log.d(TAG, "createSession()");
+    assert mMediaDrm != null;
+    LicenseRequestArgs args = new LicenseRequestArgs(ticket, initData, mime);
 
-    if (mMediaDrm == null) {
-      Log.e(TAG, "createSession() called when MediaDrm is null.");
+    try {
+      createSessionInternal(args);
+    } catch(NotProvisionedException e) {
+      Log.i(TAG, "Device not provisioned. Start provisioning.");
+      byte[] bridgeSessionId = generateBridgeSessiondId();
+
+      pendingLicenseRequests.add(new LicenseRequestArgs(args, bridgeSessionId));
+      startProvisioning(ticket, bridgeSessionId);
+      return;
+    } catch(Exception e) {
+      Log.e(TAG, "Device not provisioned", e);
       return;
     }
+  }
 
+  private void createSessionInternal(LicenseRequestArgs args) throws android.media.NotProvisionedException {
     boolean newSessionOpened = false;
-    byte[] sessionId = null;
+    byte[] sessionId;
+    MediaDrm.KeyRequest request;
+
+    createMediaCryptoSession();
+
+    int ticket = args.ticket;
+
     try {
       sessionId = openSession();
       if (sessionId == null) {
         Log.e(TAG, "Open session failed.");
         return;
       }
+
+      if (args.bridgeSessionId != null) {
+        Log.i(TAG, "Register session id: bridgeSessionId=" + bytesToHexString(args.bridgeSessionId) + ", mediaDrmSessionId=" + bytesToHexString(sessionId));
+        mBridgeSessionIds.put(ByteBuffer.wrap(args.bridgeSessionId), ByteBuffer.wrap(sessionId));
+        ticket = Integer.MIN_VALUE;
+      }
+
       newSessionOpened = true;
       if (sessionExists(sessionId)) {
         Log.e(TAG, "Opened session that already exists.");
         return;
       }
 
-      MediaDrm.KeyRequest request = null;
-      request = getKeyRequest(sessionId, initData, mime);
+      request = getKeyRequest(sessionId, args.initData, args.mime);
       if (request == null) {
         closeMediaDrmSession(sessionId);
         Log.e(TAG, "Generate request failed.");
@@ -239,15 +329,30 @@ public class MediaDrmBridge {
 
       // Success!
       Log.d(TAG, "Session is created: sessionId=" + bytesToString(sessionId));
-      mSessionIds.put(ByteBuffer.wrap(sessionId), mime);
-      onSessionMessage(ticket, sessionId, request);
     } catch (NotProvisionedException e) {
       Log.e(TAG, "Device not provisioned", e);
-      if (newSessionOpened) {
-        closeMediaDrmSession(sessionId);
-      }
-      attemptProvisioning();
+      return;
     }
+
+    mSessionIds.put(ByteBuffer.wrap(sessionId), args.mime);
+
+    byte[] bridgeSessionId = null;
+    for (HashMap.Entry<ByteBuffer, ByteBuffer> entry : mBridgeSessionIds.entrySet()) {
+      ByteBuffer val = entry.getValue();
+      if (val == null) {
+        continue;
+      }
+      if (Arrays.equals(val.array(), sessionId)) {
+        bridgeSessionId = entry.getKey().array();
+        break;
+      }
+    }
+
+    if (bridgeSessionId != null) {
+      Log.i(TAG, "Replace session id with bridge session id: sessionId=" + bytesToHexString(sessionId) + ", bridgeSessionId=" + bytesToHexString(bridgeSessionId));
+      sessionId = bridgeSessionId;
+    }
+    onSessionMessage(args.ticket, sessionId, request);
   }
 
   /**
@@ -258,13 +363,14 @@ public class MediaDrmBridge {
    */
   @UsedByNative
   UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
-    Log.d(TAG, "updateSession()");
-    if (mMediaDrm == null) {
-      Log.e(TAG, "updateSession() called when MediaDrm is null.");
-      return UpdateSessionResult.Failure(
-          "Null MediaDrm object when calling updateSession().", new Throwable());
+    assert mMediaDrm != null;
+
+    if (mBridgeSessionIds.containsKey(ByteBuffer.wrap(sessionId))) {
+      Log.i(TAG, "Handle provision response. sessionId=" + bytesToString(sessionId));
+      return handleProvisionResponse(response);
     }
 
+    Log.d(TAG, "updateSession()");
     if (!sessionExists(sessionId)) {
       Log.e(TAG, "updateSession tried to update a session that does not exist.");
       return UpdateSessionResult.Failure(
@@ -273,6 +379,8 @@ public class MediaDrmBridge {
 
     try {
       try {
+        Log.i(TAG, "Calling mMediaDrm.provideKeyResponse: sessionId=" + bytesToHexString(sessionId)
+              + ", response(bytes)=" + response.length);
         mMediaDrm.provideKeyResponse(sessionId, response);
       } catch (IllegalStateException e) {
         // This is not really an exception. Some error codes are incorrectly
@@ -280,6 +388,7 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
+      isKeyUpdated = true;
       return UpdateSessionResult.Success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
@@ -300,6 +409,12 @@ public class MediaDrmBridge {
     }
   }
 
+  private boolean isKeyUpdated = false;
+  @UsedByNative
+  boolean isKeyLoaded() {
+    return isKeyUpdated;
+  }
+
   /**
    * Close a session that was previously created by createSession().
    *
@@ -311,6 +426,17 @@ public class MediaDrmBridge {
     if (mMediaDrm == null) {
       Log.e(TAG, "closeSession() called when MediaDrm is null.");
       return;
+    }
+
+    if (mBridgeSessionIds.containsKey(ByteBuffer.wrap(sessionId))) {
+      ByteBuffer mediaDrmSessionId = mBridgeSessionIds.get(ByteBuffer.wrap(sessionId));
+      if (mediaDrmSessionId == null) {
+        Log.i(TAG, "No MediaDrm session is created for " + bytesToString(sessionId));
+        return;
+      }
+
+      sessionId = mediaDrmSessionId.array();
+      Log.i(TAG, "Close first session: " + bytesToString(sessionId));
     }
 
     if (!sessionExists(sessionId)) {
@@ -372,51 +498,31 @@ public class MediaDrmBridge {
         new OnEventListener() {
           @Override
           public void onEvent(MediaDrm md, byte[] sessionId, int event, int extra, byte[] data) {
-            if (sessionId == null) {
-              Log.e(TAG, "EventListener: Null session.");
-              return;
-            }
-            if (!sessionExists(sessionId)) {
-              Log.e(TAG, "EventListener: Invalid session id=" + bytesToString(sessionId));
-              return;
-            }
-
             if (event == MediaDrm.EVENT_KEY_REQUIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_REQUIRED");
               String mime = mSessionIds.get(ByteBuffer.wrap(sessionId));
               MediaDrm.KeyRequest request = null;
+
+              if (!sessionExists(sessionId)) {
+                Log.e(TAG, "EventListener:EVENT_KEY_REQUIRED: Invalid session id=" + bytesToString(sessionId));
+                return;
+              }
+
               try {
                 request = getKeyRequest(sessionId, data, mime);
               } catch (NotProvisionedException e) {
-                Log.e(TAG, "Device not provisioned", e);
-                if (!attemptProvisioning()) {
-                  Log.e(TAG, "Failed to provision device when responding to EVENT_KEY_REQUIRED");
-                  return;
-                }
-                // If we supposedly successfully provisioned ourselves, then try to create a
-                // request again.
-                try {
-                  request = getKeyRequest(sessionId, data, mime);
-                } catch (NotProvisionedException e2) {
-                  Log.e(
-                      TAG,
-                      "Device still not provisioned after supposedly successful provisioning",
-                      e2);
-                  return;
-                }
-              }
-              if (request != null) {
-                onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
-              } else {
-                Log.e(TAG, "EventListener: getKeyRequest failed.");
+                Log.e(TAG, "EventListener: getKeyRequest failed.", e);
                 return;
               }
+              assert request != null;
+
+              onSessionMessage(SB_DRM_TICKET_INVALID, sessionId, request);
             } else if (event == MEDIA_DRM_EVENT_KEY_EXPIRED) {
               Log.d(TAG, "MediaDrm.EVENT_KEY_EXPIRED");
             } else if (event == MediaDrm.EVENT_VENDOR_DEFINED) {
               Log.d(TAG, "MediaDrm.EVENT_VENDOR_DEFINED");
             } else if (event == MEDIA_DRM_EVENT_PROVISION_REQUIRED) {
-              Log.d(TAG, "MediaDrm.EVENT_PROVISION_REQUIRED");
+              // Log.d(TAG, "MediaDrm.EVENT_PROVISION_REQUIRED");
             } else if (event == MEDIA_DRM_EVENT_SESSION_RECLAIMED) {
               Log.d(TAG, "MediaDrm.EVENT_SESSION_RECLAIMED");
             } else {
@@ -446,7 +552,7 @@ public class MediaDrmBridge {
     mMediaDrm.setPropertyString("sessionSharing", "enable");
     if (keySystem.equals("com.youtube.widevine.l3")
         && !mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
-      mMediaDrm.setPropertyString("securityLevel", "L3");
+        mMediaDrm.setPropertyString("securityLevel", "L3");
     }
   }
 
@@ -594,50 +700,50 @@ public class MediaDrmBridge {
     }
   }
 
-  @UsedByNative
-  boolean createMediaCryptoSession() {
+  void createMediaCryptoSession() throws NotProvisionedException {
     if (mMediaCryptoSession != null) {
-      return true;
-    }
-    Log.w(TAG, "MediaDrmBridge createMediaCryptoSession");
-    if (mMediaCrypto == null) {
-      throw new IllegalStateException("Cannot create media crypto session with null mMediaCrypto.");
+      Log.i(TAG, "MediaCryptoSession is already created");
+      return;
     }
 
-    // Open media crypto session.
+    assert mMediaCrypto != null;
+
     try {
       mMediaCryptoSession = openSession();
     } catch (NotProvisionedException e) {
-      Log.w(TAG, "Device not provisioned", e);
-      if (!attemptProvisioning()) {
-        Log.e(TAG, "Failed to provision device during MediaCrypto creation.");
-        return false;
-      }
-      try {
-        mMediaCryptoSession = openSession();
-      } catch (NotProvisionedException e2) {
-        Log.e(TAG, "Device still not provisioned after supposedly successful provisioning", e2);
-        return false;
-      }
+      Log.w(TAG, "Device not provisioned. Re-throw NotProvisionedException");
+      throw e;
     }
-
-    if (mMediaCryptoSession == null) {
-      Log.e(TAG, "Cannot create MediaCrypto Session.");
-      return false;
-    }
+    assert mMediaCryptoSession != null;
 
     try {
+      Log.i(TAG, "Calling MediaCrypto.setMediaDrmSession(mMediaCryptoSession)");
       mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
     } catch (MediaCryptoException e3) {
       Log.e(TAG, "Unable to set media drm session", e3);
       closeMediaDrmSession(mMediaCryptoSession);
       mMediaCryptoSession = null;
-      return false;
+      return;
     }
 
-    Log.d(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
+    Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToHexString(mMediaCryptoSession));
+  }
 
-    return true;
+  // private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
+  private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
+
+  // private boolean usingFirstSessionId = false;
+  // private byte[] mediaDrmFirstSessionId;
+
+  private static int provisioningInFlight = 0;
+
+  private static int mSessionIdCount = 0;
+  private static HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();
+
+  private byte[] generateBridgeSessiondId() {
+    byte[] sessionId = ("cobalt.sid." + mSessionIdCount++).getBytes();
+    mBridgeSessionIds.put(ByteBuffer.wrap(sessionId), null);
+    return sessionId;
   }
 
   /**
@@ -645,23 +751,34 @@ public class MediaDrmBridge {
    *
    * @return whether provisioning was successful or not.
    */
-  private boolean attemptProvisioning() {
-    Log.d(TAG, "attemptProvisioning()");
+  // Provisioning should be singletone activity.
+  private void startProvisioning(int ticket, byte[] bridgeSessionId) {
+    provisioningInFlight++;
+    Log.i(TAG, "start provisioning(): provisioningInFlight=" + provisioningInFlight);
+
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
-    String url = request.getDefaultUrl() + "&signedRequest=" + new String(request.getData());
-    byte[] response = new CobaltHttpHelper().performDrmHttpPost(url);
-    if (response == null) {
-      return false;
-    }
-    try {
+
+    nativeOnSessionMessage(
+        mNativeMediaDrmBridge,
+        ticket, bridgeSessionId, INDIVIDUALIZATION_REQUEST_TYPE, request.getData());
+  }
+
+  private UpdateSessionResult handleProvisionResponse(byte[] response) {
+    Log.i(TAG, "handleProvisionResponse()");
+
+     try {
+      Log.i(TAG, "Calling mMediaDrm.provideProvisionResponse()");
       mMediaDrm.provideProvisionResponse(response);
-      return true;
     } catch (android.media.DeniedByServerException e) {
-      Log.e(TAG, "failed to provide provision response", e);
-    } catch (java.lang.IllegalStateException e) {
-      Log.e(TAG, "failed to provide provision response", e);
+      Log.e(TAG, "Failed to provide provision response.", e);
+      return new UpdateSessionResult(
+          UpdateSessionResult.Status.FAILURE,
+          e.getMessage());
     }
-    return false;
+    provisioningInFlight--;
+    Log.i(TAG, "provideProvisionResponse succeeded: provisioningInFlight=" + provisioningInFlight);
+
+    return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
   }
 
   /**
@@ -671,14 +788,6 @@ public class MediaDrmBridge {
    * @return true if |sessionId| exists, false otherwise.
    */
   private boolean sessionExists(byte[] sessionId) {
-    if (mMediaCryptoSession == null) {
-      if (!mSessionIds.isEmpty()) {
-        throw new IllegalStateException(
-            "mSessionIds must be empty if crypto session does not exist.");
-      }
-      Log.e(TAG, "Session doesn't exist because media crypto session is not created.");
-      return false;
-    }
     return !Arrays.equals(sessionId, mMediaCryptoSession)
         && mSessionIds.containsKey(ByteBuffer.wrap(sessionId));
   }
