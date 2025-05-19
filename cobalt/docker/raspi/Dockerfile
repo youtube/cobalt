@@ -53,7 +53,7 @@ RUN apt update -qqy \
         binutils-aarch64-linux-gnu \
         binutils-arm-linux-gnueabi \
         libglib2.0-dev \
-    && /opt/clean-after-apt.sh
+    && rm -rf /var/lib/apt/lists/*
 
 # Get the combined toolchains package.
 RUN cd /tmp \
