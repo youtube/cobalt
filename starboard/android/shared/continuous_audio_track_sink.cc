@@ -134,7 +134,9 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JniEnvExt* const env = JniEnvExt::Get();
+  const std::vector<uint8_t> silence_buffer(
+      kSilenceFramesPerAppend * channels_ * GetBytesPerSample(sample_type_));
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
@@ -142,6 +144,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
+
+  bridge_.Play();
 
   while (!quit_) {
     int playback_head_position = 0;
@@ -201,16 +205,24 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       }
     }
 
-    if (was_playing && !is_playing) {
-      was_playing = false;
-      bridge_.Pause();
-    } else if (!was_playing && is_playing) {
-      was_playing = true;
-      last_playback_head_event_at = -1;
-      bridge_.Play();
+    // When source playing status is changed.
+    if (was_playing != is_playing) {
+      if (is_playing) {
+        last_playback_head_event_at = -1;
+      }
+      bridge_.Flush();
+      // By resetting this value, this thread loop will feed AudioTrackBridge
+      // from the very first not-consumed frames that AudioSource has.
+      frames_in_audio_track = 0;
     }
+    was_playing = is_playing;
 
-    if (!is_playing || frames_in_buffer == 0) {
+    if (!is_playing) {
+      WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
+      usleep(10'000);
+      continue;
+    }
+    if (frames_in_buffer == 0) {
       usleep(10'000);
       continue;
     }
@@ -236,12 +248,6 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       // underflow. Android audio track would not start working before
       // its buffer is fully filled once.
       if (is_eos_reached) {
-        // Currently AudioDevice and AudioRenderer will write tail silence.
-        // It should be reached only in tests. It's not ideal to allocate
-        // a new silence buffer every time.
-        std::vector<uint8_t> silence_buffer(channels_ *
-                                            GetBytesPerSample(sample_type_) *
-                                            kSilenceFramesPerAppend);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
