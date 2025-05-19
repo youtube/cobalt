@@ -47,3 +47,12 @@ jobs:
           echo "The GitHub Actor's username is: ${GITHUB_ACTOR}"
           echo "GitHub SHA: ${GITHUB_SHA}"
         shell: bash
+      - name: Rate limit info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            /rate_limit
+        shell: bash
