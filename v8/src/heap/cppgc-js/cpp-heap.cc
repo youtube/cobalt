@@ -200,7 +200,7 @@ class UnifiedHeapConcurrentMarker
     : public cppgc::internal::ConcurrentMarkerBase {
  public:
   UnifiedHeapConcurrentMarker(
-      cppgc::internal::HeapBase& heap, Heap* v8_heap,
+      cppgc::internal::HeapBase& heap,
       cppgc::internal::MarkingWorklists& marking_worklists,
       cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
@@ -299,7 +299,7 @@ class UnifiedHeapMarker final : public cppgc::internal::MarkerBase {
   }
 
  private:
-  UnifiedHeapMarkingState mutator_unified_heap_marking_state_;
+  UnifiedHeapMarkingState unified_heap_marking_state_;
   std::unique_ptr<MutatorUnifiedHeapMarkingVisitor> marking_visitor_;
   UnifiedHeapConservativeMarkingVisitor conservative_marking_visitor_;
 };
@@ -309,14 +309,14 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
                                      cppgc::Platform* platform,
                                      cppgc::internal::MarkingConfig config)
     : cppgc::internal::MarkerBase(heap, platform, config),
-      mutator_unified_heap_marking_state_(v8_heap, nullptr,
+      mutator_unified_heap_marking_state_(v8_heap,
                                           config.collection_type),
       marking_visitor_(std::make_unique<MutatorUnifiedHeapMarkingVisitor>(
           heap, mutator_marking_state_, mutator_unified_heap_marking_state_)),
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, v8_heap, marking_worklists_, schedule_, platform_,
+      heap_, marking_worklists_, schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
 }
 
@@ -742,17 +742,6 @@ MarkingWorklists::Local* GetV8MarkingWorklists(
 }  // namespace
 
 void CppHeap::StartTracing() {
-  CHECK(marking_done_);
-  if (!TracingInitialized()) return;
-  if (isolate_) {
-    // Reuse the same local worklist for the mutator marking state which results
-    // in directly processing the objects by the JS logic. Also avoids
-    // publishing local objects.
-    marker_.get()
-        ->To<UnifiedHeapMarker>()
-        .GetMutatorUnifiedHeapMarkingState()
-        .Update(GetV8MarkingWorklists(isolate_, *collection_type_));
-  }
   marker_->StartMarking();
   marking_done_ = false;
 }
@@ -1149,13 +1138,6 @@ CppHeap::CreateCppMarkingStateForMutatorThread() {
   return std::make_unique<CppMarkingState>(
       isolate(), wrapper_descriptor_,
       marker()->To<UnifiedHeapMarker>().GetMutatorMarkingState());
-}
-
-CppHeap::PauseConcurrentMarkingScope::PauseConcurrentMarkingScope(
-    CppHeap* cpp_heap) {
-  if (cpp_heap && cpp_heap->marker()) {
-    pause_scope_.emplace(*cpp_heap->marker());
-  }
 }
 
 void CppHeap::CollectGarbage(cppgc::internal::GCConfig config) {

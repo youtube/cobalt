@@ -70,23 +70,14 @@ class V8_EXPORT_PRIVATE MutatorUnifiedHeapMarkingVisitor
 class V8_EXPORT_PRIVATE ConcurrentUnifiedHeapMarkingVisitor
     : public UnifiedHeapMarkingVisitorBase {
  public:
-  ConcurrentUnifiedHeapMarkingVisitor(HeapBase&, Heap*,
+  ConcurrentUnifiedHeapMarkingVisitor(HeapBase&,
                                       cppgc::internal::ConcurrentMarkingState&,
-                                      CppHeap::CollectionType);
-  ~ConcurrentUnifiedHeapMarkingVisitor() override;
+                                      UnifiedHeapMarkingState&);
+  ~ConcurrentUnifiedHeapMarkingVisitor() override = default;
 
  protected:
   bool DeferTraceToMutatorThreadIfConcurrent(const void*, cppgc::TraceCallback,
                                              size_t) final;
-
- private:
-  // Visitor owns the local worklist. All remaining items are published on
-  // destruction of the visitor. This is good enough as concurrent visitation
-  // ends before computing the rest of the transitive closure on the main
-  // thread. Dynamically allocated as it is only present when the heaps are
-  // attached.
-  std::unique_ptr<MarkingWorklists::Local> local_marking_worklist_;
-  UnifiedHeapMarkingState concurrent_unified_heap_marking_state_;
 };
 
 }  // namespace internal
