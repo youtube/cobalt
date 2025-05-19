@@ -222,12 +222,7 @@ public class MediaDrmBridge {
       MediaDrm.KeyRequest request = null;
       request = getKeyRequest(sessionId, initData, mime);
       if (request == null) {
-        try {
-          // Some implementations let this method throw exceptions.
-          mMediaDrm.closeSession(sessionId);
-        } catch (Exception e) {
-          Log.e(TAG, "closeSession failed", e);
-        }
+        closeMediaDrmSession(sessionId);
         Log.e(TAG, "Generate request failed.");
         return;
       }
@@ -239,12 +234,7 @@ public class MediaDrmBridge {
     } catch (NotProvisionedException e) {
       Log.e(TAG, "Device not provisioned", e);
       if (newSessionOpened) {
-        try {
-          // Some implementations let this method throw exceptions.
-          mMediaDrm.closeSession(sessionId);
-        } catch (Exception ex) {
-          Log.e(TAG, "closeSession failed", ex);
-        }
+        closeMediaDrmSession(sessionId);
       }
       attemptProvisioning();
     }
@@ -337,12 +327,9 @@ public class MediaDrmBridge {
     } catch (Exception e) {
       Log.e(TAG, "removeKeys failed: ", e);
     }
-    try {
-      // Some implementations let this method throw exceptions.
-      mMediaDrm.closeSession(sessionId);
-    } catch (Exception e) {
-      Log.e(TAG, "closeSession failed: ", e);
-    }
+
+    closeMediaDrmSession(sessionId);
+
     mSessionIds.remove(ByteBuffer.wrap(sessionId));
     Log.d(TAG, "Session closed: sessionId=" + bytesToString(sessionId));
   }
@@ -466,6 +453,9 @@ public class MediaDrmBridge {
   }
 
   private static String bytesToString(byte[] bytes) {
+    if (bytes == null) {
+      return "(null)";
+    }
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (Exception e) {
@@ -592,6 +582,20 @@ public class MediaDrmBridge {
     }
   }
 
+  private void closeMediaDrmSession(byte[] sessionId) {
+    if (sessionId == null) {
+      Log.w(TAG, "Trying to close drm session with null sessionId. Ignored.");
+      return;
+    }
+
+    try {
+      // Some implementations let this method throw exceptions.
+      mMediaDrm.closeSession(sessionId);
+    } catch (Exception e) {
+      Log.e(TAG, "closeSession(sessionId=" + bytesToString(sessionId) + ") failed: ", e);
+    }
+  }
+
   @UsedByNative
   boolean createMediaCryptoSession() {
     if (mMediaCryptoSession != null) {
@@ -628,12 +632,7 @@ public class MediaDrmBridge {
       mMediaCrypto.setMediaDrmSession(mMediaCryptoSession);
     } catch (MediaCryptoException e3) {
       Log.e(TAG, "Unable to set media drm session", e3);
-      try {
-        // Some implementations let this method throw exceptions.
-        mMediaDrm.closeSession(mMediaCryptoSession);
-      } catch (Exception e) {
-        Log.e(TAG, "closeSession failed: ", e);
-      }
+      closeMediaDrmSession(mMediaCryptoSession);
       mMediaCryptoSession = null;
       return false;
     }
@@ -704,24 +703,14 @@ public class MediaDrmBridge {
         Log.e(TAG, "removeKeys failed: ", e);
       }
 
-      try {
-        // Some implementations let this method throw exceptions.
-        mMediaDrm.closeSession(sessionId);
-      } catch (Exception e) {
-        Log.e(TAG, "closeSession failed: ", e);
-      }
+      closeMediaDrmSession(sessionId);
       Log.d(TAG, "Successfully closed session: sessionId=", bytesToString(sessionId));
     }
     mSessionIds.clear();
 
     // Close mMediaCryptoSession if it's open.
     if (mMediaCryptoSession != null) {
-      try {
-        // Some implementations let this method throw exceptions.
-        mMediaDrm.closeSession(mMediaCryptoSession);
-      } catch (Exception e) {
-        Log.e(TAG, "closeSession failed: ", e);
-      }
+      closeMediaDrmSession(mMediaCryptoSession);
       mMediaCryptoSession = null;
     }
 
