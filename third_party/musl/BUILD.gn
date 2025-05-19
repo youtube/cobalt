@@ -518,7 +518,7 @@ static_library("c_internal") {
 
   deps = [
     "//starboard:starboard_group",
-    "//starboard/client_porting/eztime",
+    "//cobalt/common/eztime",
     "//starboard/common:common_headers_only",
   ]
 }

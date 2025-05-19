@@ -12,14 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("icu_init") {
+static_library("eztime") {
   sources = [
-    "icu_init.cc",
-    "icu_init.h",
+    "eztime.cc",
+    "eztime.h",
+  ]
+
+  deps = [ "//third_party/icu" ]
+}
+
+source_set("eztime_test") {
+  testonly = true
+
+  sources = [
+    "eztime_test.cc",
+    "test_constants.h",
   ]
 
   deps = [
-    "//starboard/common",
-    "//third_party/icu",
+    ":eztime",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

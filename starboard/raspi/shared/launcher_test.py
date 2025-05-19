@@ -190,7 +190,7 @@ class LauncherInternalsTest(LauncherTest):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('device_id')
-  parser.add_argument('--target', default='eztime_test')
+  parser.add_argument('--target', default='nplb')
   parser.add_argument('--out_directory')
   parser.add_argument('--config', default='devel')
   parser.add_argument('--verbose', '-v', action='store_true')

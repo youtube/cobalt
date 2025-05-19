@@ -30,10 +30,9 @@
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "base/logging.h"
-#include "starboard/common/time.h"  // nogncheck
-#include "starboard/types.h"  // nogncheck
-#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#include "cobalt/common/eztime/eztime.h"  // nogncheck
+#include "starboard/common/time.h"        // nogncheck
+#include "starboard/types.h"              // nogncheck
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
