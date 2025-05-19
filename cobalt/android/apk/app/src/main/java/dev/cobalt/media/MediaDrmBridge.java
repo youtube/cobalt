@@ -453,6 +453,9 @@ public class MediaDrmBridge {
   }
 
   private static String bytesToString(byte[] bytes) {
+    if (bytes == null) {
+      return "(null)";
+    }
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (Exception e) {
@@ -580,6 +583,11 @@ public class MediaDrmBridge {
   }
 
   private void closeMediaDrmSession(byte[] sessionId) {
+    if (sessionId == null) {
+      Log.w(TAG, "Trying to close drm session with null sessionId. Ignored.");
+      return;
+    }
+
     try {
       // Some implementations let this method throw exceptions.
       mMediaDrm.closeSession(sessionId);
