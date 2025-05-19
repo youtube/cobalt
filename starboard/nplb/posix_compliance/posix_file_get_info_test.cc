@@ -29,29 +29,25 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-inline int64_t TimeTToWindowsUsec(time_t time) {
-  int64_t posix_usec = static_cast<int64_t>(time) * 1000000;
-  return PosixTimeToWindowsTime(posix_usec);
-}
-
 TEST(PosixFileGetInfoTest, InvalidFileErrors) {
   struct stat info;
   int result = fstat(-1, &info);
   EXPECT_FALSE(result == 0);
 }
 
+constexpr int64_t kMicrosecond = 1'000'000;
+auto ToMicroseconds(const struct timespec& ts) {
+  return ts.tv_sec * kMicrosecond + ts.tv_nsec / 1000;
+};
+
 TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
   // This test is potentially flaky because it's comparing times. So, building
   // in extra sensitivity to make flakiness more apparent.
-  const int kTrials = 100;
+  constexpr int kTrials = 100;
   for (int i = 0; i < kTrials; ++i) {
-    // We can't assume filesystem timestamp precision, so go back a minute
-    // for a better chance to contain the imprecision and rounding errors.
-    const int64_t kOneMinuteInMicroseconds = 60'000'000;
-    int64_t time =
-        PosixTimeToWindowsTime(CurrentPosixTime()) - kOneMinuteInMicroseconds;
+    int64_t time_usec = CurrentPosixTime();
 
-    const int kFileSize = 12;
+    constexpr int kFileSize = 12;
     starboard::nplb::ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
@@ -64,9 +60,12 @@ TEST(PosixFileGetInfoTest, WorksOnARegularFile) {
       EXPECT_EQ(kFileSize, info.st_size);
       EXPECT_FALSE(S_ISDIR(info.st_mode));
       EXPECT_FALSE(S_ISLNK(info.st_mode));
-      EXPECT_LE(time, TimeTToWindowsUsec(info.st_atime));
-      EXPECT_LE(time, TimeTToWindowsUsec(info.st_atime));
-      EXPECT_LE(time, TimeTToWindowsUsec(info.st_ctime));
+      // We can't assume filesystem timestamp precision, so allow a minute
+      // difference.
+      constexpr int64_t kOneMinute = 60 * kMicrosecond;
+      EXPECT_NEAR(time_usec, ToMicroseconds(info.st_mtim), kOneMinute);
+      EXPECT_NEAR(time_usec, ToMicroseconds(info.st_atim), kOneMinute);
+      EXPECT_NEAR(time_usec, ToMicroseconds(info.st_ctim), kOneMinute);
     }
 
     int result = close(file);

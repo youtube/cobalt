@@ -34,9 +34,9 @@
 #include "gtest/gtest.h"
 
 #if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "starboard/client_porting/eztime/eztime.h" // nogncheck
-#include "starboard/common/file.h" // nogncheck
-#include "starboard/system.h" // nogncheck
+#include "cobalt/common/eztime/eztime.h"  // nogncheck
+#include "starboard/common/file.h"        // nogncheck
+#include "starboard/system.h"             // nogncheck
 #endif
 
 #include <ctype.h>

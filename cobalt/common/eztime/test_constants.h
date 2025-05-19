@@ -12,30 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_
-#define STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_
+#ifndef COBALT_COMMON_EZTIME_TEST_CONSTANTS_H_
+#define COBALT_COMMON_EZTIME_TEST_CONSTANTS_H_
 
-#if defined(STARBOARD)
+#include "cobalt/common/eztime/eztime.h"
 
-#include "starboard/client_porting/eztime/eztime.h"
-
-namespace starboard {
-namespace client_porting {
+namespace cobalt {
+namespace common {
 namespace eztime {
 
 static const EzTimeT kTestEzTimeTYear = 525600 * kEzTimeTMinute;
 
 // 1443121328 in POSIX time is
 // Thursday, 9/24/2015 19:02:08 UTC
-static const EzTimeT kTestTimePositive = SB_INT64_C(1443121328);
+static const EzTimeT kTestTimePositive = 1443121328L;
 
 // 0 in POSIX time is
 // Thursday, 1/1/1970 00:00:00 UTC
-static const EzTimeT kTestTimePosixZero = SB_INT64_C(0);
+static const EzTimeT kTestTimePosixZero = 0L;
 
 // -771942639 in POSIX time is
 // Monday, 7/16/1945 11:29:21 UTC
-static const EzTimeT kTestTimePosixNegative = SB_INT64_C(-771942639);
+static const EzTimeT kTestTimePosixNegative = -771942639L;
 
 // 0 in Windows time is
 // Monday, 1/1/1601 00:00:00 UTC
@@ -46,12 +44,12 @@ static const EzTimeT kTestTimeWindowsZero =
 // Saturday, 1/1/1583 00:00:00 UTC
 // which is after the cutover to the Gregorian calendar, so most time system
 // agree.
-static const EzTimeT kTestTimeWindowsNegative = SB_INT64_C(-12212553600);
+static const EzTimeT kTestTimeWindowsNegative = -12212553600L;
 
 // 1600970155 in POSIX time is
 // Thursday, 9/24/2020 17:55:55 UTC
 // NOTE: Update this value once every 25 or so years.
-static const EzTimeT kTestTimeWritten = SB_INT64_C(1600970155);
+static const EzTimeT kTestTimeWritten = 1600970155L;
 
 // 25 years after the time this test was written.
 static const EzTimeT kTestTimePastWritten =
@@ -60,12 +58,10 @@ static const EzTimeT kTestTimePastWritten =
 // 4133980800 in POSIX time is
 // Saturday, 01 Jan 2101 00:00:00 UTC
 // NOTE: Update this value once every 100 or so years.
-static const EzTimeT kTestTimeNextCentury = SB_INT64_C(4133980800);
+static const EzTimeT kTestTimeNextCentury = 4133980800L;
 
 }  // namespace eztime
-}  // namespace client_porting
-}  // namespace starboard
+}  // namespace common
+}  // namespace cobalt
 
-#endif  // STARBOARD
-
-#endif  // STARBOARD_CLIENT_PORTING_EZTIME_TEST_CONSTANTS_H_
+#endif  // COBALT_COMMON_EZTIME_TEST_CONSTANTS_H_

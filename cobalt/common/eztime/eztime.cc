@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/client_porting/eztime/eztime.h"
+#include "cobalt/common/eztime/eztime.h"
 
 #include <pthread.h>
+#include <sys/time.h>
+#include <sys/types.h>
 
+#include <array>
+#include <cstddef>
 #include <string>
-
-#include "starboard/client_porting/icu_init/icu_init.h"
-#include "starboard/common/log.h"
-#include "starboard/common/time.h"
-#include "starboard/system.h"
 
 #include "third_party/icu/source/common/unicode/udata.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
@@ -34,7 +33,8 @@ namespace {
 const int kMaxTimeZoneSize = 32;
 
 // Since ICU APIs take timezones by Unicode name strings, this is a cache of
-// commonly used timezones that can be passed into ICU functions that take them.
+// commonly used timezones that can be passed into ICU functions that take
+// them.
 UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
 
 // Once control for initializing eztime static data.
@@ -42,20 +42,21 @@ pthread_once_t g_eztime_initialization_once = PTHREAD_ONCE_INIT;
 
 // The timezone names in ASCII (UTF8-compatible) literals. This must match the
 // order of the EzTimeZone enum.
-const char* kTimeZoneNames[] = {
+constexpr std::array<const char*, kEzTimeZoneCount> kTimeZoneNames = {{
     "America/Los_Angeles",
     "Etc/GMT",
     "",
-};
+}};
 
-SB_COMPILE_ASSERT(SB_ARRAY_SIZE(kTimeZoneNames) == kEzTimeZoneCount,
-                  names_for_each_time_zone);
+// Standard compile-time assertion
+static_assert(kTimeZoneNames.size() == kEzTimeZoneCount,
+              "The number of kTimeZoneNames must match kEzTimeZoneCount.");
 
 // Initializes a single timezone in the ICU timezone lookup table.
-void InitializeTimeZone(EzTimeZone timezone) {
+void InitializeTimeZone(EzTimeZone ez_timezone) {
   UErrorCode status = U_ZERO_ERROR;
-  UChar* timezone_name = g_timezones[timezone];
-  const char* timezone_name_utf8 = kTimeZoneNames[timezone];
+  UChar* timezone_name = g_timezones[ez_timezone];
+  const char* timezone_name_utf8 = kTimeZoneNames[ez_timezone];
   if (!timezone_name_utf8) {
     timezone_name[0] = 0;
     return;
@@ -63,14 +64,11 @@ void InitializeTimeZone(EzTimeZone timezone) {
 
   u_strFromUTF8(timezone_name, kMaxTimeZoneSize, NULL, timezone_name_utf8, -1,
                 &status);
-  SB_DCHECK(U_SUCCESS(status));
 }
 
-// Initializes ICU and TimeZones so the rest of the functions will work. Should
-// only be called once.
+// Initializes ICU and TimeZones so the rest of the functions will work.
+// Should only be called once.
 void Initialize() {
-  IcuInit();
-
   // Initialize |g_timezones| table.
   for (int timezone = 0; timezone < kEzTimeZoneCount; ++timezone) {
     InitializeTimeZone(static_cast<EzTimeZone>(timezone));
@@ -80,22 +78,20 @@ void Initialize() {
 // Converts from an SbTime to an ICU UDate (non-fractional milliseconds since
 // POSIX epoch, as a double).
 int64_t UDateToSbTime(UDate udate) {
-  return starboard::PosixTimeToWindowsTime(
-      static_cast<int64_t>(udate * 1000LL));
+  return static_cast<int64_t>(udate * 1000LL);
 }
 
 // Converts from an ICU UDate to an SbTime. NOTE: This is LOSSY.
-UDate SbTimeToUDate(int64_t sb_time) {
-  int64_t posix_time = sb_time - 11644473600000000ULL;
+UDate SbTimeToUDate(int64_t posix_time) {
   return static_cast<UDate>(posix_time >= 0 ? posix_time / 1000
                                             : (posix_time - 1000 + 1) / 1000);
 }
 
 // Gets the cached TimeZone ID from |g_timezones| for the given EzTimeZone
-// |timezone|.
-const UChar* GetTimeZoneId(EzTimeZone timezone) {
+// |ez_timezone|.
+const UChar* GetTimeZoneId(EzTimeZone ez_timezone) {
   pthread_once(&g_eztime_initialization_once, &Initialize);
-  const UChar* timezone_id = g_timezones[timezone];
+  const UChar* timezone_id = g_timezones[ez_timezone];
   if (timezone_id[0] == 0) {
     return NULL;
   }
@@ -103,22 +99,30 @@ const UChar* GetTimeZoneId(EzTimeZone timezone) {
   return timezone_id;
 }
 
-}  // namespace
-
-bool EzTimeTExplode(const EzTimeT* SB_RESTRICT in_time,
-                    EzTimeZone timezone,
-                    EzTimeExploded* SB_RESTRICT out_exploded) {
-  SB_DCHECK(in_time);
-  EzTimeValue value = EzTimeTToEzTimeValue(*in_time);
-  return EzTimeValueExplode(&value, timezone, out_exploded, NULL);
+// Converts EzTimeValue to EzTimeT. NOTE: This is LOSSY.
+static EzTimeT EzTimeValueToEzTimeT(const EzTimeValue* value) {
+  return EzTimeTFromSbTime(EzTimeValueToSbTime(value));
 }
 
-bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
-                        EzTimeZone timezone,
-                        EzTimeExploded* SB_RESTRICT out_exploded,
-                        int* SB_RESTRICT out_milliseconds) {
-  SB_DCHECK(value);
-  SB_DCHECK(out_exploded);
+}  // namespace
+
+bool EzTimeTExplode(const EzTimeT* in_time,
+                    EzTimeZone ez_timezone,
+                    EzTimeExploded* out_exploded) {
+  if (!in_time) {
+    return false;
+  }
+  EzTimeValue value = EzTimeTToEzTimeValue(*in_time);
+  return EzTimeValueExplode(&value, ez_timezone, out_exploded, NULL);
+}
+
+bool EzTimeValueExplode(const EzTimeValue* value,
+                        EzTimeZone ez_timezone,
+                        EzTimeExploded* out_exploded,
+                        int* out_milliseconds) {
+  if (!value || !out_exploded) {
+    return false;
+  }
   UErrorCode status = U_ZERO_ERROR;
 
   // Always query the time using a gregorian calendar.  This is
@@ -129,7 +133,7 @@ bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
 
   // See:
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar = ucal_open(GetTimeZoneId(timezone), -1,
+  UCalendar* calendar = ucal_open(GetTimeZoneId(ez_timezone), -1,
                                   uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
     return false;
@@ -160,16 +164,18 @@ bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
   return U_SUCCESS(status);
 }
 
-EzTimeT EzTimeTImplode(EzTimeExploded* SB_RESTRICT exploded,
-                       EzTimeZone timezone) {
-  EzTimeValue value = EzTimeValueImplode(exploded, 0, timezone);
+EzTimeT EzTimeTImplode(EzTimeExploded* exploded, EzTimeZone ez_timezone) {
+  EzTimeValue value = EzTimeValueImplode(exploded, 0, ez_timezone);
   return EzTimeValueToEzTimeT(&value);
 }
 
-EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
+EzTimeValue EzTimeValueImplode(EzTimeExploded* exploded,
                                int millisecond,
-                               EzTimeZone timezone) {
-  SB_DCHECK(exploded);
+                               EzTimeZone ez_timezone) {
+  EzTimeValue zero_time = {};
+  if (!exploded) {
+    return zero_time;
+  }
   UErrorCode status = U_ZERO_ERROR;
 
   // Always query the time using a gregorian calendar.  This is
@@ -180,10 +186,9 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
 
   // See:
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar = ucal_open(GetTimeZoneId(timezone), -1,
+  UCalendar* calendar = ucal_open(GetTimeZoneId(ez_timezone), -1,
                                   uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
-    EzTimeValue zero_time = {};
     return zero_time;
   }
 
@@ -203,29 +208,23 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
     return EzTimeValueFromSbTime(UDateToSbTime(udate));
   }
 
-  EzTimeValue zero_time = {};
   return zero_time;
 }
 
-int EzTimeValueGetNow(EzTimeValue* out_tp, void* tzp) {
-  SB_DCHECK(tzp == NULL);
-  SB_DCHECK(out_tp != NULL);
-  *out_tp = EzTimeValueFromSbTime(
-      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
-  return 0;
-}
-
 EzTimeT EzTimeTGetNow(EzTimeT* out_now) {
-  EzTimeT result = EzTimeTFromSbTime(
-      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()));
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0) {
+    return 0;
+  }
+  EzTimeT result = tv.tv_sec;
   if (out_now) {
     *out_now = result;
   }
   return result;
 }
 
-EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* SB_RESTRICT in_time,
-                                    EzTimeExploded* SB_RESTRICT out_exploded) {
+EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* in_time,
+                                    EzTimeExploded* out_exploded) {
   if (EzTimeTExplode(in_time, kEzTimeZoneLocal, out_exploded)) {
     return out_exploded;
   }
@@ -233,8 +232,8 @@ EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* SB_RESTRICT in_time,
   return NULL;
 }
 
-EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* SB_RESTRICT in_time,
-                                  EzTimeExploded* SB_RESTRICT out_exploded) {
+EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* in_time,
+                                  EzTimeExploded* out_exploded) {
   if (EzTimeTExplode(in_time, kEzTimeZoneUTC, out_exploded)) {
     return out_exploded;
   }
@@ -242,10 +241,10 @@ EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* SB_RESTRICT in_time,
   return NULL;
 }
 
-EzTimeT EzTimeTImplodeLocal(EzTimeExploded* SB_RESTRICT exploded) {
+EzTimeT EzTimeTImplodeLocal(EzTimeExploded* exploded) {
   return EzTimeTImplode(exploded, kEzTimeZoneLocal);
 }
 
-EzTimeT EzTimeTImplodeUTC(EzTimeExploded* SB_RESTRICT exploded) {
+EzTimeT EzTimeTImplodeUTC(EzTimeExploded* exploded) {
   return EzTimeTImplode(exploded, kEzTimeZoneUTC);
 }

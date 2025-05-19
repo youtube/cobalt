@@ -78,7 +78,7 @@
 #include <time.h>
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#include "cobalt/common/eztime/eztime.h"  // nogncheck
 #endif
 
 /*
