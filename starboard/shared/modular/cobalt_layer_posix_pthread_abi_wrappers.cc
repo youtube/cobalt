@@ -196,6 +196,11 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
   return __abi_wrap_pthread_getname_np(thread, name, len);
 }
 
+int __abi_wrap_pthread_getattr_np(pthread_t thread, pthread_attr_t* attr);
+int pthread_getattr_np(pthread_t thread, pthread_attr_t* attr) {
+  return __abi_wrap_pthread_getattr_np(thread, attr);
+}
+
 int __abi_wrap_pthread_attr_destroy(pthread_attr_t* attr);
 
 int pthread_attr_destroy(pthread_attr_t* attr) {
@@ -281,6 +286,24 @@ int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state) {
   return __abi_wrap_pthread_attr_setdetachstate(attr, detach_state);
 }
 
+int __abi_wrap_pthread_getschedparam(pthread_t thread,
+                                     int* __restrict policy,
+                                     sched_param* __restrict param);
+int pthread_getschedparam(pthread_t thread,
+                          int* __restrict policy,
+                          sched_param* __restrict param) {
+  return __abi_wrap_pthread_getschedparam(thread, policy, param);
+}
+
+int __abi_wrap_pthread_setschedparam(pthread_t thread,
+                                     int policy,
+                                     const sched_param* __restrict param);
+int pthread_setschedparam(pthread_t thread,
+                          int policy,
+                          const sched_param* __restrict param) {
+  return __abi_wrap_pthread_setschedparam(thread, policy, param);
+}
+
 int __abi_wrap_pthread_mutexattr_init(pthread_mutexattr_t* attr);
 
 int pthread_mutexattr_init(pthread_mutexattr_t* attr) {
@@ -358,5 +381,11 @@ int pthread_rwlock_tryrdlock(pthread_rwlock_t* rwlock) {
 int __abi_wrap_pthread_rwlock_trywrlock(pthread_rwlock_t*);
 int pthread_rwlock_trywrlock(pthread_rwlock_t* rwlock) {
   return __abi_wrap_pthread_rwlock_trywrlock(rwlock);
+}
+
+int __abi_wrap_pthread_kill(pthread_t thread, int sig);
+
+int pthread_kill(pthread_t thread, int sig) {
+  return __abi_wrap_pthread_kill(thread, sig);
 }
 }
