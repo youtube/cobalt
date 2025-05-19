@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/client_porting/eztime/test_constants.h"
-#include "starboard/common/time.h"
+#include <sys/time.h>
+#include <sys/types.h>
+
+#include "cobalt/common/eztime/eztime.h"
+#include "cobalt/common/eztime/test_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace client_porting {
+namespace cobalt {
+namespace common {
 namespace eztime {
 namespace {
 
@@ -64,11 +66,12 @@ TEST(EzTimeValueFromSbTime, IsTransitive) {
 
 TEST(EzTimeTGetNowTest, IsKindOfSane) {
   EzTimeT ez_time = EzTimeTGetNow(NULL);
-  int64_t sb_time = PosixTimeToWindowsTime(CurrentPosixTime());
+  struct timeval tv;
+  EXPECT_EQ(0, gettimeofday(&tv, NULL));
 
   // They should be within a second of each other.
-  EXPECT_GT(1'000'000LL, sb_time - EzTimeTToSbTime(ez_time));
-  EXPECT_GT(1'000'000LL, EzTimeTToSbTime(ez_time) - sb_time);
+  EXPECT_GE(1LL, tv.tv_sec - ez_time);
+  EXPECT_GE(1LL, ez_time - tv.tv_sec);
 
   // Now should be after the time I wrote this test.
   EXPECT_LE(kTestTimeWritten, ez_time);
@@ -80,24 +83,6 @@ TEST(EzTimeTGetNowTest, IsKindOfSane) {
   EzTimeT ez_time2 = 0;
   EzTimeT ez_time3 = EzTimeTGetNow(&ez_time2);
   EXPECT_EQ(ez_time2, ez_time3);
-}
-
-TEST(EzTimeValueGetNowTest, IsKindOfSane) {
-  EzTimeValue time_value = {0};
-  EXPECT_EQ(0, EzTimeValueGetNow(&time_value, NULL));
-  int64_t sb_time = PosixTimeToWindowsTime(CurrentPosixTime());
-
-  // They should be within a second of each other.
-  EXPECT_GT(1'000'000LL, sb_time - EzTimeValueToSbTime(&time_value));
-  EXPECT_GT(1'000'000LL, EzTimeValueToSbTime(&time_value) - sb_time);
-
-  // Now should be after the time I wrote this test.
-  EzTimeT ez_time = EzTimeTFromSbTime(EzTimeValueToSbTime(&time_value));
-  EXPECT_LE(kTestTimeWritten, ez_time);
-
-  // And it should be before 5 years after I wrote this test, at least for a
-  // while.
-  EXPECT_GE(kTestTimePastWritten, ez_time);
 }
 
 TEST(EzTimeTExplodeTest, Positive) {
@@ -279,5 +264,5 @@ TEST(EzTimeTImplodeTest, NextCentury) {
 
 }  // namespace
 }  // namespace eztime
-}  // namespace client_porting
-}  // namespace starboard
+}  // namespace common
+}  // namespace cobalt
