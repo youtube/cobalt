@@ -12,18 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/system.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+
 bool IsSystemNetworkConnected() {
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
   jboolean j_is_connected =
-      env->CallStarboardBooleanMethodOrAbort("isNetworkConnected", "()Z");
-  return j_is_connected;
+      StarboardBridge::GetInstance()->IsNetworkConnected(env);
+  return j_is_connected == JNI_TRUE;
 }
 
 }  // namespace shared

@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 float SbWindowGetDiagonalSizeInInches(SbWindow window) {
   if (!SbWindowIsValid(window)) {
@@ -27,13 +27,18 @@ float SbWindowGetDiagonalSizeInInches(SbWindow window) {
 
   int32_t width_pixels = ANativeWindow_getWidth(window->native_window);
   int32_t height_pixels = ANativeWindow_getHeight(window->native_window);
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> display_dpi(env->CallStarboardObjectMethodOrAbort(
-      "getDisplayDpi", "()Landroid/util/SizeF;"));
-  float xdpi =
-      env->CallFloatMethodOrAbort(display_dpi.Get(), "getWidth", "()F");
-  float ydpi =
-      env->CallFloatMethodOrAbort(display_dpi.Get(), "getHeight", "()F");
+
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> display_dpi =
+      starboard::android::shared::StarboardBridge::GetInstance()->GetDisplayDpi(
+          env);
+
+  jclass sizeFClass = env->FindClass("android/util/SizeF");
+  jmethodID getWidthMethod = env->GetMethodID(sizeFClass, "getWidth", "()F");
+  jmethodID getHeightMethod = env->GetMethodID(sizeFClass, "getHeight", "()F");
+
+  float xdpi = env->CallFloatMethod(display_dpi.obj(), getWidthMethod);
+  float ydpi = env->CallFloatMethod(display_dpi.obj(), getHeightMethod);
 
   if (xdpi < 0.1f || ydpi < 0.1f) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid display values.";
