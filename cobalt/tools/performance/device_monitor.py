@@ -21,13 +21,14 @@ from typing import Dict, Union, List, Optional, Tuple, Callable
 # Redefine the Callable type using these aliases
 AdbRunnerType = Callable[[Union[List[str], str], bool, int],
                          Tuple[str, Optional[str]]]
+TimeProviderType = Callable[[float], None]
 
 
 class DeviceMonitor:
   """Handles interactions with the Android device via ADB."""
 
-  def __init__(self, adb_runner: AdbRunnerType, time_provider: Callable[[float],
-                                                                        None]):
+  def __init__(self, adb_runner: AdbRunnerType,
+               time_provider: TimeProviderType):
     self._run_adb_command = adb_runner
     self._time_sleep = time_provider
 
@@ -49,15 +50,18 @@ class DeviceMonitor:
     return True
 
   def launch_cobalt(self, package_name: str, activity_name: str, flags: str):
-    """Launches the Cobalt application with a specified URL."""
+    """Launches the Cobalt application with a specified URL.
+       Returns True on success and False upon failure."""
     command_str = (f'adb shell am start -n {package_name}/{activity_name} '
                    f'--esa commandLineArgs \'{flags}\'')
     stdout, stderr = self._run_adb_command(command_str, shell=True)
     if stderr:
       print(f'Error launching Cobalt: {stderr}')
+      return False
     else:
       print('Cobalt launch command sent.' +
             (f' Launch stdout: {stdout}' if stdout else ''))
+      return True
 
   def get_meminfo_data(
       self,

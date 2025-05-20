@@ -26,11 +26,11 @@ class MonitoringDataStore:
 
   def add_snapshot(self, snapshot: Dict[str, Any]):
     """Adds a new data snapshot to the store."""
-    self._data.append(snapshot)
+    self._data.append(snapshot.copy())
 
   def get_all_data(self) -> List[Dict[str, Any]]:
     """Returns a copy of all collected monitoring data."""
-    return self._data.copy()
+    return self._data[:]
 
   def clear_data(self):
     """Clears all collected data from the store."""
