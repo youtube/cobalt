@@ -228,15 +228,23 @@ int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state);
 int pthread_getaffinity_np(pthread_t, size_t, struct cpu_set_t*);
 int pthread_setaffinity_np(pthread_t, size_t, const struct cpu_set_t*);
 
+int pthread_attr_getscope(const pthread_attr_t* __restrict, int* __restrict);
 int pthread_attr_setscope(pthread_attr_t*, int);
+int pthread_attr_getschedpolicy(const pthread_attr_t* __restrict,
+                                int* __restrict);
 int pthread_attr_setschedpolicy(pthread_attr_t*, int);
 int pthread_getattr_np(pthread_t, pthread_attr_t*);
 int pthread_attr_getstack(const pthread_attr_t* __restrict,
                           void** __restrict,
                           size_t* __restrict);
+int pthread_attr_setstack(pthread_attr_t*, void*, size_t);
 int pthread_mutexattr_init(pthread_mutexattr_t*);
 int pthread_mutexattr_destroy(pthread_mutexattr_t*);
+int pthread_mutexattr_gettype(const pthread_mutexattr_t* __restrict,
+                              int* __restrict);
 int pthread_mutexattr_settype(pthread_mutexattr_t*, int);
+int pthread_mutexattr_getpshared(const pthread_mutexattr_t* __restrict,
+                                 int* __restrict);
 int pthread_mutexattr_setpshared(pthread_mutexattr_t*, int);
 int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t*, int);
@@ -253,6 +261,8 @@ int pthread_rwlock_wrlock(pthread_rwlock_t*);
 int pthread_rwlock_unlock(pthread_rwlock_t*);
 int pthread_rwlock_tryrdlock(pthread_rwlock_t*);
 int pthread_rwlock_trywrlock(pthread_rwlock_t*);
+
+int pthread_kill(pthread_t, int);
 
 #ifdef __cplusplus
 }  // extern "C"

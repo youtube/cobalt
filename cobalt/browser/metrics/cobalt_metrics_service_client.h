@@ -44,6 +44,10 @@ namespace cobalt {
 
 constexpr auto kStandardUploadIntervalMinutes = base::Minutes(5);
 
+// The minimum frequency in which we can mark the app as non idle for reporting
+// reasons.
+constexpr base::TimeDelta kMinIdleRefreshInterval = base::Seconds(30);
+
 // This class allows for necessary customizations of metrics::MetricsService,
 // the central metrics (e.g. UMA) collecting and reporting control. Threading:
 // this class is intended to be used on a single thread after construction.
@@ -61,7 +65,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   // Factory function.
   static std::unique_ptr<CobaltMetricsServiceClient> Create(
       metrics::MetricsStateManager* state_manager,
-      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
       PrefService* local_state);
 
   // ::metrics::MetricsServiceClient:
@@ -94,14 +99,36 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
-      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      std::unique_ptr<variations::SyntheticTrialRegistry>
+          synthetic_trial_registry,
       PrefService* local_state);
 
   // Completes the two-phase initialization of CobaltMetricsServiceClient.
   void Initialize();
 
+  base::RepeatingTimer idle_refresh_timer_;
+
  private:
-  const raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<metrics::MetricsService> CreateMetricsServiceInternal(
+      metrics::MetricsStateManager* state_manager,
+      metrics::MetricsServiceClient* client,
+      PrefService* local_state);
+
+  // Virtual to be overridden in tests.
+  virtual std::unique_ptr<CobaltMetricsLogUploader> CreateLogUploaderInternal();
+
+  // Virtual to be overridden in tests.
+  virtual void OnApplicationNotIdleInternal();
+
+  // Periodically tells UMA the app is not idle so that metrics payloads
+  // continue to be uploaded.
+  // TODO(cobalt, b/417477183): Consider removing this when user actions work in
+  // Kabuki.
+  void StartIdleRefreshTimer();
+
+  const std::unique_ptr<variations::SyntheticTrialRegistry>
+      synthetic_trial_registry_;
 
   const raw_ptr<PrefService> local_state_;
 

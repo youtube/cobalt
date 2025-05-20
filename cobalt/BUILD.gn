@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//build/linux/strip_binary.gni")
+import("//cobalt/build/modular_executable.gni")
 import("//testing/test.gni")
 
 group("gn_all") {
@@ -32,6 +33,7 @@ group("gn_all") {
   if (is_cobalt_hermetic_build) {
     deps += [
       "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+      "//starboard/elf_loader:elf_loader_sys_sandbox($starboard_toolchain)",
       "//starboard/loader_app:loader_app($starboard_toolchain)",
     ]
   }
@@ -39,7 +41,7 @@ group("gn_all") {
 
 if (!is_android) {
   if (is_cobalt_hermetic_build) {
-    cobalt_target_type = "shared_library"
+    cobalt_target_type = "modular_executable"
   } else {
     cobalt_target_type = "executable"
   }
@@ -121,6 +123,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
     "//cobalt/cobalt_switch_defaults_test.cc",
@@ -137,10 +140,14 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
+    "//cobalt/common/eztime:eztime_test",
     "//cobalt/user_agent",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
+    "//components/variations",
+    "//components/variations/service",
+    "//services/network/public/cpp",
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/metrics_proto",

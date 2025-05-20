@@ -20,6 +20,7 @@
     "skia",
     "sql_unittests",
     "starboard/elf_loader_sandbox",
+    "starboard/elf_loader_sys_sandbox",
     "starboard/loader_app",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",

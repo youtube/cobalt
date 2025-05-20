@@ -28,6 +28,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/shell/browser/shell_paths.h"
 
@@ -44,7 +45,8 @@ CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
 std::unique_ptr<::metrics::MetricsServiceClient>
 CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
   auto metrics_service_client = CobaltMetricsServiceClient::Create(
-      GetMetricsStateManager(), new variations::SyntheticTrialRegistry(),
+      GetMetricsStateManager(),
+      std::make_unique<variations::SyntheticTrialRegistry>(),
       local_state_.get());
   metrics_service_client_ = metrics_service_client.get();
   return metrics_service_client;

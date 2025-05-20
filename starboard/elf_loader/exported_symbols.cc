@@ -47,6 +47,7 @@
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_uio_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/socket.h"
 #include "starboard/speech_synthesis.h"
@@ -208,11 +209,12 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(closedir);
+  REGISTER_SYMBOL(dup);
+  REGISTER_SYMBOL(dup2);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
-  REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
@@ -232,6 +234,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -264,8 +267,7 @@ ExportedSymbols::ExportedSymbols() {
     map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
   }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
-  map_["gettimeofday"] =
-      reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
+  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
   map_["lseek"] = reinterpret_cast<const void*>(&__abi_wrap_lseek);
   map_["mmap"] = reinterpret_cast<const void*>(&__abi_wrap_mmap);
@@ -276,10 +278,22 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_destroy);
   map_["pthread_attr_getdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getdetachstate);
+  map_["pthread_attr_getschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getschedpolicy);
+  map_["pthread_attr_getscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getscope);
+  map_["pthread_attr_getstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstack);
   map_["pthread_attr_getstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_getstacksize);
   map_["pthread_attr_setdetachstate"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setdetachstate);
+  map_["pthread_attr_setschedpolicy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setschedpolicy);
+  map_["pthread_attr_setscope"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setscope);
+  map_["pthread_attr_setstack"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstack);
   map_["pthread_attr_setstacksize"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_attr_setstacksize);
   map_["pthread_cond_broadcast"] =
@@ -310,6 +324,10 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_equal);
   map_["pthread_getname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_getname_np);
+  map_["pthread_getattr_np"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getattr_np);
+  map_["pthread_getschedparam"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_getschedparam);
   map_["pthread_getspecific"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_getspecific);
   map_["pthread_join"] =
@@ -318,6 +336,8 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_key_create);
   map_["pthread_key_delete"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_key_delete);
+  map_["pthread_kill"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_kill);
   map_["pthread_mutex_destroy"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_destroy);
   map_["pthread_mutex_init"] =
@@ -328,15 +348,42 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_unlock);
   map_["pthread_mutex_trylock"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_mutex_trylock);
+  map_["pthread_mutexattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
+  map_["pthread_mutexattr_gettype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_gettype);
+  map_["pthread_mutexattr_getpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_getpshared);
+  map_["pthread_mutexattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
+  map_["pthread_mutexattr_settype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
+  map_["pthread_mutexattr_setpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
   map_["pthread_once"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_once);
+  map_["pthread_rwlock_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_destroy);
+  map_["pthread_rwlock_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_init);
+  map_["pthread_rwlock_rdlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_rdlock);
+  map_["pthread_rwlock_tryrdlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_tryrdlock);
+  map_["pthread_rwlock_trywrlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_trywrlock);
+  map_["pthread_rwlock_unlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_unlock);
+  map_["pthread_rwlock_wrlock"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_rwlock_wrlock);
   map_["pthread_self"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_self);
   map_["pthread_setspecific"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setspecific);
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
-  map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
+  map_["pthread_setschedparam"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_setschedparam);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
@@ -349,6 +396,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
   map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
+  map_["writev"] = reinterpret_cast<const void*>(&__abi_wrap_writev);
 
   REGISTER_SYMBOL(vswprintf);
 

@@ -113,12 +113,6 @@ class AudioDecoderTest
                  << (using_stub_decoder_ ? " with stub audio decoder." : ".");
   }
   void SetUp() override {
-#if defined(SKIP_PROPRIETARY_CODEC_TESTS)
-    if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
-            test_filename_)) {
-      GTEST_SKIP() << "Skipping proprietary-audio related tests.";
-    }
-#endif
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 

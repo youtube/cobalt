@@ -768,6 +768,9 @@ if (is_cobalt) {
           "abspath")
   if (use_starboard_media) {
     static_idl_files_in_core += get_path_info(
+            [ "//third_party/blink/renderer/core/cobalt/html_video_element/html_video_element_extensions.idl" ],
+            "abspath")
+    static_idl_files_in_core += get_path_info(
             [ "//third_party/blink/renderer/core/cobalt/memory_info/memory_info_extensions.idl" ],
             "abspath")
   }

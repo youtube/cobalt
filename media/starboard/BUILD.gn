@@ -77,12 +77,10 @@ source_set("starboard") {
 
   if (use_starboard_media) {
     sources += [
-      "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
       "bind_host_receiver_callback.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
-      "decoder_buffer_allocator_strategy.cc",
       "decoder_buffer_allocator_strategy.h",
       "decoder_buffer_memory_info.h",
       "sbplayer_bridge.cc",
@@ -109,7 +107,7 @@ source_set("starboard") {
     "//media/base",
     "//media/renderers",
     "//mojo/public/cpp/bindings:bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//url",
   ]
@@ -146,7 +144,7 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//media:test_support",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
     "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",

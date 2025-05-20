@@ -42,25 +42,6 @@ namespace base {
 class BASE_EXPORT MessagePumpUIStarboard : public MessagePump, public WatchableIOMessagePumpPosix {
  public:
 
-  // TODO (cobalt b/393772370): Remove the stub FD support when x11/wayland are disabled.
-  class FdWatchController : public FdWatchControllerInterface {
-   public:
-    explicit FdWatchController(const Location& from_here): FdWatchControllerInterface(from_here) {}
-
-    FdWatchController(const FdWatchController&) = delete;
-    FdWatchController& operator=(const FdWatchController&) = delete;
-
-    ~FdWatchController() override {}
-
-    bool StopWatchingFileDescriptor() override {}
-  };
-
-  bool WatchFileDescriptor(int fd,
-                           bool persistent,
-                           int mode,
-                           FdWatchController* controller,
-                           FdWatcher* delegate) {}
-
   MessagePumpUIStarboard();
   virtual ~MessagePumpUIStarboard() { Quit(); }
 
