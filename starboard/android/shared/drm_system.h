@@ -66,7 +66,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const;
+  jobject GetMediaCrypto() const { return j_media_crypto_; }
+
   void CallUpdateRequestCallback(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  const void* session_id,
@@ -141,8 +142,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::mutex pending_tasks_mutex_;
   std::queue<std::function<void(JniEnvExt*)>> pending_tasks_;
 
-  std::condition_variable
-      condition_;              // Used to signal task availability or stop
+  std::condition_variable condition_;
   std::atomic<bool> running_;  // Flag to control the Run loop
 };
 

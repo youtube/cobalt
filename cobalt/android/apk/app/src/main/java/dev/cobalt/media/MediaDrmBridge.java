@@ -211,26 +211,30 @@ public class MediaDrmBridge {
     public final String mime;
     public final byte[] bridgeSessionId;
 
-    public LicenseRequestArgs(int ticket, byte[] initData, String mime) {
+    public LicenseRequestArgs(int ticket, byte[] initData, String mime, byte[] bridgeSessionId) {
       this.ticket = ticket;
       this.initData = initData;
       this.mime = mime;
-      this.bridgeSessionId = null;
-    }
-
-    public LicenseRequestArgs(LicenseRequestArgs args, byte[] bridgeSessionId) {
-      this.ticket = args.ticket;
-      this.initData = args.initData;
-      this.mime = args.mime;
       this.bridgeSessionId = bridgeSessionId;
     }
+
+    public LicenseRequestArgs(int ticket, byte[] initData, String mime) {
+      this(ticket, initData, mime, null);
+    }
   }
-  ArrayList<LicenseRequestArgs> pendingLicenseRequests = new ArrayList<>();
+
+  class PendingLicenseRequestArgs extends LicenseRequestArgs {
+    public PendingLicenseRequestArgs(LicenseRequestArgs args, byte[] bridgeSessionId) {
+      super(SB_DRM_TICKET_INVALID, args.initData, args.mime, bridgeSessionId);
+    }
+  }
+
+  ArrayList<PendingLicenseRequestArgs> pendingLicenseRequests = new ArrayList<>();
 
   private static final int kProvisioningWaitMs = 1_000;
   private static final int kProvisioningCheckIntervalMs = 300;
 
-  void handlePengindLicenseRequest(LicenseRequestArgs args) {
+  void handlePengindLicenseRequest(PendingLicenseRequestArgs args) {
     long startTimeMs = System.currentTimeMillis();
     long endTimeMs = startTimeMs + kProvisioningWaitMs;
     boolean completed = false;
@@ -242,8 +246,6 @@ public class MediaDrmBridge {
       } catch (NotProvisionedException e) {
         Log.e(TAG, "Met Provisioning error while handling pending license request. Try again.");
         startProvisioning(SB_DRM_TICKET_INVALID, args.bridgeSessionId);
-      } catch (Exception e) {
-        return;
       }
 
       try {
@@ -266,7 +268,7 @@ public class MediaDrmBridge {
   @UsedByNative
   void runPendingTasks() {
     while (pendingLicenseRequests.size() > 0) {
-      LicenseRequestArgs args = pendingLicenseRequests.remove(0);
+      PendingLicenseRequestArgs args = pendingLicenseRequests.remove(0);
       Log.i(TAG, "Handling pending license request.");
       handlePengindLicenseRequest(args);
       break;
@@ -287,7 +289,7 @@ public class MediaDrmBridge {
       byte[] bridgeSessionId = generateBridgeSessiondId();
       Log.i(TAG, "Device not provisioned. Start provisioning. sessionId=" + bytesToString(bridgeSessionId));
 
-      pendingLicenseRequests.add(new LicenseRequestArgs(args, bridgeSessionId));
+      pendingLicenseRequests.add(new PendingLicenseRequestArgs(args, bridgeSessionId));
       startProvisioning(ticket, bridgeSessionId);
       return;
     }
@@ -759,10 +761,6 @@ public class MediaDrmBridge {
   // Provisioning should be singletone activity.
   private void startProvisioning(int ticket, byte[] bridgeSessionId) {
     provisioningInFlight++;
-    if (provisioningInFlight < 3) {
-      Log.i(TAG, "Ignore first 2 provisioning(): provisioningInFlight=" + provisioningInFlight);
-      return;
-    }
     Log.i(TAG, "start provisioning(): provisioningInFlight=" + provisioningInFlight);
 
     /*

@@ -22,7 +22,6 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
-#include "starboard/common/time.h"
 
 namespace {
 
@@ -219,8 +218,6 @@ DrmSystem::DrmSystem(
   }
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
-  created_media_crypto_session_.store(true);
-
   Start();
 }
 
@@ -272,7 +269,6 @@ void DrmSystem::Run() {
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-
   StopThread();
   Join();
 
@@ -337,15 +333,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   std::unique_ptr<SessionUpdateRequest> session_update_request(
       new SessionUpdateRequest(ticket, type, initialization_data,
                                initialization_data_size));
-  if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(j_media_drm_bridge_);
-  } else {
-    // Defer generating the update request.
-    session_update_request->ConvertLocalRefToGlobalRef();
-    ScopedLock scoped_lock(mutex_);
-    deferred_session_update_requests_.push_back(
-        std::move(session_update_request));
-  }
+  session_update_request->Generate(j_media_drm_bridge_);
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -405,9 +393,12 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-  SB_DCHECK(j_media_crypto_);
-
-  return kRetry;
+  // The actual decryption will take place by calling |queueSecureInputBuffer|
+  // in the decoders.  Our existence implies that there is enough information
+  // to perform the decryption.
+  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow the
+  //       player worker to handle the retry logic.
+  return kSuccess;
 }
 
 const void* DrmSystem::GetMetrics(int* size) {
@@ -429,11 +420,6 @@ const void* DrmSystem::GetMetrics(int* size) {
   env->ReleaseByteArrayElements(j_metrics, metrics_elements, JNI_ABORT);
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
-}
-
-jobject DrmSystem::GetMediaCrypto() const {
-  SB_LOG(INFO) << "DrmSystem::GetMediaCrypto >";
-  return j_media_crypto_;
 }
 
 void DrmSystem::CallUpdateRequestCallback(int ticket,
@@ -476,8 +462,8 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
 }
 
 void DrmSystem::OnInsufficientOutputProtection() {
-  // HDCP has lost, update the statuses of all keys in all known sessions to
-  // be restricted.
+  // HDCP has lost, update the statuses of all keys in all known sessions to be
+  // restricted.
   ScopedLock scoped_lock(mutex_);
   if (hdcp_lost_) {
     return;
