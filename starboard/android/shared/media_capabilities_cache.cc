@@ -685,14 +685,6 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
-  // Audio output device change could change passthrough decoder capabilities,
-  // so we have to reload codec capabilities.
-  MediaCapabilitiesCache::GetInstance()->ClearCache();
-  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
-}
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
