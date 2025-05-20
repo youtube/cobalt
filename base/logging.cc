@@ -82,7 +82,7 @@ typedef FILE* FileHandle;
 #if BUILDFLAG(IS_STARBOARD)
 #include <fcntl.h>
 
-#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#include "cobalt/common/eztime/eztime.h"  // nogncheck
 #include "starboard/common/log.h"  // nogncheck
 #include "starboard/common/mutex.h"  // nogncheck
 #include "starboard/common/time.h"  // nogncheck

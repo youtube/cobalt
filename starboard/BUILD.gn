@@ -22,10 +22,7 @@ if (!is_cobalt) {
   group("gn_all") {
     testonly = true
 
-    deps = [
-      ":default",
-      "//starboard/client_porting/icu_init",
-    ]
+    deps = [ ":default" ]
     if (enable_test_targets) {
       deps += [
         ":starboard_unittest",
@@ -106,10 +103,7 @@ if (!is_cobalt) {
 if (is_cobalt_hermetic_build) {
   group("starboard_group") {
     deps = []
-    public_deps = [
-      ":starboard_headers_only",
-      "//starboard/client_porting/eztime",
-    ]
+    public_deps = [ ":starboard_headers_only" ]
 
     if (current_toolchain == default_toolchain) {
       data_deps = [ ":starboard($starboard_toolchain)" ]
@@ -141,10 +135,7 @@ if (is_cobalt_hermetic_build) {
   }
 } else {
   group("starboard_group") {
-    public_deps = [
-      ":starboard_headers_only",
-      "//starboard/client_porting/eztime",
-    ]
+    public_deps = [ ":starboard_headers_only" ]
     if (is_android) {
       public_deps += [ "//starboard($starboard_toolchain)" ]
     } else {
@@ -304,7 +295,6 @@ if (current_toolchain == starboard_toolchain) {
     }
     if (sb_is_evergreen_compatible) {
       deps += [
-        "//starboard/client_porting/eztime:eztime_test",
         "//starboard/extension:extension_test",
         "//starboard/loader_app:app_key_files_test",
         "//starboard/loader_app:app_key_test",
