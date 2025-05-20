@@ -227,11 +227,6 @@ public abstract class CobaltActivity extends Activity {
   private void finishInitialization(Bundle savedInstanceState) {
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
-    // Set to overlay video mode, where
-    // ContentViewRenderView::SetCurrentWebContents() in launchShell()
-    // ensures |compositor_| is created, so it is safe to
-    // setOverlayVideoMode() after WebContents is created.
-    mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
     getStarboardBridge().setWebContents(getActiveWebContents());
