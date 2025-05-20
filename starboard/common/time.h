@@ -15,7 +15,6 @@
 #ifndef STARBOARD_COMMON_TIME_H_
 #define STARBOARD_COMMON_TIME_H_
 
-#include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -29,12 +28,6 @@ int64_t CurrentMonotonicThreadTime();
 
 // A convenience helper to get the current POSIX system time in microseconds.
 int64_t CurrentPosixTime();
-
-// Converts a POSIX microseconds timestamp to a Windows microseconds timestamp.
-static SB_C_FORCE_INLINE int64_t PosixTimeToWindowsTime(int64_t posix_time) {
-  // Add number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
-  return posix_time + 11644473600000000ULL;
-}
 
 }  // namespace starboard
 
