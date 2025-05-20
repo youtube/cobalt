@@ -143,7 +143,8 @@ class MediaServiceTest : public testing::Test {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   StarboardRendererConfig config(base::UnguessableToken::Create(),
                                  base::Microseconds(0),
-                                 base::Microseconds(0));
+                                 base::Microseconds(0),
+                                 "width=1920; height=1080; framerate=15;");
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
       config, renderer_.BindNewPipeAndPassReceiver(),

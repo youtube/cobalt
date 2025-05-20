@@ -111,14 +111,16 @@ StarboardRenderer::StarboardRenderer(
     std::unique_ptr<MediaLog> media_log,
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote)
+    TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities)
     : state_(STATE_UNINITIALIZED),
       task_runner_(std::move(task_runner)),
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote) {
+      audio_write_duration_remote_(audio_write_duration_remote),
+      max_video_capabilities_(max_video_capabilities) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -511,7 +513,9 @@ void StarboardRenderer::CreatePlayerBridge() {
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_for_preroll_;
+                << audio_write_duration_for_preroll_
+                << " and with max_video_capabilities_ at "
+                << max_video_capabilities_;
     } else {
       error_message = player_bridge_->GetPlayerCreationErrorMessage();
       player_bridge_.reset();
