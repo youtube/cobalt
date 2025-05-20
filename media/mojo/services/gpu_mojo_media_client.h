@@ -134,6 +134,7 @@ struct StarboardRendererTraits {
   const base::UnguessableToken& overlay_plane_id;
   base::TimeDelta audio_write_duration_local;
   base::TimeDelta audio_write_duration_remote;
+  const std::string& max_video_capabilities;
   mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver;
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -145,6 +146,7 @@ struct StarboardRendererTraits {
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
