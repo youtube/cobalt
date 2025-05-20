@@ -35,26 +35,6 @@
 #include "third_party/blink/renderer/controller/tests/blink_test_suite.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#include "base/test/allow_check_is_test_for_testing.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
-
-static int InitAndRunAllTests(int argc, char** argv) {
-  base::test::AllowCheckIsTestForTesting();
-  return BlinkUnitTestSuite<base::TestSuite>(argc, argv).Run();
-}
-
-// For the Starboard OS define SbEventHandle as the entry point
-SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
-
-#if !SB_IS(EVERGREEN)
-// Define main() for non-Evergreen Starboard OS.
-int main (int argc, char** argv) {
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
-}
-#endif // !SB_IS(EVERGREEN)
-#else // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-
 int main(int argc, char** argv) {
   BlinkUnitTestSuite<base::TestSuite> test_suite(argc, argv);
   return base::LaunchUnitTests(
@@ -62,4 +42,3 @@ int main(int argc, char** argv) {
       WTF::BindOnce(&BlinkUnitTestSuite<base::TestSuite>::Run,
                     base::Unretained(&test_suite)));
 }
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
