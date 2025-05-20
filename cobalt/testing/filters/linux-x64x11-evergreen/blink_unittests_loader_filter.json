@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "*",
     "TextFragmentGenerationNavigationTest.*",
     "DecoderTemplateTest/0.ResetDuringFlush",
     "WebMediaPlayerImplTest.*",
@@ -41,9 +40,6 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
-    "DecoderTemplateTest/1.ResetDuringFlush",
-    "ResourceBundleTest.*",
-    "ResourceBundleImageTest.*",
-    "DataPackTest.*"
+    "DecoderTemplateTest/1.ResetDuringFlush"
   ]
 }
