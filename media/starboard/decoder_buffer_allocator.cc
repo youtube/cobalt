@@ -130,7 +130,9 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
   return p;
 }
 
-void DecoderBufferAllocator::Free(void* p, size_t size) {
+void DecoderBufferAllocator::Free(DemuxerStream::Type type,
+                                  void* p,
+                                  size_t size) {
   if (p == nullptr) {
     DCHECK_EQ(size, 0);
     return;
@@ -140,8 +142,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   DCHECK(strategy_);
 
-  // TODO: b/369245553 - Cobalt: Refactor to pass a valid stream type.
-  strategy_->Free(DemuxerStream::UNKNOWN, p);
+  strategy_->Free(type, p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
@@ -231,6 +232,16 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
                                                            allocation_unit_));
     LOG(INFO) << "DecoderBufferAllocator is using ReuseAllocatorBase.";
   }
+
+  // TODO: Resolve this
+  /*
+  if (base::FeatureList::IsEnabled(kCobaltEnhancedDecoderBufferAllocator)) {
+    strategy_.reset(new StreamTypeBasedDecoderBufferAllocatorStrategy(
+        initial_capacity_, allocation_unit_));
+  } else {
+    strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy(
+        initial_capacity_, allocation_unit_));
+  }*/
 
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for media buffer pool.";
