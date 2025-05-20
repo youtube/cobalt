@@ -26,6 +26,8 @@ source_set("browser") {
     "cobalt_browser_main_parts.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
+    "cobalt_https_only_navigation_throttle.cc",
+    "cobalt_https_only_navigation_throttle.h",
     "cobalt_web_contents_delegate.cc",
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
