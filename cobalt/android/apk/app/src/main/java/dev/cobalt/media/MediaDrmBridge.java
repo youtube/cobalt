@@ -234,43 +234,29 @@ public class MediaDrmBridge {
   private static final int kProvisioningWaitMs = 1_000;
   private static final int kProvisioningCheckIntervalMs = 300;
 
-  void handlePengindLicenseRequest(PendingLicenseRequestArgs args) {
-    long startTimeMs = System.currentTimeMillis();
-    long endTimeMs = startTimeMs + kProvisioningWaitMs;
-    boolean completed = false;
-
-    while (System.currentTimeMillis() < endTimeMs) {
-      try {
-        createSessionInternal(args);
-        break;
-      } catch (NotProvisionedException e) {
-        Log.e(TAG, "Met Provisioning error while handling pending license request. Try again.");
-        startProvisioning(SB_DRM_TICKET_INVALID, args.bridgeSessionId);
-      }
-
-      try {
-        Thread.sleep(kProvisioningCheckIntervalMs);
-      } catch (InterruptedException e) {
-        System.err.println("Polling interrupted: " + e.getMessage());
-        Thread.currentThread().interrupt();
-        return;
-      }
+  boolean handlePengindLicenseRequest(PendingLicenseRequestArgs args) {
+    try {
+      createSessionInternal(args);
+    } catch (NotProvisionedException e) {
+      Log.e(TAG, "Met Provisioning error while handling pending license request. Try again.");
+      startProvisioning(SB_DRM_TICKET_INVALID, args.bridgeSessionId);
+      return false;
     }
 
-    long elapsedMs = System.currentTimeMillis() - startTimeMs;
-    if (completed) {
-      Log.i(TAG, "Provisioning is completed: elapsed(msec)=" + elapsedMs);
-    } else {
-      Log.e(TAG, "Provisioning is not completed: elapsed(msec)=" + elapsedMs);
-    }
+    Log.e(TAG, "Handled pending license request successfully.");
+    return true;
   }
 
   @UsedByNative
   void runPendingTasks() {
+    Log.i(TAG, "runPendingTasks(): pendingLicenseRequests.size()=" + pendingLicenseRequests.size());
+
     while (pendingLicenseRequests.size() > 0) {
       PendingLicenseRequestArgs args = pendingLicenseRequests.remove(0);
       Log.i(TAG, "Handling pending license request.");
-      handlePengindLicenseRequest(args);
+      if (!handlePengindLicenseRequest(args)) {
+        pendingLicenseRequests.add(0, args);
+      }
       break;
     }
 
@@ -339,18 +325,7 @@ public class MediaDrmBridge {
 
     mSessionIds.put(ByteBuffer.wrap(sessionId), args.mime);
 
-    byte[] bridgeSessionId = null;
-    for (HashMap.Entry<ByteBuffer, ByteBuffer> entry : mBridgeSessionIds.entrySet()) {
-      ByteBuffer val = entry.getValue();
-      if (val == null) {
-        continue;
-      }
-      if (Arrays.equals(val.array(), sessionId)) {
-        bridgeSessionId = entry.getKey().array();
-        break;
-      }
-    }
-
+    byte[] bridgeSessionId = getBridgeSessiondId(sessionId);
     if (bridgeSessionId != null) {
       Log.i(TAG, "Replace session id with bridge session id: sessionId=" + bytesToString(sessionId) + ", bridgeSessionId=" + bytesToString(bridgeSessionId));
       sessionId = bridgeSessionId;
@@ -367,10 +342,15 @@ public class MediaDrmBridge {
   @UsedByNative
   UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
     assert mMediaDrm != null;
-
     if (mBridgeSessionIds.containsKey(ByteBuffer.wrap(sessionId))) {
-      Log.i(TAG, "Handle provision response. sessionId=" + bytesToString(sessionId));
-      return handleProvisionResponse(response);
+      byte[] bridgeSesionId = sessionId;
+      ByteBuffer mediaDrmSessionId = mBridgeSessionIds.get(ByteBuffer.wrap(bridgeSesionId));
+      if (mediaDrmSessionId == null) {
+        Log.i(TAG, "Handle provision response. sessionId=" + bytesToString(bridgeSesionId));
+        return handleProvisionResponse(response);
+      }
+      sessionId = mediaDrmSessionId.array();
+      Log.i(TAG, "updateSesssion: use mediaDrmSessionId=" + bytesToString(sessionId) + " for bridgeSesionId=" + bytesToString(bridgeSesionId));
     }
 
     Log.d(TAG, "updateSession()");
@@ -543,6 +523,12 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
+
+            byte[] bridgeSessionId = getBridgeSessiondId(sessionId);
+            if (bridgeSessionId != null) {
+              sessionId = bridgeSessionId;
+            }
+
             nativeOnKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
@@ -581,13 +567,17 @@ public class MediaDrmBridge {
   }
 
   private void onSessionMessage(
-      int ticket, final byte[] sessionId, final MediaDrm.KeyRequest request) {
+      int ticket, byte[] sessionId, final MediaDrm.KeyRequest request) {
     if (!isNativeMediaDrmBridgeValid()) {
       return;
     }
 
-    int requestType = request.getRequestType();
+     byte[] bridgeSessionId = getBridgeSessiondId(sessionId);
+    if (bridgeSessionId != null) {
+      sessionId = bridgeSessionId;
+    }
 
+    int requestType = request.getRequestType();
     nativeOnSessionMessage(
         mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
   }
@@ -743,12 +733,26 @@ public class MediaDrmBridge {
   private static int provisioningInFlight = 0;
 
   private static int mSessionIdCount = 0;
-  private static HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();
+  // bridge_session_id -> session_id map.
+  private HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();
 
   private byte[] generateBridgeSessiondId() {
     byte[] sessionId = ("cobalt.sid." + mSessionIdCount++).getBytes();
     mBridgeSessionIds.put(ByteBuffer.wrap(sessionId), null);
     return sessionId;
+  }
+
+  private byte[] getBridgeSessiondId(byte[] sessionId) {
+    for (HashMap.Entry<ByteBuffer, ByteBuffer> entry : mBridgeSessionIds.entrySet()) {
+      ByteBuffer val = entry.getValue();
+      if (val == null) {
+        continue;
+      }
+      if (Arrays.equals(val.array(), sessionId)) {
+        return entry.getKey().array();
+      }
+    }
+    return null;
   }
 
 
