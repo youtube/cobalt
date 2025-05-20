@@ -139,7 +139,11 @@ class MediaFactory {
       std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
 >>>>>>> 11f52fe6f8a (BACKPORT: Pass HTMLMediaElement identifier to ::media::Renderer (#5463))
       base::WeakPtr<media::MediaObserver>* out_media_observer,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      int element_id, const std::string& max_video_capabilities);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       int element_id);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<blink::WebMediaPlayer> CreateWebMediaPlayerForMediaStream(
       blink::WebMediaPlayerClient* client,

@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include "media/base/starboard/starboard_renderer_config.h"
+
+#include <string>
+
 #include "base/time/time.h"
 #include "base/unguessable_token.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,11 +27,14 @@ TEST(StarboardRendererConfigTest, SunnyDay) {
       base::Microseconds(500000);
   constexpr base::TimeDelta audio_write_duration_remote =
       base::Microseconds(100000);
-  StarboardRendererConfig config(base::UnguessableToken::Create(),
-                                 audio_write_duration_local,
-                                 audio_write_duration_remote);
+  const std::string max_video_capabilities =
+      "width=1920; height=1080; framerate=15;";
+  StarboardRendererConfig config(
+      base::UnguessableToken::Create(), audio_write_duration_local,
+      audio_write_duration_remote, max_video_capabilities);
   EXPECT_EQ(config.audio_write_duration_local, audio_write_duration_local);
   EXPECT_EQ(config.audio_write_duration_remote, audio_write_duration_remote);
+  EXPECT_EQ(config.max_video_capabilities, max_video_capabilities);
 }
 
 }  // namespace media
