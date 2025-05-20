@@ -196,14 +196,6 @@ bool ConcurrentMarkerBase::Join() {
   return true;
 }
 
-bool ConcurrentMarkerBase::Cancel() {
-  if (!concurrent_marking_handle_ || !concurrent_marking_handle_->IsValid())
-    return false;
-
-  concurrent_marking_handle_->Cancel();
-  return true;
-}
-
 bool ConcurrentMarkerBase::IsActive() const {
   return concurrent_marking_handle_ && concurrent_marking_handle_->IsValid();
 }
