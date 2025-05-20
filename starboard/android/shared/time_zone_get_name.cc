@@ -16,19 +16,20 @@
 
 #include <time.h>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 const char* SbTimeZoneGetName() {
   static char s_time_zone_id[64];
   // Note tzset() is called in ApplicationAndroid::Initialize()
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
-      "getTimeZoneId", "()Ljava/lang/String;"));
-  std::string time_zone_id = env->GetStringStandardUTFOrAbort(result.Get());
+  JNIEnv* env = AttachCurrentThread();
+  std::string time_zone_id =
+      starboard::android::shared::StarboardBridge::GetInstance()->GetTimeZoneId(
+          env);
+
   time_zone_id.push_back('\0');
   strncpy(s_time_zone_id, time_zone_id.c_str(), sizeof(s_time_zone_id));
   s_time_zone_id[sizeof(s_time_zone_id) - 1] = 0;

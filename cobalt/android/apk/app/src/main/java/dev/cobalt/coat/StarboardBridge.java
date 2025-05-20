@@ -382,10 +382,8 @@ public class StarboardBridge {
     return Locale.getDefault().toLanguageTag();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/time_zone_get_name.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   String getTimeZoneId() {
     Locale locale = Locale.getDefault();
     Calendar calendar = Calendar.getInstance(locale);
@@ -396,10 +394,8 @@ public class StarboardBridge {
     return timeZone.getID();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/window_get_diagonal_size_in_inches.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   SizeF getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
@@ -431,10 +427,8 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/window_get_size.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   Size getDeviceResolution() {
     String displaySize =
         android.os.Build.VERSION.SDK_INT < 28
@@ -457,10 +451,8 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_network_is_disconnected.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   boolean isNetworkConnected() {
     if (networkStatus == null) {
       throw new IllegalArgumentException("networkStatus cannot be null for native code");
@@ -720,10 +712,8 @@ public class StarboardBridge {
     return mAppStartDuration;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/graphics.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void reportFullyDrawn() {
     Activity activity = activityHolder.get();
     if (activity != null) {
