@@ -498,10 +498,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326497953): Support suspend/resume.
         false,
         // TODO(b/326825450): Revisit 360 videos.
-        // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
-        // TODO(b/326827007): Support secondary videos.
-        "",
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         -1));
     if (player_bridge_->IsValid()) {
