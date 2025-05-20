@@ -732,7 +732,7 @@ void HTMLVideoElement::AddedEventListener(
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
+void HTMLVideoElement::SetMaxVideoCapabilities(const String& max_video_capabilities, ExceptionState& exception_state){
   String srcAttr = FastGetAttribute(html_names::kSrcAttr);
   if (srcAttr != g_null_atom && srcAttr.length() > 0) {
     exception_state.ThrowDOMException(
