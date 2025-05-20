@@ -40,6 +40,21 @@ const char* GetInitDataTypeName(EmeInitDataType type) {
   NOTREACHED() << "Unexpected EmeInitDataType";
 }
 
+std::string RequestTypeName(SbDrmSessionRequestType type) {
+  switch (type) {
+    case kSbDrmSessionRequestTypeLicenseRequest:
+      return "License Request";
+    case kSbDrmSessionRequestTypeLicenseRenewal:
+      return "License Renewal";
+    case kSbDrmSessionRequestTypeLicenseRelease:
+      return "License Release";
+    case kSbDrmSessionRequestTypeIndividualizationRequest:
+      return "Individualization Request";
+    default:
+      return "Unknown(" + std::to_string(type) + ")";
+  }
+}
+
 CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
     SbDrmSessionRequestType type) {
   switch (type) {
@@ -53,7 +68,8 @@ CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
       return CdmMessageType::INDIVIDUALIZATION_REQUEST;
   }
 
-  NOTREACHED() << "Unexpected SbDrmSessionRequestType " << type;
+  NOTREACHED() << "Unexpected SbDrmSessionRequestType "
+               << RequestTypeName(type);
 }
 
 CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
@@ -282,8 +298,8 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
   const std::optional<std::string>& session_id = ticket_and_optional_id.id;
 
   LOG(INFO) << "Receiving session update request notification from drm system ("
-            << sb_drm_ << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
+            << sb_drm_ << "), status: " << status
+            << ", type: " << RequestTypeName(type) << ", ticket: " << ticket
             << ", session id: " << session_id.value_or("n/a");
 
   if (SbDrmTicketIsValid(ticket)) {
@@ -350,7 +366,8 @@ void StarboardCdm::OnSessionUpdated(int ticket,
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "Receiving session updated notification from drm system ("
             << sb_drm_ << "), status: " << status << ", ticket: " << ticket
-            << ", error message: " << error_message;
+            << ", error message: "
+            << (error_message.empty() ? "n/a" : error_message);
 
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
