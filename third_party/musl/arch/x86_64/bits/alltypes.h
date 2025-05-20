@@ -268,7 +268,6 @@ typedef unsigned useconds_t;
 #if defined(__NEED_pthread_t) && !defined(__DEFINED_pthread_t)
 typedef unsigned long pthread_t;
 #define __DEFINED_pthread_t
-#endif
 
 #else
 #if defined(__NEED_pthread_t) && !defined(__DEFINED_pthread_t)
@@ -312,6 +311,7 @@ typedef struct { unsigned __attr[2]; } pthread_rwlockattr_t;
 #define __DEFINED_pthread_rwlockattr_t
 #endif
 
+#endif
 
 #if defined(__NEED_struct__IO_FILE) && !defined(__DEFINED_struct__IO_FILE)
 struct _IO_FILE { char __x; };

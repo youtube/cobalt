@@ -37,7 +37,11 @@ static unsigned long long wcstox(const wchar_t *s, wchar_t **p, int base, unsign
 	f.flags = 0;
 	f.rpos = f.rend = f.buf = buf + 4;
 	f.buf_size = sizeof buf - 4;
+#if !defined(STARBOARD)
 	f.lock = -1;
+#else
+  f.use_flock = 0;
+#endif
 	f.read = do_read;
 	while (iswspace(*t)) t++;
 	f.cookie = (void *)t;

@@ -35,7 +35,11 @@ static long double wcstox(const wchar_t *s, wchar_t **p, int prec)
 	f.flags = 0;
 	f.rpos = f.rend = f.buf = buf + 4;
 	f.buf_size = sizeof buf - 4;
+#if defined(STARBOARD)
+  f.use_flock = 0;
+#else
 	f.lock = -1;
+#endif
 	f.read = do_read;
 	while (iswspace(*t)) t++;
 	f.cookie = (void *)t;

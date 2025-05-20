@@ -32,6 +32,11 @@ int fclose(FILE *f)
 	__ofl_unlock();
 
 	free(f->getln_buf);
+#if defined(STARBOARD)
+  if(f->use_flock) {
+    pthread_mutex_destroy(&(f->flock));
+  }
+#endif
 	free(f);
 
 	return r;

@@ -176,6 +176,11 @@ void setusershell(void);
 void endusershell(void);
 char *getusershell(void);
 int acct(const char *);
+#if defined(STARBOARD)
+// There is a macro definition conflicting with
+// the syscall declaration when  _GNU_SOURCE is defined.
+#undef syscall
+#endif
 long syscall(long, ...);
 int execvpe(const char *, char *const [], char *const []);
 int issetugid(void);
