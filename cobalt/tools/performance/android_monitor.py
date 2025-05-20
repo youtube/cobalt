@@ -33,6 +33,7 @@ import time
 from typing import Dict, Union, Optional
 
 from adb_command_runner import run_adb_command
+from configuration import AppConfig, OutputConfig, PackageConfig
 
 # Plotting library imports (conditionally imported)
 # _MATPLOTLIB_AVAILABLE is a global indicating if plotting dependencies are met.
@@ -567,7 +568,8 @@ def _plot_monitoring_data_from_df(
     return False
 
 
-def _parse_cli_args():
+def _parse_cli_args() -> AppConfig:
+  """Parses command-line arguments and returns an AppConfig object."""
   parser = argparse.ArgumentParser(
       description=(
           'Monitor Cobalt application (meminfo, GraphicBufferAllocator) and'
@@ -576,16 +578,18 @@ def _parse_cli_args():
   )
   parser.add_argument(
       '--package',
-      default=_DEFAULT_COBALT_PACKAGE_NAME,
+      default=PackageConfig.DEFAULT_COBALT_PACKAGE_NAME,
       help='Target package name.',
   )
   parser.add_argument(
       '--activity',
-      default=_DEFAULT_COBALT_ACTIVITY_NAME,
+      default=PackageConfig.DEFAULT_COBALT_ACTIVITY_NAME,
       help='Target activity name.',
   )
   parser.add_argument(
-      '--url', default=_DEFAULT_COBALT_URL, help='URL to launch on Cobalt.')
+      '--url',
+      default=AppConfig.DEFAULT_COBALT_URL,
+      help='URL to launch on Cobalt.')
   parser.add_argument(
       '--output',
       choices=['csv', 'plot', 'both'],
@@ -595,30 +599,43 @@ def _parse_cli_args():
   parser.add_argument(
       '--interval',
       type=int,
-      default=_DEFAULT_POLL_INTERVAL_MILLISECONDS,
+      default=OutputConfig.DEFAULT_POLL_INTERVAL_MILLISECONDS,
       help='Polling interval (ms).',
   )
   parser.add_argument(
       '--outdir',
       type=str,
-      default=_DEFAULT_OUTPUT_DIRECTORY,
+      default=OutputConfig.DEFAULT_OUTPUT_DIRECTORY,
       help='Output directory.',
   )
   parser.add_argument(
       '--flags',
       type=str,
       default='',
-      help=f'Cobalt CLI & Experiment flags. {_EXPECTED_FORMAT_STR}',
+      help=f'Cobalt CLI & Experiment flags. {AppConfig.EXPECTED_FLAGS_FORMAT}',
   )
   args = parser.parse_args()
+
+  package_config = PackageConfig(
+      package_name=args.package, activity_name=args.activity)
+  output_config = OutputConfig(
+      output_format=args.output,
+      poll_interval_ms=args.interval,
+      output_directory=args.outdir)
+  config = AppConfig(
+      package_config=package_config,
+      url=args.url,
+      output_config=output_config,
+      cobalt_flags=args.flags)
+
   print('--- Configuration ---')
-  print(f'Package: {args.package}')
-  print(f'Activity: {args.activity}')
-  print(f'URL: {args.url}')
-  print(f'Interval: {args.interval}ms')
-  print(f'Output Dir: {args.outdir}')
-  print(f'Output Formats: {args.output}')
-  print(f'Cobalt Flags: {args.flags}')
+  print(f'Package: {config.package_name}')
+  print(f'Activity: {config.activity_name}')
+  print(f'URL: {config.url}')
+  print(f'Interval: {config.poll_interval_ms}ms')
+  print(f'Output Dir: {config.output_directory}')
+  print(f'Output Formats: {config.output_format}')
+  print(f'Cobalt Flags: {config.cobalt_flags}')
   print('---------------------\n')
 
   return args
