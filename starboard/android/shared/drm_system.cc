@@ -488,6 +488,11 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
+bool DrmSystem::IsReady() {
+  return JniEnvExt::Get()->CallBooleanMethodOrAbort(
+             j_media_drm_bridge_, "isKeyLoaded", "()Z") == JNI_TRUE;
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
