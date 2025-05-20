@@ -134,6 +134,12 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive())
     g_platform->MainFrameCreated(shell);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_ANDROID)
+  g_platform->SetOverlayMode(shell, true);
+#endif  // BUILDFLAG(IS_ANDROID)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   return shell;
 }
 
