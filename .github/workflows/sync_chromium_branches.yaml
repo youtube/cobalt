@@ -18,21 +18,42 @@ jobs:
           {milestone: m114, branch_num: 5735},
           {milestone: m120, branch_num: 6099},
           {milestone: m126, branch_num: 6478},
+          {milestone: m131, branch_num: 6778},
         ]
+    outputs:
+      output1: ${{ steps.diff_step.outputs.diff_present }}
     steps:
+      # Attempt to checkout our chromium reference, if missing we will create a new branch
       - uses: actions/checkout@v4
+        id: checkout
+        continue-on-error: true
         with:
           ref: chromium/${{ matrix.branch.milestone }}
+      - name: Fallback to main branch
+        uses: actions/checkout@v4
+        if: steps.checkout.outcome == 'failure'
+        with:
+          ref: main
       - name: Setup Git
         run: |
           git config --global user.name "GitHub Release Automation"
           git config --global user.email "github@google.com"
-      - name: Pull ${{ matrix.branch.milestone }} from upstream and apply diffs
-        id: diff_step
-        run: |
           # Add Chromium remote and pull the upstream branch.
           git remote add upstream https://chromium.googlesource.com/chromium/src
           git fetch --depth=1 upstream refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}
+      - name: Create new branch if missing chromium branch
+        if: steps.checkout.outcome == 'failure'
+        run: |
+          git checkout refs/remotes/branch/${{ matrix.branch.branch_num }}
+          ORIGINAL_TREE_HASH=$(git rev-parse HEAD^{tree})
+          ORIGINAL_COMMIT_HASH=$(git rev-parse HEAD)
+          NEW_ROOT_COMMIT_HASH=$(git commit-tree "$ORIGINAL_TREE_HASH" -m "First commit for ${{ matrix.branch.milestone }}.")
+          git checkout -b chromium/${{ matrix.branch.milestone }} $NEW_ROOT_COMMIT_HASH
+          git commit --amend --not-edit -c ORIGINAL_COMMIT_HASH
+          git push --set-upstream origin chromium/${{ matrix.branch.milestone }}
+      - name: Pull ${{ matrix.branch.milestone }} from upstream and apply diffs
+        id: diff_step
+        run: |
           git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
       - name: Apply and push diffs
         run: |
