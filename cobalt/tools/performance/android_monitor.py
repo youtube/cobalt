@@ -33,6 +33,7 @@ import time
 from typing import Dict, Union, Optional
 
 from adb_command_runner import run_adb_command
+from configuration import AppConfig, OutputConfig, PackageConfig
 
 # Plotting library imports (conditionally imported)
 # _MATPLOTLIB_AVAILABLE is a global indicating if plotting dependencies are met.
@@ -46,21 +47,10 @@ except ImportError as e:
   # Warning will be printed in main if plotting is attempted without these.
   print(e)
 
-# --- Global Configuration Defaults (can be overridden by command-line args) ---
-_DEFAULT_COBALT_PACKAGE_NAME = 'dev.cobalt.coat'
-_DEFAULT_COBALT_ACTIVITY_NAME = 'dev.cobalt.app.MainActivity'
-_DEFAULT_COBALT_URL = 'https://youtube.com/tv/watch?v=1La4QzGeaaQ'
-# Default polling interval now 100 milliseconds.
-_DEFAULT_POLL_INTERVAL_MILLISECONDS = 100
-_DEFAULT_OUTPUT_DIRECTORY = 'cobalt_monitoring_data'
-# --- End Global Configuration Defaults ---
-
 # Global variables for shared state.
 g_all_monitoring_data = []
 # Event to signal threads to stop.
 g_stop_event = threading.Event()
-_EXPECTED_FORMAT_STR = 'Expected format "key1=val1,key2=val2,...,' +\
-    'key(n)=val(n)"'
 
 
 def _is_package_running(package_name: str) -> bool:
@@ -567,7 +557,8 @@ def _plot_monitoring_data_from_df(
     return False
 
 
-def _parse_cli_args():
+def _parse_cli_args() -> AppConfig:
+  """Parses command-line arguments and returns an AppConfig object."""
   parser = argparse.ArgumentParser(
       description=(
           'Monitor Cobalt application (meminfo, GraphicBufferAllocator) and'
@@ -576,16 +567,18 @@ def _parse_cli_args():
   )
   parser.add_argument(
       '--package',
-      default=_DEFAULT_COBALT_PACKAGE_NAME,
+      default=PackageConfig.DEFAULT_COBALT_PACKAGE_NAME,
       help='Target package name.',
   )
   parser.add_argument(
       '--activity',
-      default=_DEFAULT_COBALT_ACTIVITY_NAME,
+      default=PackageConfig.DEFAULT_COBALT_ACTIVITY_NAME,
       help='Target activity name.',
   )
   parser.add_argument(
-      '--url', default=_DEFAULT_COBALT_URL, help='URL to launch on Cobalt.')
+      '--url',
+      default=AppConfig.DEFAULT_COBALT_URL,
+      help='URL to launch on Cobalt.')
   parser.add_argument(
       '--output',
       choices=['csv', 'plot', 'both'],
@@ -595,43 +588,68 @@ def _parse_cli_args():
   parser.add_argument(
       '--interval',
       type=int,
-      default=_DEFAULT_POLL_INTERVAL_MILLISECONDS,
+      default=OutputConfig.DEFAULT_POLL_INTERVAL_MILLISECONDS,
       help='Polling interval (ms).',
   )
   parser.add_argument(
       '--outdir',
       type=str,
-      default=_DEFAULT_OUTPUT_DIRECTORY,
+      default=OutputConfig.DEFAULT_OUTPUT_DIRECTORY,
       help='Output directory.',
   )
   parser.add_argument(
       '--flags',
       type=str,
       default='',
-      help=f'Cobalt CLI & Experiment flags. {_EXPECTED_FORMAT_STR}',
+      help=f'Cobalt CLI & Experiment flags. {AppConfig.EXPECTED_FLAGS_FORMAT}',
   )
   args = parser.parse_args()
+
+  package_config = PackageConfig(
+      package_name=args.package, activity_name=args.activity)
+  output_config = OutputConfig(
+      output_format=args.output,
+      poll_interval_ms=args.interval,
+      output_directory=args.outdir)
+  config = AppConfig(
+      package_config=package_config,
+      url=args.url,
+      output_config=output_config,
+      cobalt_flags=args.flags)
+
   print('--- Configuration ---')
-  print(f'Package: {args.package}')
-  print(f'Activity: {args.activity}')
-  print(f'URL: {args.url}')
-  print(f'Interval: {args.interval}ms')
-  print(f'Output Dir: {args.outdir}')
-  print(f'Output Formats: {args.output}')
-  print(f'Cobalt Flags: {args.flags}')
+  print(f'Package: {config.package_name}')
+  print(f'Activity: {config.activity_name}')
+  print(f'URL: {config.url}')
+  print(f'Interval: {config.poll_interval_ms}ms')
+  print(f'Output Dir: {config.output_directory}')
+  print(f'Output Formats: {config.output_format}')
+  print(f'Cobalt Flags: {config.cobalt_flags}')
   print('---------------------\n')
 
-  return args
+  return config
+
+
+def _adb_is_connected():
+  print('Checking ADB connection...')
+  stdout_dev, stderr_dev = run_adb_command(['adb', 'devices'])
+  if stderr_dev or not stdout_dev \
+      or 'List of devices attached' not in stdout_dev:  # pylint: disable=g-backslash-continuation
+    print('ADB not working. Exiting.')
+    return False
+  if len(stdout_dev.strip().splitlines()) <= 1:
+    print('No devices/emulators authorized. Exiting.')
+    return False
+  return True
 
 
 def main():
   """Main function to parse arguments, run monitoring, and output results."""
-  args = _parse_cli_args()
+  config = _parse_cli_args()
+  output_directory = config.output_directory
+  poll_interval_milliseconds = config.poll_interval_ms
 
-  output_directory = args.outdir
-  poll_interval_milliseconds = args.interval
-
-  if args.output in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
+  if config.output_format in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
     print('CRITICAL ERROR: Plotting requested but pandas/matplotlib are not'
           ' installed. Exiting.')
     return
@@ -644,51 +662,27 @@ def main():
       print(f'Error creating output directory {output_directory}: {e}.')
       output_directory = '.'  # Fallback to current directory.
 
-  print('Checking ADB connection...')
-  stdout_dev, stderr_dev = run_adb_command(['adb', 'devices'])
-  if stderr_dev or not stdout_dev \
-      or 'List of devices attached' not in stdout_dev:  # pylint: disable=g-backslash-continuation
-    print('ADB not working. Exiting.')
-    return
-  if len(stdout_dev.strip().splitlines()) <= 1:
-    print('No devices/emulators authorized. Exiting.')
+  if not _adb_is_connected():
     return
 
-  if _is_package_running(args.package):
-    print(f'\'{args.package}\' running. Stopping it first.')
-    _stop_package(args.package)
+  if _is_package_running(config.package_name):
+    print(f'\'{config.package_name}\' running. Stopping it first.')
+    _stop_package(config.package_name)
 
-  def _parse_flags(flags: str):
-    flags = f'--remote-allow-origins=*,--url="{args.url}",'
-    cobalt_flags = args.flags.split(',')
-    for flag_kv in cobalt_flags:
-      if flag_kv:
-        # we will not override URL with these Cobalt flags
-        if 'url' in flag_kv:
-          raise ValueError('Overriding the --url flag inside of the cobalt' +
-                           'flags is disallowed in this script')
-        kv = flag_kv.split('=')
-        if len(kv) != 2:
-          raise ValueError(f'{_EXPECTED_FORMAT_STR}')
+  flags = config.parse_cobalt_cli_flags()
+  print(f'Attempting to launch Cobalt ({config.package_name}) with URL:' +\
+        f'{config.url}...')
+  _launch_cobalt(config.package_name, config.activity_name, flags)
 
-        flags += f'--{kv[0]}={kv[1]},'
-    flags = flags[:len(flags) - 1]
-    return flags
+  print(f'\nStarting data polling immediately for {config.package_name}...')
 
-  flags = _parse_flags(args.flags)
-  print(f'Attempting to launch Cobalt ({args.package}) with URL:' +\
-        f'{args.url}...')
-  _launch_cobalt(args.package, args.activity, flags)
-
-  print(f'\nStarting data polling immediately for {args.package}...')
-
-  if not _is_package_running(args.package):
-    print(f'Warning: {args.package} did not seem to start immediately. Polling'
-          ' will still attempt to get data.')
+  if not _is_package_running(config.package_name):
+    print(f'Warning: {config.package_name} did not seem to start immediately.'
+          'Polling will still attempt to get data.')
 
   polling_thread = threading.Thread(
       target=_data_polling_loop,
-      args=(args.package, poll_interval_milliseconds),
+      args=(config.package_name, poll_interval_milliseconds),
       daemon=True,
   )
   polling_thread.start()
@@ -715,9 +709,9 @@ def main():
   filename_base = f'monitoring_data_{time_for_file_name}'
   output_filename_base_with_dir = os.path.join(output_directory, filename_base)
 
-  if args.output in ('csv', 'both'):
+  if config.output_format in ('csv', 'both'):
     _write_monitoring_data_csv(output_directory, filename_base)
-  if args.output in ('plot', 'both'):
+  if config.output_format in ('plot', 'both'):
     if not _MATPLOTLIB_AVAILABLE:
       print('Skipping plot: Plotting libraries not available.')
     elif not g_all_monitoring_data:
