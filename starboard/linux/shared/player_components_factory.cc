@@ -138,7 +138,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         video_decoder->reset(new Av1VideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
-            creation_parameters.decode_target_graphics_context_provider()));
+            creation_parameters.decode_target_graphics_context_provider(),
+            /* may_reduce_quality_for_speed = */ true));
       } else if (creation_parameters.video_codec() == kSbMediaVideoCodecH265) {
         video_decoder->reset(new H265VideoDecoderImpl(
             creation_parameters.video_codec(),

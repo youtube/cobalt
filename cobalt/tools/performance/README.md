@@ -14,9 +14,9 @@ pylint.
 
 To install them, run the following command:
 
-    ```
-    vpython3 -m pip install pandas numpy matplotlib
-    ```
+```
+vpython3 -m pip install pandas numpy matplotlib
+```
 
 ### Usage
 
@@ -30,6 +30,7 @@ The monitoring script has various args that you can use to customize a few diffe
   * interval - Specify the polling interval frequency for collecting data
   * outdir   - Specify the output directory to place both the output
                data and the resulting graphs.
+  * flags    - Specify the command line & experiment flags to provide to Cobalt.
   * help     - Display a list of command options and the script's usage
 
 It defaults to a test YouTube video and sampling rate. So, you will
@@ -40,6 +41,20 @@ Below is a simple usage command:
 ```
 vpython3 $HOME/chromium/src/cobalt/tools/performance/android_monitor.py
 ```
+
+**Tip:** To avoid the script from placing the resulting plots and csv files into
+you local checkout, utilize the `--outdir` flag to specify somewhere outside of
+your checkout.
+
+### Testing
+
+In order to execute Python unit tests, the command below will use the python unittest
+module to run any tests named after a specific pattern:
+
+```
+vpython3 -m unittest discover -s </path/to/test/directory> -p '*TEST PATTERN*.py'
+```
+
 
 ### Pylint
 

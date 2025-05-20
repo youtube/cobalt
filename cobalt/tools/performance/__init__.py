@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#
 # Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,22 +13,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import("//third_party/blink/renderer/modules/modules.gni")
-
-blink_modules_sources("h5vcc_storage") {
-  sources = [
-    "h_5_vcc_storage.cc",
-    "h_5_vcc_storage.h",
-  ]
-  deps = []
-
-  if (!cobalt_is_release_build) {
-    sources += [
-      "testing/h_5_vcc_storage_for_testing.cc",
-      "testing/h_5_vcc_storage_for_testing.h",
-    ]
-    deps +=
-        [ "//cobalt/browser/h5vcc_storage/testing/public/mojom:mojom_blink" ]
-  }
-}

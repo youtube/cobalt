@@ -1182,6 +1182,7 @@ template("isolated_script_test") {
 set_defaults("test") {
   if (is_cobalt_hermetic_build) {
     configs = default_shared_library_configs
+    configs -= [ "//build/config/compiler:no_unresolved_symbols" ]
   } else if (is_android) {
     configs = default_shared_library_configs
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]

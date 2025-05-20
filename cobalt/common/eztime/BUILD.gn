@@ -1,4 +1,4 @@
-# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,17 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("testing") {
+static_library("eztime") {
   sources = [
-    "h5vcc_storage_for_testing_impl.cc",
-    "h5vcc_storage_for_testing_impl.h",
+    "eztime.cc",
+    "eztime.h",
+  ]
+
+  deps = [ "//third_party/icu" ]
+}
+
+source_set("eztime_test") {
+  testonly = true
+
+  sources = [
+    "eztime_test.cc",
+    "test_constants.h",
   ]
 
   deps = [
-    "public/mojom",
-    "//base",
-    "//content/public/browser",
-    "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    ":eztime",
+    "//testing/gmock",
+    "//testing/gtest",
   ]
 }

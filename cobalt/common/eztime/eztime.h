@@ -12,15 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
-#define STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
+#ifndef COBALT_COMMON_EZTIME_EZTIME_H_
+#define COBALT_COMMON_EZTIME_EZTIME_H_
 
-#if defined(STARBOARD)
-
+#include <sys/types.h>
 #include <limits>
-
-#include "starboard/common/log.h"
-#include "starboard/types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -107,81 +103,67 @@ typedef enum EzTimeZone {
 
 // A term that can be added to an EzTimeT to convert it into the number of
 // microseconds since the Windows epoch.
-#define kEzTimeTToWindowsDelta (SB_INT64_C(11644473600) * kEzTimeTSecond)
+#define kEzTimeTToWindowsDelta (11644473600L * kEzTimeTSecond)
 
 // --- Simple Conversion Functions --------------------------------------------
 
 // Converts SbTime to EzTimeT. NOTE: This is LOSSY.
-static SB_C_FORCE_INLINE EzTimeT EzTimeTFromSbTime(int64_t in_time) {
-  int64_t posix_time = in_time - 11644473600000000ULL;
-  return posix_time >= 0 ? posix_time / 1000000
-                         : (posix_time - 1000000 + 1) / 1000000;
+static EzTimeT EzTimeTFromSbTime(int64_t in_time) {
+  return in_time >= 0 ? in_time / 1000000 : (in_time - 1000000 + 1) / 1000000;
 }
 
 // Converts EzTimeT to SbTime.
-static SB_C_FORCE_INLINE int64_t EzTimeTToSbTime(EzTimeT in_time) {
-  int64_t posix_time = in_time * 1000000;
-  return posix_time + 11644473600000000ULL;
+static int64_t EzTimeTToSbTime(EzTimeT in_time) {
+  return in_time * 1000000;
 }
 
 // Converts SbTime to EzTimeValue.
-static SB_C_FORCE_INLINE EzTimeValue EzTimeValueFromSbTime(int64_t in_time) {
+static EzTimeValue EzTimeValueFromSbTime(int64_t in_time) {
   EzTimeT sec = EzTimeTFromSbTime(in_time);
   int64_t diff = in_time - EzTimeTToSbTime(sec);
-  SB_DCHECK(diff >= INT_MIN);
-  SB_DCHECK(diff <= INT_MAX);
+  // TODO FIXME DCHECK(diff >= INT_MIN);
+  // TODO FIXME DCHECK(diff <= INT_MAX);
   EzTimeValue value = {sec, (int)diff};  // NOLINT(readability/casting)
   return value;
 }
 
 // Converts EzTimeValue to SbTime.
-static SB_C_FORCE_INLINE int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
+static int64_t EzTimeValueToSbTime(const EzTimeValue* value) {
   return EzTimeTToSbTime(value->tv_sec) + value->tv_usec;
 }
 
 // Converts EzTimeT to EzTimeValue.
-static SB_C_FORCE_INLINE EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
+static EzTimeValue EzTimeTToEzTimeValue(EzTimeT in_time) {
   return EzTimeValueFromSbTime(EzTimeTToSbTime(in_time));
-}
-
-// Converts EzTimeValue to EzTimeT. NOTE: This is LOSSY.
-static SB_C_FORCE_INLINE EzTimeT
-EzTimeValueToEzTimeT(const EzTimeValue* value) {
-  return EzTimeTFromSbTime(EzTimeValueToSbTime(value));
 }
 
 // --- Generalized Functions --------------------------------------------------
 
 // Explodes |time_in| to a time in the given |timezone|, placing the result in
 // |out_exploded|. Returns whether the explosion was successful.
-bool EzTimeTExplode(const EzTimeT* SB_RESTRICT in_time,
+bool EzTimeTExplode(const EzTimeT* in_time,
                     EzTimeZone timezone,
-                    EzTimeExploded* SB_RESTRICT out_exploded);
+                    EzTimeExploded* out_exploded);
 
 // Explodes |value| to a time in the given |timezone|, placing the result in
 // |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
 // NULL. Returns whether the explosion was successful. NOTE: This is LOSSY.
-bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
+bool EzTimeValueExplode(const EzTimeValue* value,
                         EzTimeZone timezone,
-                        EzTimeExploded* SB_RESTRICT out_exploded,
-                        int* SB_RESTRICT out_millisecond);
+                        EzTimeExploded* out_exploded,
+                        int* out_millisecond);
 
 // Implodes |exploded| as a time in |timezone|, returning the result as an
 // EzTimeT.
-EzTimeT EzTimeTImplode(EzTimeExploded* SB_RESTRICT exploded,
-                       EzTimeZone timezone);
+EzTimeT EzTimeTImplode(EzTimeExploded* exploded, EzTimeZone timezone);
 
 // Implodes |exploded| + |millisecond| as a time in |timezone|, returning the
 // result as an EzTimeValue.
-EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
+EzTimeValue EzTimeValueImplode(EzTimeExploded* exploded,
                                int millisecond,
                                EzTimeZone timezone);
 
 // --- Replacement Functions --------------------------------------------------
-
-// Gets the current time and places it in |out_tp|. |tzp| must always be
-// NULL. Always returns 0. Meant to be a drop-in replacement for gettimeofday().
-int EzTimeValueGetNow(EzTimeValue* SB_RESTRICT out_tp, void* SB_RESTRICT tzp);
 
 // Gets the current time and places it in |out_now|, if specified, and also
 // returns it. Meant to be a drop-in replacement for time().
@@ -190,27 +172,25 @@ EzTimeT EzTimeTGetNow(EzTimeT* out_now);
 // Explodes |time_in| to a local time, placing the result in |out_exploded|, and
 // returning |out_exploded|, or NULL in case of error. Meant to be a drop-in
 // replacement for localtime_r().
-EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* SB_RESTRICT in_time,
-                                    EzTimeExploded* SB_RESTRICT out_exploded);
+EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* in_time,
+                                    EzTimeExploded* out_exploded);
 
 // Explodes |time_in| to a UTC time, placing the result in |out_exploded|, and
 // returning |out_exploded|, or NULL in case of error. Meant to be a drop-in
 // replacement for gmtime_r().
-EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* SB_RESTRICT in_time,
-                                  EzTimeExploded* SB_RESTRICT out_exploded);
+EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* in_time,
+                                  EzTimeExploded* out_exploded);
 
 // Implodes |exploded| as a local time, returning the result as an
 // EzTimeT. Meant to be a drop-in replacement for mktime()/timelocal().
-EzTimeT EzTimeTImplodeLocal(EzTimeExploded* SB_RESTRICT exploded);
+EzTimeT EzTimeTImplodeLocal(EzTimeExploded* exploded);
 
 // Implodes |exploded| as a UTC time, returning the result as an EzTimeT. Meant
 // to be a drop-in replacement for timegm().
-EzTimeT EzTimeTImplodeUTC(EzTimeExploded* SB_RESTRICT exploded);
+EzTimeT EzTimeTImplodeUTC(EzTimeExploded* exploded);
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
-#endif  // STARBOARD
-
-#endif  // STARBOARD_CLIENT_PORTING_EZTIME_EZTIME_H_
+#endif  // COBALT_COMMON_EZTIME_EZTIME_H_
