@@ -15,6 +15,7 @@
 #ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 #define MEDIA_STARBOARD_STARBOARD_RENDERER_H_
 
+#include <string>
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
@@ -51,7 +52,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                     std::unique_ptr<MediaLog> media_log,
                     const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote);
+                    TimeDelta audio_write_duration_remote,
+                    const std::string& max_video_capabilities);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -172,6 +174,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
+  const std::string max_video_capabilities_;
   // The two variables below should always contain the same value.  They are
   // kept as separate variables so we can keep the existing implementation as
   // is, which simplifies the implementation across multiple Starboard versions.
