@@ -21,10 +21,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-class PosixRandTest : public ::testing::Test {};
-
 // Test to ensure rand() returns a value within [0, RAND_MAX].
-TEST_F(PosixRandTest, ReturnsValueWithinRange) {
+TEST(PosixRandTest, ReturnsValueWithinRange) {
   for (int i = 0; i < 100; ++i) {
     int random_value = rand();
     ASSERT_GE(random_value, 0);
@@ -33,12 +31,12 @@ TEST_F(PosixRandTest, ReturnsValueWithinRange) {
 }
 
 // Test that RAND_MAX is at least 32767 as per POSIX.
-TEST_F(PosixRandTest, RandMaxIsAtLeast32767) {
+TEST(PosixRandTest, RandMaxIsAtLeast32767) {
   ASSERT_GE(RAND_MAX, 32767);  // POSIX minimum
 }
 
 // Test that different seeds produce different sequences.
-TEST_F(PosixRandTest, DifferentSeedsProduceDifferentSequences) {
+TEST(PosixRandTest, DifferentSeedsProduceDifferentSequences) {
   srand(1);
   int rand_val1_seq1 = rand();
   int rand_val2_seq1 = rand();
@@ -52,7 +50,7 @@ TEST_F(PosixRandTest, DifferentSeedsProduceDifferentSequences) {
 }
 
 // Test that the same seed produces a repeatable sequence.
-TEST_F(PosixRandTest, SameSeedProducesRepeatableSequence) {
+TEST(PosixRandTest, SameSeedProducesRepeatableSequence) {
   srand(123);
   int seq1_val1 = rand();
   int seq1_val2 = rand();
@@ -69,7 +67,7 @@ TEST_F(PosixRandTest, SameSeedProducesRepeatableSequence) {
 }
 
 // Test that multiple calls without re-seeding produce different values.
-TEST_F(PosixRandTest, MultipleCallsProduceDifferentValues) {
+TEST(PosixRandTest, MultipleCallsProduceDifferentValues) {
   srand(static_cast<unsigned int>(time(NULL)));
   int val1 = rand();
   int val2 = rand();
