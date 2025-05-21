@@ -81,7 +81,13 @@ public class StarboardBridge {
       new Runnable() {
         @Override
         public void run() {
-          requestSuspend();
+          // When the platform locale setting is updated, the application needs
+          // to exit or the Accept-Language request header configuration needs
+          // to be updated. The Accept-Language header configuration is set on
+          // application start.
+          //
+          // To match cobalt 25, we're exiting the application.
+          afterStopped();
         }
       };
 
