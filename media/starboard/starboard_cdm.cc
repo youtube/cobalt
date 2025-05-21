@@ -125,8 +125,7 @@ void StarboardCdm::SetServerCertificate(
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "StarboardCdm - Set server cert - size:" << certificate.size();
 
-  bool is_updateable = SbDrmIsServerCertificateUpdatable(sb_drm_);
-  if (!is_updateable) {
+  if (!SbDrmIsServerCertificateUpdatable(sb_drm_)) {
     LOG(WARNING)
         << "Trying to update cert, but DRM system does not support it.";
     promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
