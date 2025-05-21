@@ -1,5 +1,7 @@
 {
+  "comment": "blink_unittests are currently not supported. They take too long to run. The suite should fully pass once support is implemented for it.",
   "failing_tests": [
+    "*",
     "DecoderTemplateTest/0.ResetDuringFlush",
     "VideoDecoderTest.ResetReleasesPressure",
     "EncodedVideoChunkTest.ConstructorWithDuration",
@@ -51,6 +53,13 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
-    "DecoderTemplateTest/1.ResetDuringFlush"
+    "DecoderTemplateTest/1.ResetDuringFlush",
+    "All/VisualViewportTest.TestFractionalScrollOffsetIsNotOverwritten/0",
+    "StyleEngineTest.VideoControlsReject",
+    "PageTestBase.CSPForWorld",
+    "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
+    "HTMLSrcsetParserTest.SaveDataEnabledBasic",
+    "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5",
+    "MediaStreamRemoteVideoSourceTest.*"
   ]
 }

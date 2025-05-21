@@ -1,4 +1,5 @@
 {
+  "comment": "TODO: Investigate whether these failing tests are fixable or should be left broken due to Cobalt not supporting them.",
   "failing_tests": [
     "TextFragmentGenerationNavigationTest.*",
     "DecoderTemplateTest/0.ResetDuringFlush",
