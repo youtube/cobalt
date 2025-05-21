@@ -20,6 +20,7 @@
 #include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
+#include "third_party/blink/renderer/platform/bindings/exception_code.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_context_data.h"
 
 namespace blink {
@@ -29,6 +30,10 @@ H5vccMetrics::H5vccMetrics(LocalDOMWindow& window)
       remote_h5vcc_metrics_(window.GetExecutionContext()),
       receiver_(this, window.GetExecutionContext()) {}
 
+H5vccMetrics::~H5vccMetrics() {
+  DCHECK(h5vcc_metrics_promises_.empty());
+}
+
 void H5vccMetrics::ContextDestroyed() {
   OnCloseConnection();
 }
@@ -37,6 +42,7 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
                                    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
+  h5vcc_metrics_promises_.insert(resolver);
 
   EnsureRemoteIsBound();
 
@@ -52,6 +58,7 @@ ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
                                     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
+  h5vcc_metrics_promises_.insert(resolver);
 
   EnsureRemoteIsBound();
 
@@ -73,6 +80,7 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
     ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
+  h5vcc_metrics_promises_.insert(resolver);
 
   EnsureRemoteIsBound();
 
@@ -135,16 +143,19 @@ void H5vccMetrics::MaybeRegisterMojoListener() {
 }
 
 void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
+  CleanupPromise(resolver);
   is_reporting_enabled_ = true;
   resolver->Resolve();
 }
 
 void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
+  CleanupPromise(resolver);
   is_reporting_enabled_ = false;
   resolver->Resolve();
 }
 
 void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
+  CleanupPromise(resolver);
   resolver->Resolve();
 }
 
@@ -167,8 +178,15 @@ void H5vccMetrics::OnCloseConnection() {
   remote_h5vcc_metrics_.reset();
   receiver_.reset();
 
-  // TODO(cobalt, b/372559349): Keep track of in-flight Promises and reject them
-  // here.
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises;
+  // Script may execute during a call to Resolve(). Swap these sets to prevent
+  // concurrent modification.
+  h5vcc_metrics_promises_.swap(h5vcc_metrics_promises);
+  for (ScriptPromiseResolver* resolver : h5vcc_metrics_promises) {
+    resolver->RejectWithDOMException(
+        DOMExceptionCode::kOperationError,
+        "Mojo connection to Browser process was closed.");
+  }
 }
 
 void H5vccMetrics::Trace(Visitor* visitor) const {
@@ -176,7 +194,13 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_metrics_);
   visitor->Trace(receiver_);
+  visitor->Trace(h5vcc_metrics_promises_);
   EventTargetWithInlineData::Trace(visitor);
+}
+
+void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {
+  DCHECK(h5vcc_metrics_promises_.Contains(resolver));
+  h5vcc_metrics_promises_.erase(resolver);
 }
 
 }  // namespace blink
