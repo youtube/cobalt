@@ -275,6 +275,8 @@ public class MediaDrmBridge {
       createSessionInternal(args);
     } catch(NotProvisionedException e) {
       byte[] bridgeSessionId = generateBridgeSessiondId();
+      mBridgeSessionIds.put(ByteBuffer.wrap(bridgeSessionId), null);
+
       Log.i(TAG, "Device not provisioned. Start provisioning. sessionId=" + bytesToString(bridgeSessionId));
 
       pendingLicenseRequests.add(new PendingLicenseRequestArgs(args, bridgeSessionId));
@@ -721,13 +723,12 @@ public class MediaDrmBridge {
 
   private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
 
-  private static int mSessionIdCount = 0;
   // bridge_session_id -> session_id map.
   private HashMap<ByteBuffer, ByteBuffer> mBridgeSessionIds = new HashMap<>();
 
-  private byte[] generateBridgeSessiondId() {
+  private static int mSessionIdCount = 0;
+  private static synchronized byte[] generateBridgeSessiondId() {
     byte[] sessionId = ("cobalt.sid." + mSessionIdCount++).getBytes();
-    mBridgeSessionIds.put(ByteBuffer.wrap(sessionId), null);
     return sessionId;
   }
 
