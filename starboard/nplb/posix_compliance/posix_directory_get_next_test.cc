@@ -14,6 +14,8 @@
 
 #include <dirent.h>
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <queue>
 #include <set>
 #include <string>
@@ -217,6 +219,45 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
+TEST(PosixDirectoryGetNextTest, SymlinkHandling) {
+  // std::string path = GetTempDir(); this temp dir caches many other files.
+  std::string path = GetTempDir();
+  path += "/test_sym";
+
+  int mkdir_result = mkdir(path.c_str(), 0777);
+  EXPECT_TRUE(mkdir_result == 0);
+
+  std::string symlink_path = path + "/symlink";
+  std::string target_path = path + "/target";
+
+  int fd = open(target_path.c_str(), O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR);
+  EXPECT_TRUE(fd != -1);
+  close(fd);
+
+  int result = symlink(target_path.c_str(), symlink_path.c_str());
+  EXPECT_EQ(result, 0) << "Failed to create symlink: " << strerror(errno);
+
+  DIR* directory = opendir(path.c_str());
+  EXPECT_TRUE(directory) << "Can't open: " << path;
+
+  int found = false;
+  while (true) {
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
+    result = readdir_r(directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+
+    if (dirent->d_type == DT_LNK) {
+      EXPECT_STREQ(dirent->d_name, "symlink");
+      found = true;
+    }
+  }
+
+  EXPECT_TRUE(closedir(directory) == 0);
+  EXPECT_TRUE(found);
+}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
