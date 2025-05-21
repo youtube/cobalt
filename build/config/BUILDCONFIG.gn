@@ -244,11 +244,10 @@ if (target_os == "android") {
   _default_toolchain = "//build/toolchain/android:android_clang_$target_cpu"
 } else if (target_os == "chromeos" || target_os == "linux") {
   # See comments in build/toolchain/cros/BUILD.gn about board compiles.
-  # print("ohh no  target_cpu , target_os , host_cpu, host_os is_clang", target_cpu, target_os, host_cpu, host_os, is_clang)
   if (is_clang) {
     _default_toolchain = "//build/toolchain/linux:clang_$target_cpu"
   } else {
-    _default_toolchain = "//build/toolchain/linux:clang_$target_cpu"
+    _default_toolchain = "//build/toolchain/linux:$target_cpu"
   }
 } else if (target_os == "fuchsia") {
   _default_toolchain = "//build/toolchain/fuchsia:$target_cpu"
@@ -359,7 +358,6 @@ if (is_cobalt) {
   import("//cobalt/build/configs/variables.gni")
 }
 
-
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
   "//build/config:feature_flags",
@@ -386,7 +384,6 @@ default_compiler_configs = [
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
-
 
 if (is_cobalt) {
   default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]
@@ -432,11 +429,6 @@ if (is_debug) {
 } else {
   default_compiler_configs += [ "//build/config:release" ]
 }
-
-# # We dont want chromium default conmigs to be applied to sb toolchain
-# if(current_toolchain != default_toolchain || current_toolchain != host_toolchain) {
-#   default_compiler_configs = []
-# }
 
 # Static libraries and source sets use only the compiler ones.
 set_defaults("static_library") {
