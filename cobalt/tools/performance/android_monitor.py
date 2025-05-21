@@ -27,13 +27,16 @@ matplotlib and pandas if those libraries are available.
 import argparse
 import csv
 import os
-import re
 import threading
 import time
-from typing import Dict, Union, Optional
+from typing import Optional
 
 from adb_command_runner import run_adb_command
 from configuration import AppConfig, OutputConfig, PackageConfig
+from device_monitor import DeviceMonitor
+from data_collector import DataCollectorBuilder
+from data_store import MonitoringDataStore
+from time_provider import TimeProvider
 
 # Plotting library imports (conditionally imported)
 # _MATPLOTLIB_AVAILABLE is a global indicating if plotting dependencies are met.
@@ -47,287 +50,9 @@ except ImportError as e:
   # Warning will be printed in main if plotting is attempted without these.
   print(e)
 
-# Global variables for shared state.
-g_all_monitoring_data = []
-# Event to signal threads to stop.
-g_stop_event = threading.Event()
 
-
-def _is_package_running(package_name: str) -> bool:
-  """Checks if a given Android package is currently running.
-
-  Args:
-    package_name: The name of the Android package to check.
-
-  Returns:
-    True if the package is running (pid found), False otherwise.
-  """
-  stdout, _ = run_adb_command(['adb', 'shell', 'pidof', package_name])
-  return bool(stdout and stdout.strip().isdigit())
-
-
-def _stop_package(package_name: str) -> bool:
-  """Attempts to force-stop an Android package.
-
-  Args:
-    package_name: The name of the Android package to stop.
-
-  Returns:
-    True if the stop command was issued successfully, False otherwise.
-  """
-  print(f'Attempting to stop package \'{package_name}\'...')
-  _, stderr = run_adb_command(
-      ['adb', 'shell', 'am', 'force-stop', package_name])
-  if stderr:
-    print(f'Error stopping package \'{package_name}\': {stderr}')
-    return False
-  print(f'Package \'{package_name}\' stop command issued.')
-  time.sleep(2)  # Give time for the stop to propagate.
-  return True
-
-
-def _launch_cobalt(package_name: str, activity_name: str, flags: str):
-  """Launches the Cobalt application with a specified URL.
-
-  Args:
-    package_name: The package name of Cobalt.
-    activity_name: The main activity name of Cobalt.
-    url: The URL to pass to Cobalt as a command-line argument.
-  """
-  command_str = (f'adb shell am start -n {package_name}/{activity_name} '
-                 f'--esa commandLineArgs \'{flags}\'')
-  stdout, stderr = run_adb_command(command_str, shell=True)
-  if stderr:
-    print(f'Error launching Cobalt: {stderr}')
-  else:
-    print('Cobalt launch command sent.' +
-          (f' Launch stdout: {stdout}' if stdout else ''))
-
-
-def _get_meminfo_data_internal(
-    package_name: str) -> Optional[Dict[str, Dict[str, Union[int, str]]]]:
-  """Fetches and parses dumpsys meminfo for a given package.
-
-  Args:
-    package_name: The name of the Android package to query.
-
-  Returns:
-    A dictionary where keys are memory categories (e.g., 'TOTAL', 'Native Heap')
-    and values are dictionaries of memory metrics (e.g., 'Pss Total',
-    'Private Dirty'). Returns None if data cannot be parsed or command fails.
-  """
-  command = ['adb', 'shell', 'dumpsys', 'meminfo', package_name]
-  output, error_msg = run_adb_command(command)
-  if error_msg or not output:
-    return None
-
-  mem_data = {}
-  lines = output.splitlines()
-  in_app_summary_section = False
-  in_main_table = False
-  column_headers = []
-
-  for i, line in enumerate(lines):
-    line_stripped = line.strip()
-
-    # Identify the start of the app's meminfo summary.
-    if (not in_app_summary_section and
-        '** MEMINFO in pid' in line and  # Line 125
-        package_name in line):
-      in_app_summary_section = True
-      continue
-    if not in_app_summary_section:
-      continue
-
-    # Identify the start of the main memory table by the "------" separator.
-    if (not in_main_table and line_stripped.startswith('------') and
-        '------' in line_stripped[7:]):
-      in_main_table = True
-      # Attempt to parse headers from lines above the separator.
-      if i >= 2:
-        h1_parts = lines[i - 2].strip().split()
-        h2_parts = lines[i - 1].strip().split()
-        temp_headers = []
-        try:
-          if len(h1_parts) >= 8 and len(h2_parts) >= 8:
-            # Combine multi-word headers if present.
-            for k_idx in range(8):
-              temp_headers.append(f'{h1_parts[k_idx]} {h2_parts[k_idx]}')
-            column_headers = temp_headers
-          else:
-            raise IndexError  # Fallback to default if parsing fails.
-        except IndexError:
-          # Fallback to common headers if dynamic parsing fails.
-          column_headers = [
-              'Pss Total',
-              'Private Dirty',
-              'Private Clean',
-              'SwapPss Dirty',
-              'Rss Total',
-              'Heap Size',
-              'Heap Alloc',
-              'Heap Free',
-          ]
-      else:
-        # Default headers if there aren't enough preceding lines.
-        column_headers = [
-            'Pss Total',
-            'Private Dirty',
-            'Private Clean',
-            'SwapPss Dirty',
-            'Rss Total',
-            'Heap Size',
-            'Heap Alloc',
-            'Heap Free',
-        ]
-      continue
-
-    if not in_main_table or not column_headers:
-      continue
-
-    # Stop parsing when irrelevant sections are reached.
-    if (line_stripped.startswith(
-        ('Objects', 'SQL', 'DATABASES', 'AssetAllocations')) or
-        not line_stripped):  # Line 163
-      in_main_table = False
-      break
-
-    parts = line_stripped.split()
-    if not parts:
-      continue
-
-    # Find the index where numeric values start (category name ends).
-    value_start_idx = -1
-    for k_idx, part in enumerate(parts):
-      try:
-        int(part)
-        value_start_idx = k_idx
-        break
-      except ValueError:
-        continue
-
-    if value_start_idx > 0:
-      category_name = ' '.join(parts[:value_start_idx]).strip(':')
-      if not category_name:
-        continue
-
-      value_strings = parts[value_start_idx:]
-      category_values = {}
-      for k_h, header_name in enumerate(column_headers):
-        if k_h < len(value_strings):
-          try:
-            # Convert values to int, if not possible, store as string.
-            category_values[header_name] = int(value_strings[k_h])
-          except ValueError:
-            category_values[header_name] = value_strings[k_h]
-        else:
-          category_values[header_name] = 'N/A'  # Missing values.
-      if category_values:
-        mem_data[category_name] = category_values
-  return mem_data if mem_data else None
-
-
-def _get_surface_flinger_gba_kb() -> Dict[str, Optional[float]]:
-  """Fetches GraphicBufferAllocator (GBA) usage from SurfaceFlinger dumpsys.
-
-  Returns:
-    A dictionary containing 'GraphicBufferAllocator KB' as a float or None.
-  """
-  stats = {'GraphicBufferAllocator KB': None}
-  stdout, stderr_msg = run_adb_command(
-      ['adb', 'shell', 'dumpsys', 'SurfaceFlinger'])
-  if stdout is None:
-    return stats
-  if not stdout and stderr_msg:
-    return stats
-
-  gba_kb_match = re.search(
-      (r'Total allocated by GraphicBufferAllocator \(estimate\):\s*'
-       r'(\d+\.?\d*)\s*KB'),
-      stdout,
-      re.I,
-  )
-  if gba_kb_match:
-    try:
-      stats['GraphicBufferAllocator KB'] = float(gba_kb_match.group(1))
-    except ValueError:
-      print(f'Warning: Could not parse GBA KB value: {gba_kb_match.group(1)}')
-  return stats
-
-
-def _data_polling_loop(package_name: str, poll_interval: int):
-  """Continuously polls and collects memory and GBA data.
-
-  This function runs in a separate thread and collects data at regular
-  intervals until signaled to stop.
-
-  Args:
-    package_name: The Android package name to monitor.
-    poll_interval: The polling interval in milliseconds.
-  """
-  print('Starting data polling thread (meminfo and GraphicBufferAllocator)...')
-  iteration = 0
-  while not g_stop_event.is_set():
-    iteration += 1
-    current_time_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
-    header_prefix = f'[{current_time_str}][Poll Iter: {iteration}]'
-    current_snapshot_data = {'timestamp': current_time_str}
-    app_is_running = _is_package_running(package_name)
-
-    meminfo_total_pss_str = 'N/A'
-    if app_is_running:
-      raw_mem_data = _get_meminfo_data_internal(package_name)
-      if raw_mem_data:
-        total_pss_val = raw_mem_data.get('TOTAL', {}).get('Pss Total')
-        if total_pss_val is not None:
-          meminfo_total_pss_str = str(total_pss_val)
-        # Add individual category Pss Total values to snapshot.
-        for category, data_map in raw_mem_data.items():
-          pss_total = data_map.get('Pss Total')
-          if pss_total is not None:
-            current_snapshot_data[f'{category} Pss Total'] = pss_total
-      elif app_is_running:
-        print(
-            f'{header_prefix} Warning: No meminfo data parsed for '
-            f'{package_name} this cycle.',
-            end=' | ',
-        )
-
-    sf_stats = _get_surface_flinger_gba_kb()
-    current_snapshot_data.update(sf_stats)
-    gba_kb_val = sf_stats.get('GraphicBufferAllocator KB')
-    gba_kb_str = f'{gba_kb_val:.1f} KB' if gba_kb_val is not None else 'N/A'
-
-    # Print status messages based on app running state.
-    if app_is_running or iteration == 1:
-      # Print if app running or first iteration (to show initial GBA).
-      print(f'{header_prefix} Mem(TOTAL PSS): {meminfo_total_pss_str} KB | SF -'
-            f' GBA: {gba_kb_str}')
-    elif not app_is_running and (iteration % 5 == 0):
-      # Print occasionally if app not running to show it's still active.
-      print(f'{header_prefix} App {package_name} not running. SF - GBA:'
-            f' {gba_kb_str}')
-
-    g_all_monitoring_data.append(current_snapshot_data)
-
-    # Accurate sleep considering processing time.
-    def _get_time_ms():
-      return time.monotonic_ns() / 1000
-
-    start_sleep_time = _get_time_ms()
-    while _get_time_ms() - start_sleep_time < poll_interval:
-      if g_stop_event.is_set():
-        break
-      # Check stop event frequently during poll interval.
-      # This enables checks ~2 times before the interval should pass.
-      time.sleep(1 / poll_interval / 2)
-    if g_stop_event.is_set():
-      break
-
-  print('Data polling thread stopped.')
-
-
-def _write_monitoring_data_csv(output_dir: str, filename_base: str) -> bool:
+def _write_monitoring_data_csv(output_dir: str, filename_base: str,
+                               monitoring_data) -> bool:
   """Writes collected monitoring data to a CSV file.
 
   Args:
@@ -337,7 +62,7 @@ def _write_monitoring_data_csv(output_dir: str, filename_base: str) -> bool:
   Returns:
     True if the data was successfully written, False otherwise.
   """
-  if not g_all_monitoring_data:
+  if not monitoring_data:
     print('No data collected to write to CSV.')
     return False
 
@@ -351,7 +76,7 @@ def _write_monitoring_data_csv(output_dir: str, filename_base: str) -> bool:
     fieldnames_set.add(key)
 
   meminfo_keys_found = set()
-  for row_data in g_all_monitoring_data:
+  for row_data in monitoring_data:
     for key in row_data.keys():
       if key not in ['timestamp'] and key not in surfaceflinger_keys_ordered:
         meminfo_keys_found.add(key)
@@ -376,7 +101,7 @@ def _write_monitoring_data_csv(output_dir: str, filename_base: str) -> bool:
     with open(output_filename, 'w', newline='', encoding='utf-8') as csvfile:
       writer = csv.DictWriter(csvfile, fieldnames=final_fieldnames, restval='')
       writer.writeheader()
-      writer.writerows(g_all_monitoring_data)
+      writer.writerows(monitoring_data)
     print(f'Monitoring data successfully written to {output_filename}')
     return True
   except Exception as e:  # pylint: disable=broad-except
@@ -630,28 +355,21 @@ def _parse_cli_args() -> AppConfig:
   return config
 
 
-def _adb_is_connected():
-  print('Checking ADB connection...')
-  stdout_dev, stderr_dev = run_adb_command(['adb', 'devices'])
-  if stderr_dev or not stdout_dev \
-      or 'List of devices attached' not in stdout_dev:  # pylint: disable=g-backslash-continuation
-    print('ADB not working. Exiting.')
-    return False
-  if len(stdout_dev.strip().splitlines()) <= 1:
-    print('No devices/emulators authorized. Exiting.')
-    return False
-  return True
-
-
 def main():
   """Main function to parse arguments, run monitoring, and output results."""
   config = _parse_cli_args()
   output_directory = config.output_directory
   poll_interval_milliseconds = config.poll_interval_ms
 
+  data_store = MonitoringDataStore()
+  device_monitor =\
+    DeviceMonitor(adb_runner=run_adb_command, time_provider=time.sleep)
+  time_provider = TimeProvider()
+  stop_event = threading.Event()
+
   if config.output_format in ['plot', 'both'] and not _MATPLOTLIB_AVAILABLE:
-    print('CRITICAL ERROR: Plotting requested but pandas/matplotlib are not'
-          ' installed. Exiting.')
+    print('CRITICAL ERROR: Plotting requested but pandas/matplotlib '
+          'are not installed. Exiting.')
     return
 
   if not os.path.exists(output_directory):
@@ -659,30 +377,39 @@ def main():
       os.makedirs(output_directory)
       print(f'Created output directory: {output_directory}')
     except OSError as e:
-      print(f'Error creating output directory {output_directory}: {e}.')
-      output_directory = '.'  # Fallback to current directory.
+      print(f'Error creating output directory {output_directory}: {e}.'
+            'Falling back to current directory.')
+      output_directory = '.'  # Fallback for directory creation failure
 
-  if not _adb_is_connected():
+  if not device_monitor.check_adb_connection():
     return
 
-  if _is_package_running(config.package_name):
+  if device_monitor.is_package_running(config.package_name):
     print(f'\'{config.package_name}\' running. Stopping it first.')
-    _stop_package(config.package_name)
+    device_monitor.stop_package(config.package_name)
 
-  flags = config.parse_cobalt_cli_flags()
-  print(f'Attempting to launch Cobalt ({config.package_name}) with URL:' +\
-        f'{config.url}...')
-  _launch_cobalt(config.package_name, config.activity_name, flags)
+  parsed_flags = config.parse_cobalt_cli_flags()
+  print(f'Attempting to launch Cobalt ({config.package_name}) ' +
+        f'with URL: {config.url}...')
+  device_monitor.launch_cobalt(config.package_name, config.activity_name,
+                               parsed_flags)
 
   print(f'\nStarting data polling immediately for {config.package_name}...')
 
-  if not _is_package_running(config.package_name):
-    print(f'Warning: {config.package_name} did not seem to start immediately.'
+  if not device_monitor.is_package_running(config.package_name):
+    print(f'Warning: {config.package_name} did not seem to start immediately. '
           'Polling will still attempt to get data.')
+  data_collector = DataCollectorBuilder()\
+    .with_package_name(config.package_name)\
+    .with_poll_interval_ms(config.poll_interval_ms)\
+    .with_data_store(data_store)\
+    .with_device_monitor(device_monitor)\
+    .with_time_provider(time_provider)\
+    .with_stop_event(stop_event)\
+    .build()
 
   polling_thread = threading.Thread(
-      target=_data_polling_loop,
-      args=(config.package_name, poll_interval_milliseconds),
+      target=data_collector.run_polling_loop,
       daemon=True,
   )
   polling_thread.start()
@@ -692,32 +419,34 @@ def main():
 
   try:
     while polling_thread.is_alive():
-      time.sleep(1)
+      time_provider.sleep(1)  # Use the time_provider for main loop sleep too
   except KeyboardInterrupt:
     print('\nCtrl+C received. Signaling polling thread to stop...')
-  except Exception as e:  # pylint: disable=broad-except
+  except Exception as e:  # pylint: disable=broad-exception-caught
     print(f'Main loop encountered an error: {e}')
   finally:
-    g_stop_event.set()
+    stop_event.set()
 
   print('Waiting for data polling thread to complete...')
   if polling_thread.is_alive():
-    polling_thread.join(timeout=poll_interval_milliseconds + 10 * 1000)
+    # Give it a bit more time than the polling interval to stop
+    polling_thread.join(timeout=(config.poll_interval_ms / 1000) + 10)
   print('\nData polling stopped.')
 
   time_for_file_name = time.strftime('%Y%m%d_%H%M%S', time.localtime())
   filename_base = f'monitoring_data_{time_for_file_name}'
   output_filename_base_with_dir = os.path.join(output_directory, filename_base)
 
+  all_data = data_store.get_all_data()
   if config.output_format in ('csv', 'both'):
-    _write_monitoring_data_csv(output_directory, filename_base)
+    _write_monitoring_data_csv(output_directory, filename_base, all_data)
   if config.output_format in ('plot', 'both'):
     if not _MATPLOTLIB_AVAILABLE:
       print('Skipping plot: Plotting libraries not available.')
-    elif not g_all_monitoring_data:
+    elif not all_data:
       print('No data collected, skipping plot generation.')
     else:
-      df_for_plot = pd.DataFrame(g_all_monitoring_data)
+      df_for_plot = pd.DataFrame(all_data)
       if not df_for_plot.empty:
         _plot_monitoring_data_from_df(df_for_plot,
                                       output_filename_base_with_dir)
