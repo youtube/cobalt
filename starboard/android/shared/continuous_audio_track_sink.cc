@@ -134,6 +134,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
+  // TODO(b/418059619): consolidate JniEnvExt and JNIEnv
   JniEnvExt* env = JniEnvExt::Get();
   bool was_playing = false;
   int frames_in_audio_track = 0;
@@ -146,7 +147,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
+    JNIEnv* env_jni = AttachCurrentThread();
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
