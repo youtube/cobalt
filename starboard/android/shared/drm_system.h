@@ -144,6 +144,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
 
   std::condition_variable condition_;
   std::atomic<bool> running_;  // Flag to control the Run loop
+
+  std::atomic<bool> is_key_provided_ = false;
 };
 
 }  // namespace shared
