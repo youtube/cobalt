@@ -45,5 +45,10 @@ SB_ONCE_INITIALIZE_FUNCTION(LocaleInfo, GetLocale);
 }  // namespace
 
 const char* SbSystemGetLocaleId() {
+  JniEnvExt* env = JniEnvExt::Get();
+
+  ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
+      "systemGetLocaleId", "()Ljava/lang/String;"));
+  GetLocale()->locale_id = env->GetStringStandardUTFOrAbort(result.Get());
   return GetLocale()->locale_id.c_str();
 }

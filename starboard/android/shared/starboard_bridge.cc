@@ -19,6 +19,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/locale/update_default_locale_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
@@ -118,6 +119,11 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     // Cold start deeplink
     manager->set_deep_link(url);
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_UpdateDefaultLocale(
+    JNIEnv* env) {
+  cobalt::browser::UpdateDefaultLocaleManager::GetInstance()->Update();
 }
 
 extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_SetAndroidOSExperience(
