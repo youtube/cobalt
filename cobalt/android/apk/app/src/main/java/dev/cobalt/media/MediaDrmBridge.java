@@ -72,6 +72,8 @@ public class MediaDrmBridge {
   // Scheme UUID for Widevine. See http://dashif.org/identifiers/protection/
   private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
+  private static final boolean HANDLE_PENDING_LICENSE_REQUESTS = true;
+
   // Deprecated in API 26, but we still log it on earlier devices.
   // We do handle STATUS_EXPIRED in nativeOnKeyStatusChange() for API 23+ devices.
   @SuppressWarnings("deprecation")
@@ -231,9 +233,6 @@ public class MediaDrmBridge {
 
   ArrayList<PendingLicenseRequestArgs> pendingLicenseRequests = new ArrayList<>();
 
-  private static final int kProvisioningWaitMs = 1_000;
-  private static final int kProvisioningCheckIntervalMs = 300;
-
   boolean handlePengindLicenseRequest(PendingLicenseRequestArgs args) {
     try {
       createSessionInternal(args);
@@ -249,6 +248,11 @@ public class MediaDrmBridge {
 
   @UsedByNative
   void runPendingTasks() {
+    if (!HANDLE_PENDING_LICENSE_REQUESTS) {
+      Log.i(TAG, "Does not handle pending license requests, since app will re-generate the license request.");
+      return;
+    }
+
     Log.i(TAG, "runPendingTasks(): pendingLicenseRequests.size()=" + pendingLicenseRequests.size());
 
     while (pendingLicenseRequests.size() > 0) {
@@ -259,8 +263,6 @@ public class MediaDrmBridge {
       }
       break;
     }
-
-    Log.i(TAG, "There is no more pending task.");
   }
 
   @UsedByNative
@@ -545,7 +547,7 @@ public class MediaDrmBridge {
     try {
       return StandardCharsets.UTF_8.newDecoder().decode(ByteBuffer.wrap(bytes)).toString();
     } catch (Exception e) {
-      return "hex(" + bytesToString(bytes) + ")";
+      return "hex(" + bytesToHexString(bytes) + ")";
     }
   }
 
@@ -717,13 +719,7 @@ public class MediaDrmBridge {
     Log.i(TAG, "MediaCrypto Session created: sessionId=" + bytesToString(mMediaCryptoSession));
   }
 
-  // private static final byte[] FIRST_DRM_SESSION_ID = "initialdrmsessionid".getBytes();
   private static final int INDIVIDUALIZATION_REQUEST_TYPE = 3;
-
-  // private boolean usingFirstSessionId = false;
-  // private byte[] mediaDrmFirstSessionId;
-
-  private static int provisioningInFlight = 0;
 
   private static int mSessionIdCount = 0;
   // bridge_session_id -> session_id map.
@@ -748,8 +744,6 @@ public class MediaDrmBridge {
     return null;
   }
 
-
-  private static MediaDrm.ProvisionRequest mInFlightProvisionRequest;
   /**
    * Attempt to get the device that we are currently running on provisioned.
    *
@@ -757,20 +751,8 @@ public class MediaDrmBridge {
    */
   // Provisioning should be singletone activity.
   private void startProvisioning(int ticket, byte[] bridgeSessionId) {
-    provisioningInFlight++;
-    Log.i(TAG, "start provisioning(): provisioningInFlight=" + provisioningInFlight);
-
-    /*
-    if (mInFlightProvisionRequest == null) {
-      Log.i(TAG, "Create new provisioning request");
-      mInFlightProvisionRequest = mMediaDrm.getProvisionRequest();
-    } else {
-      Log.i(TAG, "Reuse in-flight provisioning request");
-    }
-    MediaDrm.ProvisionRequest request = mInFlightProvisionRequest;
-    */
-
     MediaDrm.ProvisionRequest request = mMediaDrm.getProvisionRequest();
+    Log.i(TAG, "start provisioning: request size=" + request.getData().length);
 
     nativeOnSessionMessage(
         mNativeMediaDrmBridge,
@@ -778,10 +760,9 @@ public class MediaDrmBridge {
   }
 
   private UpdateSessionResult handleProvisionResponse(byte[] response) {
-    Log.i(TAG, "handleProvisionResponse()");
+    Log.i(TAG, "handleProvisionResponse: size=" + response.length);
 
-     try {
-      Log.i(TAG, "Calling mMediaDrm.provideProvisionResponse()");
+    try {
       mMediaDrm.provideProvisionResponse(response);
     } catch (android.media.DeniedByServerException e) {
       Log.e(TAG, "Failed to provide provision response.", e);
@@ -789,8 +770,7 @@ public class MediaDrmBridge {
           UpdateSessionResult.Status.FAILURE,
           e.getMessage());
     }
-    provisioningInFlight--;
-    Log.i(TAG, "provideProvisionResponse succeeded: provisioningInFlight=" + provisioningInFlight);
+    Log.i(TAG, "provideProvisionResponse succeeded");
 
     return new UpdateSessionResult(UpdateSessionResult.Status.SUCCESS, "");
   }
