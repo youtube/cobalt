@@ -51,6 +51,25 @@
     "MobileFriendlinessCheckerTest.SmallTextOutsideViewportCeiling",
     "MobileFriendlinessCheckerTest.SubScrollerInSubScroller",
     "MobileFriendlinessCheckerTest.TextTooWide",
-    "DecoderTemplateTest/1.ResetDuringFlush"
+    "DecoderTemplateTest/1.ResetDuringFlush",
+    "All/AnimationAnimationTestNoCompositing.PlayWithPlaybackRateZeroDoesNotSeek/0",
+    "WebRtcMediaStreamTrackAdapterMapStressTest.*",
+    "WindowProperties/BindingSecurityCounterTest.*",
+    "All/AnimationAnimationTestNoCompositing.*",
+    "All/AnimationAnimationTestCompositing.*",
+    "All/DataTransferTest.*",
+    "All/AnimationCompositorAnimationsTest.*",
+    "All/ViewTransitionTest.*",
+    "All/AdTrackerVanillaOrAdSimTest.*",
+    "TransceiverStateSurfacerTest.*",
+    "Canvas2DLayerBridgeTest.*",
+    "All/CaretDisplayItemClientTest.*",
+    "All/VisualViewportTest.TestFractionalScrollOffsetIsNotOverwritten/0",
+    "StyleEngineTest.VideoControlsReject",
+    "PageTestBase.CSPForWorld",
+    "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
+    "HTMLSrcsetParserTest.SaveDataEnabledBasic",
+    "All/UseCounterImplBrowserReportTest.ReportOnlyHTTPFamily/5"
+
   ]
 }

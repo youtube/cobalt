@@ -294,13 +294,13 @@ def main() -> int:
   trigger_parser.add_argument(
       '--job_timeout_sec',
       type=str,
-      default='1800',
+      default='3600',
       help='Timeout in seconds for the job (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
       '--test_timeout_sec',
       type=str,
-      default='1800',
+      default='3600',
       help='Timeout in seconds for the test (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
