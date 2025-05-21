@@ -14,7 +14,9 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <iomanip>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "starboard/android/shared/jni_env_ext.h"
@@ -65,6 +67,59 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
   }
   SB_NOTREACHED();
   return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
+SbDrmKeyStatus SbDrmKeyStatusFromMediaDrmKeyStatus(jint j_status_code) {
+  switch (j_status_code) {
+    case MEDIA_DRM_KEY_STATUS_EXPIRED:
+      return kSbDrmKeyStatusExpired;
+    case MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR:
+      return kSbDrmKeyStatusError;
+    case MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED:
+      return kSbDrmKeyStatusRestricted;
+    case MEDIA_DRM_KEY_STATUS_PENDING:
+      return kSbDrmKeyStatusPending;
+    case MEDIA_DRM_KEY_STATUS_USABLE:
+      return kSbDrmKeyStatusUsable;
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return kSbDrmKeyStatusError;
+}
+
+std::string ToString(const SbDrmKeyId& keyId) {
+  std::stringstream ss;
+  ss << std::hex << std::setfill('0');  // Set output to hex, fill with '0'
+
+  int actual_size = std::min(keyId.identifier_size, 16);
+  actual_size = std::max(0, actual_size);  // Ensure non-negative
+
+  for (int i = 0; i < actual_size; ++i) {
+    ss << std::setw(2) << static_cast<int>(keyId.identifier[i]);
+  }
+  return ss.str();
+}
+
+std::string ToString(SbDrmKeyStatus status) {
+  switch (status) {
+    case kSbDrmKeyStatusExpired:
+      return "expired";
+    case kSbDrmKeyStatusError:
+      return "error";
+    case kSbDrmKeyStatusRestricted:
+      return "restricted";
+    case kSbDrmKeyStatusPending:
+      return "pending";
+    case kSbDrmKeyStatusUsable:
+      return "usable";
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return "unknown";
 }
 
 }  // namespace
@@ -144,20 +199,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
 
     jint j_status_code =
         env->CallIntMethodOrAbort(j_key_status, "getStatusCode", "()I");
-    if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusExpired;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusRestricted;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_PENDING) {
-      drm_key_statuses[i] = kSbDrmKeyStatusPending;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
-      drm_key_statuses[i] = kSbDrmKeyStatusUsable;
-    } else {
-      SB_NOTREACHED();
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    }
+    drm_key_statuses[i] = SbDrmKeyStatusFromMediaDrmKeyStatus(j_status_code);
   }
 
   DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
@@ -455,6 +497,14 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
       }
     }
   }
+  std::string log;
+  for (int i = 0; i < drm_key_ids.size(); i++) {
+    log += (i > 0 ? ", " : "") + ToString(drm_key_ids[i]) + "=" +
+           ToString(drm_key_statuses[i]);
+  }
+
+  SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
+               << ", key_ids={" << log + "}";
 
   key_statuses_changed_callback_(this, context_, session_id, session_id_size,
                                  static_cast<int>(drm_key_ids.size()),
