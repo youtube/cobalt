@@ -165,7 +165,7 @@ bool MediaDrmBridge::IsCbcsSupported() {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-                         
