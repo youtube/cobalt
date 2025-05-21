@@ -502,9 +502,12 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
     log += (i > 0 ? ", " : "") + ToString(drm_key_ids[i]) + "=" +
            ToString(drm_key_statuses[i]);
   }
-
   SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
                << ", key_ids={" << log + "}";
+
+  is_key_provided_ = std::any_of(
+      drm_key_statuses.cbegin(), drm_key_statuses.cend(),
+      [](const auto& status) { return status == kSbDrmKeyStatusUsable; });
 
   key_statuses_changed_callback_(this, context_, session_id, session_id_size,
                                  static_cast<int>(drm_key_ids.size()),
@@ -539,8 +542,7 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
 }
 
 bool DrmSystem::IsReady() {
-  return JniEnvExt::Get()->CallBooleanMethodOrAbort(
-             j_media_drm_bridge_, "isKeyLoaded", "()Z") == JNI_TRUE;
+  return is_key_provided_;
 }
 
 }  // namespace shared

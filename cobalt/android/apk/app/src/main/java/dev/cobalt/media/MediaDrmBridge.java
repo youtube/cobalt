@@ -371,7 +371,6 @@ public class MediaDrmBridge {
         Log.e(TAG, "Exception intentionally caught when calling provideKeyResponse()", e);
       }
       Log.d(TAG, "Key successfully added for sessionId=" + bytesToString(sessionId));
-      isKeyUpdated = true;
       return UpdateSessionResult.Success();
     } catch (NotProvisionedException e) {
       // TODO: Should we handle this?
@@ -390,12 +389,6 @@ public class MediaDrmBridge {
       return UpdateSessionResult.Failure(
           "Update session failed. Caught exception: " + e.getMessage(), e);
     }
-  }
-
-  private boolean isKeyUpdated = false;
-  @UsedByNative
-  boolean isKeyLoaded() {
-    return isKeyUpdated;
   }
 
   /**

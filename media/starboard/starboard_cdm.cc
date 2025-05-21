@@ -407,7 +407,7 @@ void StarboardCdm::OnSessionKeyStatusChanged(const std::string& session_id,
   LOG(INFO) << "Receiving session key status changed notification from drm"
             << " system (" << sb_drm_ << "), session id: " << session_id
             << ", number of key ids: " << keys_info.size()
-            << ", has_additional_usable_key?: "
+            << ", has_additional_usable_key: "
             << (has_additional_usable_key ? "true" : "false");
 
   // Find the session by ID.
