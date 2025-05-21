@@ -17,12 +17,16 @@
 
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/idl_types.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
+#include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
+#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
@@ -43,7 +47,9 @@ class MODULES_EXPORT H5vccMetrics final
 
  public:
   explicit H5vccMetrics(LocalDOMWindow&);
+  ~H5vccMetrics() override;
 
+  // ExecutionContextLifecycleObserver impl.
   void ContextDestroyed() override;
 
   // Web-exposed interface:
@@ -86,10 +92,15 @@ class MODULES_EXPORT H5vccMetrics final
   void MaybeRegisterMojoListener();
   void MaybeUnregisterMojoListener();
 
+  void CleanupPromise(ScriptPromiseResolver* resolver);
+
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
       remote_h5vcc_metrics_;
   HeapMojoReceiver<h5vcc_metrics::mojom::blink::MetricsListener, H5vccMetrics>
       receiver_;
+
+  // If the Mojo connection closes/errors all promises are rejected.
+  HeapHashSet<Member<ScriptPromiseResolver>> h5vcc_metrics_promises_;
 
   bool is_reporting_enabled_ = false;
 };
