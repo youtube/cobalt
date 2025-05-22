@@ -52,8 +52,8 @@ if (!is_android) {
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
-      "cobalt_switch_defaults.cc",
-      "cobalt_switch_defaults.h",
+      "cobalt_switch_defaults_linux.cc",
+      "cobalt_switch_defaults_linux.h",
     ]
 
     defines = []
@@ -124,9 +124,9 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
-    "//cobalt/cobalt_switch_defaults.cc",
-    "//cobalt/cobalt_switch_defaults.h",
-    "//cobalt/cobalt_switch_defaults_test.cc",
+    "//cobalt/cobalt_switch_defaults_linux.cc",
+    "//cobalt/cobalt_switch_defaults_linux.h",
+    "//cobalt/cobalt_switch_defaults_linux_test.cc",
     "//cobalt/user_agent/user_agent_platform_info_test.cc",
   ]
 

@@ -20,7 +20,7 @@
 #include "base/files/file_path.h"
 #include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt_switch_defaults.h"
+#include "cobalt_switch_defaults_linux.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
 #include "gpu/config/gpu_switches.h"

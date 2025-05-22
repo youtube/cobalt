@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_switch_defaults.h"
+#include "cobalt/cobalt_switch_defaults_linux.h"
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
@@ -30,6 +30,13 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace {
+
+// ==========
+// IMPORTANT:
+//
+// These switch defaults do not affect non-linux platforms. If you
+// are making changes to these values, please check that other platforms such as
+// Android are getting the corresponding updates.
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
