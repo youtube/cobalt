@@ -21,6 +21,8 @@ import datetime
 import pathlib
 
 RUN_MARKER = '[ RUN      ]'
+OK_MARKER = '[       OK ]'
+FAILED_MARKER = '[  FAILED  ]'
 
 
 def _parse_log_file(log_path: pathlib.Path) -> tuple[str, str]:
@@ -34,6 +36,10 @@ def _parse_log_file(log_path: pathlib.Path) -> tuple[str, str]:
   last_run_line = ''
   log_tail = ''
   for i in range(len(lines) - 1, -1, -1):
+    if OK_MARKER in lines[i] or FAILED_MARKER in lines[i]:
+      # The last test in the log ran to completion.
+      last_run_line = ''
+      log_tail = 'No crashed test in the log. Last test ran to completion.'
     if RUN_MARKER in lines[i]:
       last_run_line = lines[i].strip()
       break
@@ -41,7 +47,7 @@ def _parse_log_file(log_path: pathlib.Path) -> tuple[str, str]:
   else:
     # Loop ran to the end, run line was not found.
     last_run_line = ''
-    log_tail = 'Unable to detect the crashed test.'
+    log_tail = 'Unable to detect the crashed test. RUN line not found in log.'
   return last_run_line, log_tail
 
 
