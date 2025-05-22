@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/common/eztime/eztime.h"
-
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include <array>
 #include <cstddef>
@@ -29,97 +28,41 @@
 
 namespace {
 
-// The number of characters to reserve for each time zone name.
-const int kMaxTimeZoneSize = 32;
+const UChar kTimeZoneUTC[] = u"Etc/UTC";
+const UChar* kTimeZoneLocal = nullptr;
 
-// Since ICU APIs take timezones by Unicode name strings, this is a cache of
-// commonly used timezones that can be passed into ICU functions that take
-// them.
-UChar g_timezones[kEzTimeZoneCount][kMaxTimeZoneSize];
-
-// Once control for initializing eztime static data.
-pthread_once_t g_eztime_initialization_once = PTHREAD_ONCE_INIT;
-
-// The timezone names in ASCII (UTF8-compatible) literals. This must match the
-// order of the EzTimeZone enum.
-constexpr std::array<const char*, kEzTimeZoneCount> kTimeZoneNames = {{
-    "America/Los_Angeles",
-    "Etc/GMT",
-    "",
-}};
-
-// Standard compile-time assertion
-static_assert(kTimeZoneNames.size() == kEzTimeZoneCount,
-              "The number of kTimeZoneNames must match kEzTimeZoneCount.");
-
-// Initializes a single timezone in the ICU timezone lookup table.
-void InitializeTimeZone(EzTimeZone ez_timezone) {
-  UErrorCode status = U_ZERO_ERROR;
-  UChar* timezone_name = g_timezones[ez_timezone];
-  const char* timezone_name_utf8 = kTimeZoneNames[ez_timezone];
-  if (!timezone_name_utf8) {
-    timezone_name[0] = 0;
-    return;
-  }
-
-  u_strFromUTF8(timezone_name, kMaxTimeZoneSize, NULL, timezone_name_utf8, -1,
-                &status);
+// Converts time_usec to time_t. NOTE: This is LOSSY.
+static time_t TimeUsecToTimeT(int64_t time_usec) {
+  return time_usec >= 0 ? time_usec / 1'000'000
+                        : (time_usec - 1'000'000 + 1) / 1'000'000;
 }
 
-// Initializes ICU and TimeZones so the rest of the functions will work.
-// Should only be called once.
-void Initialize() {
-  // Initialize |g_timezones| table.
-  for (int timezone = 0; timezone < kEzTimeZoneCount; ++timezone) {
-    InitializeTimeZone(static_cast<EzTimeZone>(timezone));
-  }
+// Converts time_usec to struct timeval.
+static struct timeval TimeUsecToTimeval(int64_t time_usec) {
+  time_t sec = TimeUsecToTimeT(time_usec);
+  int64_t diff = time_usec - sec * 1'000'000;
+  struct timeval tv = {sec, (int)diff};  // NOLINT(readability/casting)
+  return tv;
 }
 
-// Converts from an SbTime to an ICU UDate (non-fractional milliseconds since
-// POSIX epoch, as a double).
-int64_t UDateToSbTime(UDate udate) {
-  return static_cast<int64_t>(udate * 1000LL);
+// Converts struct timeval to time_usec.
+static int64_t TimevalToTimeUsec(const struct timeval* tv) {
+  return tv->tv_sec * 1'000'000 + tv->tv_usec;
 }
 
-// Converts from an ICU UDate to an SbTime. NOTE: This is LOSSY.
-UDate SbTimeToUDate(int64_t posix_time) {
-  return static_cast<UDate>(posix_time >= 0 ? posix_time / 1000
-                                            : (posix_time - 1000 + 1) / 1000);
+// Converts from an ICU UDate to an time_usec. NOTE: This is LOSSY.
+UDate TimeUsecToUDate(int64_t time_usec) {
+  return static_cast<UDate>(time_usec >= 0 ? time_usec / 1000
+                                           : (time_usec - 1000 + 1) / 1000);
 }
 
-// Gets the cached TimeZone ID from |g_timezones| for the given EzTimeZone
-// |ez_timezone|.
-const UChar* GetTimeZoneId(EzTimeZone ez_timezone) {
-  pthread_once(&g_eztime_initialization_once, &Initialize);
-  const UChar* timezone_id = g_timezones[ez_timezone];
-  if (timezone_id[0] == 0) {
-    return NULL;
-  }
-
-  return timezone_id;
-}
-
-// Converts EzTimeValue to EzTimeT. NOTE: This is LOSSY.
-static EzTimeT EzTimeValueToEzTimeT(const EzTimeValue* value) {
-  return EzTimeTFromSbTime(EzTimeValueToSbTime(value));
-}
-
-}  // namespace
-
-bool EzTimeTExplode(const EzTimeT* in_time,
-                    EzTimeZone ez_timezone,
-                    EzTimeExploded* out_exploded) {
-  if (!in_time) {
-    return false;
-  }
-  EzTimeValue value = EzTimeTToEzTimeValue(*in_time);
-  return EzTimeValueExplode(&value, ez_timezone, out_exploded, NULL);
-}
-
-bool EzTimeValueExplode(const EzTimeValue* value,
-                        EzTimeZone ez_timezone,
-                        EzTimeExploded* out_exploded,
-                        int* out_milliseconds) {
+// Explodes |value| to a time in the given |timezone|, placing the result in
+// |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
+// NULL. Returns whether the explosion was successful. NOTE: This is LOSSY.
+bool timevalExplode(const struct timeval* value,
+                    const UChar* zone_id,
+                    struct tm* out_exploded,
+                    int* out_milliseconds) {
   if (!value || !out_exploded) {
     return false;
   }
@@ -133,14 +76,14 @@ bool EzTimeValueExplode(const EzTimeValue* value,
 
   // See:
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar = ucal_open(GetTimeZoneId(ez_timezone), -1,
-                                  uloc_getDefault(), UCAL_GREGORIAN, &status);
+  UCalendar* calendar =
+      ucal_open(zone_id, -1, uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
     return false;
   }
 
-  int64_t sb_time = EzTimeValueToSbTime(value);
-  UDate udate = SbTimeToUDate(sb_time);
+  int64_t sb_time = TimevalToTimeUsec(value);
+  UDate udate = TimeUsecToUDate(sb_time);
   ucal_setMillis(calendar, udate, &status);
   out_exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
   out_exploded->tm_mon = ucal_get(calendar, UCAL_MONTH, &status) - UCAL_JANUARY;
@@ -164,15 +107,12 @@ bool EzTimeValueExplode(const EzTimeValue* value,
   return U_SUCCESS(status);
 }
 
-EzTimeT EzTimeTImplode(EzTimeExploded* exploded, EzTimeZone ez_timezone) {
-  EzTimeValue value = EzTimeValueImplode(exploded, 0, ez_timezone);
-  return EzTimeValueToEzTimeT(&value);
-}
-
-EzTimeValue EzTimeValueImplode(EzTimeExploded* exploded,
-                               int millisecond,
-                               EzTimeZone ez_timezone) {
-  EzTimeValue zero_time = {};
+// Implodes |exploded| + |millisecond| as a time in |timezone|, returning the
+// result as an struct timeval.
+struct timeval timevalImplode(struct tm* exploded,
+                              int millisecond,
+                              const UChar* zone_id) {
+  struct timeval zero_time = {};
   if (!exploded) {
     return zero_time;
   }
@@ -186,8 +126,8 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* exploded,
 
   // See:
   // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
-  UCalendar* calendar = ucal_open(GetTimeZoneId(ez_timezone), -1,
-                                  uloc_getDefault(), UCAL_GREGORIAN, &status);
+  UCalendar* calendar =
+      ucal_open(zone_id, -1, uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
     return zero_time;
   }
@@ -205,46 +145,47 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* exploded,
   ucal_close(calendar);
 
   if (status <= U_ZERO_ERROR) {
-    return EzTimeValueFromSbTime(UDateToSbTime(udate));
+    return TimeUsecToTimeval(udate * 1000LL);
   }
 
   return zero_time;
 }
 
-EzTimeT EzTimeTGetNow(EzTimeT* out_now) {
-  struct timeval tv;
-  if (gettimeofday(&tv, NULL) != 0) {
-    return 0;
-  }
-  EzTimeT result = tv.tv_sec;
-  if (out_now) {
-    *out_now = result;
-  }
-  return result;
-}
+}  // namespace
 
-EzTimeExploded* EzTimeTExplodeLocal(const EzTimeT* in_time,
-                                    EzTimeExploded* out_exploded) {
-  if (EzTimeTExplode(in_time, kEzTimeZoneLocal, out_exploded)) {
+struct tm* localtime_r(const time_t* in_time, struct tm* out_exploded) {
+  struct timeval value = TimeUsecToTimeval(*in_time * 1'000'000);
+  if (timevalExplode(&value, kTimeZoneLocal, out_exploded, NULL)) {
     return out_exploded;
   }
 
   return NULL;
 }
 
-EzTimeExploded* EzTimeTExplodeUTC(const EzTimeT* in_time,
-                                  EzTimeExploded* out_exploded) {
-  if (EzTimeTExplode(in_time, kEzTimeZoneUTC, out_exploded)) {
+struct tm* gmtime_r(const time_t* in_time, struct tm* out_exploded) {
+  struct timeval value = TimeUsecToTimeval(*in_time * 1'000'000);
+  if (timevalExplode(&value, kTimeZoneUTC, out_exploded, NULL)) {
     return out_exploded;
   }
 
   return NULL;
 }
 
-EzTimeT EzTimeTImplodeLocal(EzTimeExploded* exploded) {
-  return EzTimeTImplode(exploded, kEzTimeZoneLocal);
+struct tm* gmtime(const time_t* in_time) {
+  static thread_local struct tm gmtime;
+  return gmtime_r(in_time, &gmtime);
+}
+struct tm* localtime(const time_t* in_time) {
+  static thread_local struct tm localtime;
+  return localtime_r(in_time, &localtime);
 }
 
-EzTimeT EzTimeTImplodeUTC(EzTimeExploded* exploded) {
-  return EzTimeTImplode(exploded, kEzTimeZoneUTC);
+time_t mktime(struct tm* exploded) {
+  struct timeval value = timevalImplode(exploded, 0, kTimeZoneLocal);
+  return TimeUsecToTimeT(TimevalToTimeUsec(&value));
+}
+
+time_t timegm(struct tm* exploded) {
+  struct timeval value = timevalImplode(exploded, 0, kTimeZoneUTC);
+  return TimeUsecToTimeT(TimevalToTimeUsec(&value));
 }
