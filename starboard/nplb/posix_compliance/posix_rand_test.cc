@@ -78,9 +78,6 @@ TEST(PosixRandTest, MultipleCallsProduceDifferentValues) {
   EXPECT_NE(val1, val3);
 }
 
-// No error tests are included as POSIX specifies that rand() and srand()
-// do not set errno or return error codes for any input.
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
