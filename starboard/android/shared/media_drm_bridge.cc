@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/android/shared/media_drm_bridge.h"
+
 #include <jni.h>
 
 #include <cstring>
 #include <vector>
-
-#include "starboard/android/shared/media_drm_bridge.h"
 
 #include "starboard/android/shared/drm_system.h"
 
