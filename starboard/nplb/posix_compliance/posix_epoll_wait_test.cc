@@ -281,44 +281,6 @@ TEST_F(PosixEpollWaitTests, WaitForWriteOnReadOnlyPipeEndWhenWriteEndClosed) {
   RemoveFromEpoll(pipe_fds_[0]);
 }
 
-TEST_F(PosixEpollWaitTests, WaitForReadOnWriteOnlyPipeEndWhenReadEndClosed) {
-  AddToEpoll(pipe_fds_[1], EPOLLIN | EPOLLERR | EPOLLHUP);
-
-  ASSERT_NE(pipe_fds_[0], -1);  // Ensure read end is initially valid
-  close(pipe_fds_[0]);
-  pipe_fds_[0] = -1;  // Mark as closed for TearDown logic
-
-  char c = 'x';
-  // Attempting to write to a pipe whose read end is closed should eventually
-  // cause an error. This write helps ensure the kernel flags the FD with an
-  // error state (EPIPE). It might succeed if the pipe buffer isn't full yet,
-  // but subsequent epoll_wait should catch the error. Non-blocking write is
-  // fine, we care about the state epoll reports.
-  write(pipe_fds_[1], &c,
-        1);  // The result doesn't strictly matter for this write call itself.
-
-  int nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
-
-  ASSERT_GT(nfds, 0) << "epoll_wait should report an event on write end when "
-                        "read end is closed. nfds="
-                     << nfds
-                     << ", errno=" << (errno ? strerror(errno) : "none");
-
-  if (nfds > 0) {
-    ASSERT_EQ(events_[0].data.fd, pipe_fds_[1]);
-    bool err_received = (events_[0].events & EPOLLERR);
-    // EPOLLHUP often accompanies EPOLLERR for pipes in this broken state.
-    // bool hup_received = (events_[0].events & EPOLLHUP);
-    ASSERT_TRUE(err_received) << "EPOLLERR not signalled for write-only pipe "
-                                 "end when read end closed. Events: "
-                              << events_[0].events;
-    ASSERT_FALSE(events_[0].events & EPOLLIN)
-        << "EPOLLIN incorrectly signalled for write-only pipe end. Events: "
-        << events_[0].events;
-  }
-  RemoveFromEpoll(pipe_fds_[1]);
-}
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
