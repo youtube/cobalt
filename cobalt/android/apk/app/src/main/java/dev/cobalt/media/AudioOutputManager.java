@@ -32,8 +32,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
+@JNINamespace("starboard::android::shared")
 public class AudioOutputManager {
   private List<AudioTrackBridge> audioTrackBridgeList;
   private Context context;
@@ -134,17 +138,16 @@ public class AudioOutputManager {
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
   @SuppressWarnings("unused")
-  @UsedByNative
   public static class OutputDeviceInfo {
-    @UsedByNative public int type;
-    @UsedByNative public int channels;
+    public int type;
+    public int channels;
 
-    @UsedByNative
+    @CalledByNative("OutputDeviceInfo")
     public int getType() {
       return type;
     }
 
-    @UsedByNative
+    @CalledByNative("OutputDeviceInfo")
     public int getChannels() {
       return channels;
     }
@@ -152,7 +155,7 @@ public class AudioOutputManager {
 
   /** Returns output device info. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   boolean getOutputDeviceInfo(int index, OutputDeviceInfo outDeviceInfo) {
     if (index < 0) {
       return false;
@@ -530,12 +533,12 @@ public class AudioOutputManager {
       new AudioDeviceCallback() {
         @Override
         public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-          nativeOnAudioDeviceChanged();
+          AudioOutputManagerJni.get().onAudioDeviceChanged();
         }
 
         @Override
         public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
-          nativeOnAudioDeviceChanged();
+          AudioOutputManagerJni.get().onAudioDeviceChanged();
         }
       };
 
@@ -551,5 +554,8 @@ public class AudioOutputManager {
     audioDeviceListenerAdded = true;
   }
 
-  private static native void nativeOnAudioDeviceChanged();
+  @NativeMethods
+  interface Natives {
+    void onAudioDeviceChanged();
+  }
 }

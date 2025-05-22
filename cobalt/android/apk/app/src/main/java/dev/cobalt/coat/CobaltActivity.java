@@ -31,6 +31,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
@@ -127,6 +128,8 @@ public abstract class CobaltActivity extends Activity {
             "--js-flags=--optimize_for_size=true",
             // Use SurfaceTexture for decode-to-texture mode.
             "--disable-features=AImageReader",
+            // Disable concurrent-marking due to b/415843979
+            "--js-flags=--concurrent_marking=false",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
@@ -227,11 +230,6 @@ public abstract class CobaltActivity extends Activity {
   private void finishInitialization(Bundle savedInstanceState) {
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
-    // Set to overlay video mode, where
-    // ContentViewRenderView::SetCurrentWebContents() in launchShell()
-    // ensures |compositor_| is created, so it is safe to
-    // setOverlayVideoMode() after WebContents is created.
-    mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
     getStarboardBridge().setWebContents(getActiveWebContents());
@@ -448,6 +446,18 @@ public abstract class CobaltActivity extends Activity {
       webContents.onShow();
     }
     super.onStart();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
