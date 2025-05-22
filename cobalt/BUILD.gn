@@ -188,7 +188,6 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/browser/user_agent",
-    "//cobalt/common/eztime:eztime_test",
     "//cobalt/common/libc:libc_test",
     "//components/metrics",
     "//components/prefs",
