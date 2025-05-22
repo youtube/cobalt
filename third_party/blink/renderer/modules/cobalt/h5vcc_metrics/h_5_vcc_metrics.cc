@@ -194,11 +194,7 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_metrics_);
   visitor->Trace(receiver_);
-<<<<<<< HEAD
-=======
   visitor->Trace(h5vcc_metrics_promises_);
-  EventTargetWithInlineData::Trace(visitor);
->>>>>>> c6509031e09 (Resolve H5vccMetrics Promises on connection close. (#5801))
 }
 
 void H5vccMetrics::CleanupPromise(ScriptPromiseResolver* resolver) {
