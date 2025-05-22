@@ -107,17 +107,24 @@ runs:
         # TODO: Temporarily check gtest xmls for failures to workaround MH bug.
         has_crashes="false"
         has_failures="false"
-        test_xmls=$(${test_output}/**/*.xml)
-        if grep -e '<failure' -e '<error'; then
-          echo "::error::Found failures in the test xml."
+        if grep -e '<failure' -e '<error' "${test_output}/**/*.xml"; then
+          echo "Found failures in the test xml."
           has_failures="true"
         fi
 
-        num_test_targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr '. | length')
-        if [ ${#log_files[@]} -ne ${num_test_targets} ]; then
-          echo "::error::Missing test result xml file(s). Expected ${num_test_targets}, got ${#log_files[@]}"
-          has_crashes="true"
-        fi
+        # Check for missing result xml files.
+        readarray -t test_targets < <(echo "$TEST_TARGETS_JSON" | jq -r '.[]')
+        for target in "${test_targets[@]}"; do
+          xml_files=("${test_output}"/${{ matrix.platform }}/**/"${target}"_result.xml)
+          if [[ "${#xml_files[@]}" -eq 0 ]]; then
+            # Check if the test target is filtered.
+            test_filter_json="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+            if [ -f "${test_filter_json}" ] && [ "$(jq -cr '.failing_tests[0]' ${test_filter_json}" != '*' ]; then
+              echo "Test result xml is missing for ${test_target}."
+              has_crashes="true"
+            fi
+          fi
+        done
 
         if [[ "${has_failures}" == "true" || "${has_crashes}" == "true" ]]; then
           exit 1
