@@ -136,6 +136,8 @@ if (current_toolchain == starboard_toolchain) {
     # Example run:
     # export LD_LIBRARY_PATH=.
     # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    output_dir = root_build_dir
+
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
