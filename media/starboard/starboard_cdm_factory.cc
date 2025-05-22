@@ -16,6 +16,7 @@
 #include "starboard_cdm.h"
 
 #include "base/functional/bind.h"
+#include "base/logging.h"
 #include "base/task/bind_post_task.h"
 #include "media/base/cdm_config.h"
 #include "media/base/key_systems.h"
@@ -33,6 +34,8 @@ void StarboardCdmFactory::Create(
     const SessionKeysChangeCB& session_keys_change_cb,
     const SessionExpirationUpdateCB& session_expiration_update_cb,
     CdmCreatedCB cdm_created_cb) {
+  LOG(INFO) << __func__ << ": cdm_config=" << cdm_config;
+
   auto cdm = base::MakeRefCounted<StarboardCdm>(
       cdm_config, session_message_cb, session_closed_cb, session_keys_change_cb,
       session_expiration_update_cb);

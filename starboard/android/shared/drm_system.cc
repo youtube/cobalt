@@ -14,7 +14,9 @@
 
 #include "starboard/android/shared/drm_system.h"
 
+#include <iomanip>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "starboard/android/shared/jni_env_ext.h"
@@ -45,6 +47,7 @@ const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 const jint REQUEST_TYPE_INITIAL = 0;
 const jint REQUEST_TYPE_RENEWAL = 1;
 const jint REQUEST_TYPE_RELEASE = 2;
+const jint REQUEST_TYPE_INDIVIDUALIZATION = 3;
 
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
@@ -59,8 +62,64 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
   if (request_type == REQUEST_TYPE_RELEASE) {
     return kSbDrmSessionRequestTypeLicenseRelease;
   }
+  if (request_type == REQUEST_TYPE_INDIVIDUALIZATION) {
+    return kSbDrmSessionRequestTypeIndividualizationRequest;
+  }
   SB_NOTREACHED();
   return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
+SbDrmKeyStatus SbDrmKeyStatusFromMediaDrmKeyStatus(jint j_status_code) {
+  switch (j_status_code) {
+    case MEDIA_DRM_KEY_STATUS_EXPIRED:
+      return kSbDrmKeyStatusExpired;
+    case MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR:
+      return kSbDrmKeyStatusError;
+    case MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED:
+      return kSbDrmKeyStatusRestricted;
+    case MEDIA_DRM_KEY_STATUS_PENDING:
+      return kSbDrmKeyStatusPending;
+    case MEDIA_DRM_KEY_STATUS_USABLE:
+      return kSbDrmKeyStatusUsable;
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return kSbDrmKeyStatusError;
+}
+
+std::string ToString(const SbDrmKeyId& keyId) {
+  std::stringstream ss;
+  ss << std::hex << std::setfill('0');  // Set output to hex, fill with '0'
+
+  int actual_size = std::min(keyId.identifier_size, 16);
+  actual_size = std::max(0, actual_size);  // Ensure non-negative
+
+  for (int i = 0; i < actual_size; ++i) {
+    ss << std::setw(2) << static_cast<int>(keyId.identifier[i]);
+  }
+  return ss.str();
+}
+
+std::string ToString(SbDrmKeyStatus status) {
+  switch (status) {
+    case kSbDrmKeyStatusExpired:
+      return "expired";
+    case kSbDrmKeyStatusError:
+      return "error";
+    case kSbDrmKeyStatusRestricted:
+      return "restricted";
+    case kSbDrmKeyStatusPending:
+      return "pending";
+    case kSbDrmKeyStatusUsable:
+      return "usable";
+    default:
+      break;
+  }
+
+  SB_NOTREACHED();
+  return "unknown";
 }
 
 }  // namespace
@@ -140,20 +199,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
 
     jint j_status_code =
         env->CallIntMethodOrAbort(j_key_status, "getStatusCode", "()I");
-    if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusExpired;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED) {
-      drm_key_statuses[i] = kSbDrmKeyStatusRestricted;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_PENDING) {
-      drm_key_statuses[i] = kSbDrmKeyStatusPending;
-    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
-      drm_key_statuses[i] = kSbDrmKeyStatusUsable;
-    } else {
-      SB_NOTREACHED();
-      drm_key_statuses[i] = kSbDrmKeyStatusError;
-    }
+    drm_key_statuses[i] = SbDrmKeyStatusFromMediaDrmKeyStatus(j_status_code);
   }
 
   DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
@@ -217,30 +263,55 @@ DrmSystem::DrmSystem(
   Start();
 }
 
-void DrmSystem::Run() {
-  JniEnvExt* env = JniEnvExt::Get();
-  bool result = env->CallBooleanMethodOrAbort(
-      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
-  if (result) {
-    created_media_crypto_session_.store(true);
-  }
-  if (!result && j_media_crypto_) {
-    env->DeleteGlobalRef(j_media_crypto_);
-    j_media_crypto_ = NULL;
-    return;
-  }
+void DrmSystem::ScheduleTask(const std::function<void(JniEnvExt*)>& task) {
+  std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+  pending_tasks_.push(task);
 
-  ScopedLock scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(j_media_drm_bridge_);
+  condition_.notify_one();
+}
+
+void DrmSystem::StopThread() {
+  running_ = false;
+  condition_.notify_all();
+  SB_LOG(INFO) << "Stop signal sent to scheduler." << std::endl;
+}
+
+void DrmSystem::Run() {
+  SB_CHECK(!running_);
+
+  running_ = true;
+  SB_LOG(INFO) << "Thread loop started.";
+
+  while (running_.load()) {
+    JniEnvExt* env = JniEnvExt::Get();
+
+    std::function<void(JniEnvExt*)> task;
+    {
+      std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
+      // Wait until there's a task or the scheduler is stopped
+      condition_.wait(
+          lock, [this] { return !pending_tasks_.empty() || !running_.load(); });
+
+      // If scheduler is stopped and no more tasks, exit
+      if (!running_.load() && pending_tasks_.empty()) {
+        break;
+      }
+
+      SB_CHECK(!pending_tasks_.empty());
+      task = std::move(pending_tasks_.front());
+      pending_tasks_.pop();
     }
-    deferred_session_update_requests_.clear();
+
+    SB_CHECK(task != nullptr);
+
+    task(env);
   }
+  SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
+  StopThread();
   Join();
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -304,15 +375,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   std::unique_ptr<SessionUpdateRequest> session_update_request(
       new SessionUpdateRequest(ticket, type, initialization_data,
                                initialization_data_size));
-  if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(j_media_drm_bridge_);
-  } else {
-    // Defer generating the update request.
-    session_update_request->ConvertLocalRefToGlobalRef();
-    ScopedLock scoped_lock(mutex_);
-    deferred_session_update_requests_.push_back(
-        std::move(session_update_request));
-  }
+  session_update_request->Generate(j_media_drm_bridge_);
   // |update_request_callback_| will be called by Java calling into
   // |onSessionMessage|.
 }
@@ -342,6 +405,12 @@ void DrmSystem::UpdateSession(int ticket,
                                 ? kSbDrmStatusSuccess
                                 : kSbDrmStatusUnknownError,
                             error_msg.c_str(), session_id, session_id_size);
+
+  if (update_success == JNI_TRUE) {
+    ScheduleTask([this](JniEnvExt* env) {
+      env->CallVoidMethodOrAbort(j_media_drm_bridge_, "runPendingTasks", "()V");
+    });
+  }
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
@@ -366,7 +435,6 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
-  SB_DCHECK(j_media_crypto_);
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
@@ -429,6 +497,17 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
       }
     }
   }
+  std::string log;
+  for (int i = 0; i < drm_key_ids.size(); i++) {
+    log += (i > 0 ? ", " : "") + ToString(drm_key_ids[i]) + "=" +
+           ToString(drm_key_statuses[i]);
+  }
+  SB_LOG(INFO) << "Key status changed: session_id=" << session_id_as_string
+               << ", key_ids={" << log + "}";
+
+  is_key_provided_ = std::any_of(
+      drm_key_statuses.cbegin(), drm_key_statuses.cend(),
+      [](const auto& status) { return status == kSbDrmKeyStatusUsable; });
 
   key_statuses_changed_callback_(this, context_, session_id, session_id_size,
                                  static_cast<int>(drm_key_ids.size()),
@@ -460,6 +539,10 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+bool DrmSystem::IsReady() {
+  return is_key_provided_;
 }
 
 }  // namespace shared

@@ -40,6 +40,29 @@ const char* GetInitDataTypeName(EmeInitDataType type) {
   NOTREACHED() << "Unexpected EmeInitDataType";
 }
 
+std::ostream& operator<<(std::ostream& os, EmeInitDataType type) {
+  return os << GetInitDataTypeName(type);
+}
+
+std::string RequestTypeName(SbDrmSessionRequestType type) {
+  switch (type) {
+    case kSbDrmSessionRequestTypeLicenseRequest:
+      return "License Request";
+    case kSbDrmSessionRequestTypeLicenseRenewal:
+      return "License Renewal";
+    case kSbDrmSessionRequestTypeLicenseRelease:
+      return "License Release";
+    case kSbDrmSessionRequestTypeIndividualizationRequest:
+      return "Individualization Request";
+    default:
+      return "Unknown(" + std::to_string(type) + ")";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type) {
+  return os << RequestTypeName(type);
+}
+
 CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
     SbDrmSessionRequestType type) {
   switch (type) {
@@ -76,6 +99,25 @@ CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
   NOTREACHED() << "Unexpected SbDrmKeyStatus " << status;
 }
 
+#define DEFINE_NAME(code) \
+  case code:              \
+    return #code;
+
+std::string ToString(SbDrmStatus status) {
+  switch (status) {
+    DEFINE_NAME(kSbDrmStatusSuccess)
+    DEFINE_NAME(kSbDrmStatusTypeError)
+    DEFINE_NAME(kSbDrmStatusNotSupportedError)
+    DEFINE_NAME(kSbDrmStatusInvalidStateError)
+    DEFINE_NAME(kSbDrmStatusQuotaExceededError)
+    DEFINE_NAME(kSbDrmStatusUnknownError)
+  }
+  NOTREACHED() << "Unexpected SbDrmStatus " << status;
+}
+
+std::ostream& operator<<(std::ostream& os, SbDrmStatus status) {
+  return os << ToString(status);
+}
 }  // namespace
 
 StarboardCdm::StarboardCdm(
@@ -171,7 +213,7 @@ void StarboardCdm::CreateSessionAndGenerateRequest(
       std::make_pair(ticket, std::move(session_update_request)));
 
   LOG(INFO) << "Generate session update request of drm system (" << sb_drm_
-            << "), type: " << GetInitDataTypeName(init_data_type)
+            << "), type: " << init_data_type
             << ", init data size: " << init_data.size()
             << ", ticket: " << ticket;
 
@@ -193,7 +235,6 @@ void StarboardCdm::UpdateSession(const std::string& session_id,
                                  const std::vector<uint8_t>& response,
                                  std::unique_ptr<SimpleCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  LOG(INFO) << "StarboardCdm - update session";
 
   auto it = std::find(session_list_.begin(), session_list_.end(), session_id);
   if (it == session_list_.end()) {
@@ -222,8 +263,8 @@ void StarboardCdm::UpdateSession(const std::string& session_id,
   ticket_to_session_update_map_.insert(std::make_pair(ticket, session_update));
 
   LOG(INFO) << "Update session of drm system (" << sb_drm_
-            << "), key length: " << response.size() << ", ticket: " << ticket
-            << ", session id: " << session_id;
+            << "), response length: " << response.size()
+            << ", ticket: " << ticket << ", session id: " << session_id;
 
   SbDrmUpdateSession(sb_drm_, ticket, response.data(), response.size(),
                      session_id.c_str(), session_id.size());
@@ -291,8 +332,12 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
 
   LOG(INFO) << "Receiving session update request notification from drm system ("
             << sb_drm_ << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id.value_or("n/a");
+            << ", ticket: "
+            << (SbDrmTicketIsValid(ticket) ? std::to_string(ticket)
+                                           : "(invalid)")
+            << ", session id: " << session_id.value_or("n/a")
+            << ", message size: " << message.size() << ", error message: "
+            << (error_message.empty() ? "n/a" : error_message);
 
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
@@ -335,10 +380,6 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
     }
   }
 
-  LOG(INFO) << "Calling session update request callback on drm system ("
-            << sb_drm_ << ") with type: " << type
-            << ", message size: " << message.size();
-
   auto session_iterator =
       std::find(session_list_.begin(), session_list_.end(), session_id.value());
   if (session_iterator == session_list_.end()) {
@@ -358,7 +399,8 @@ void StarboardCdm::OnSessionUpdated(int ticket,
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "Receiving session updated notification from drm system ("
             << sb_drm_ << "), status: " << status << ", ticket: " << ticket
-            << ", error message: " << error_message;
+            << ", error message: "
+            << (error_message.empty() ? "n/a" : error_message);
 
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
@@ -390,7 +432,7 @@ void StarboardCdm::OnSessionKeyStatusChanged(const std::string& session_id,
   LOG(INFO) << "Receiving session key status changed notification from drm"
             << " system (" << sb_drm_ << "), session id: " << session_id
             << ", number of key ids: " << keys_info.size()
-            << ", has_additional_usable_key?: "
+            << ", has_additional_usable_key: "
             << (has_additional_usable_key ? "true" : "false");
 
   // Find the session by ID.
