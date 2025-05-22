@@ -775,7 +775,7 @@ public class MediaDrmBridge {
 
   @NativeMethods
   interface Natives {
-    // @NativeClassQualifiedName("MediaDrmBridge")
+    @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmSessionMessage(
         long mediaDrmBridge,
         int ticket,
@@ -783,7 +783,7 @@ public class MediaDrmBridge {
         int requestType,
         byte[] message);
 
-    // @NativeClassQualifiedName("MediaDrmBridge")
+    @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmKeyStatusChange(
         long mediaDrmBridge,
         byte[] sessionId,

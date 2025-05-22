@@ -17,6 +17,8 @@
 
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
+#include <jni.h>
+
 #include <memory>
 
 #include <atomic>
@@ -34,6 +36,8 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+using base::android::ScopedJavaGlobalRef;
 
 class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
  public:
@@ -62,7 +66,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                                int certificate_size) override {}
   const void* GetMetrics(int* size) override;
 
-  jobject GetMediaCrypto() const { return j_media_crypto_; }
+  jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
   void CallUpdateRequestCallback(int ticket,
                                  SbDrmSessionRequestType request_type,
                                  const void* session_id,
@@ -78,7 +82,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   void OnInsufficientOutputProtection();
 
   bool is_valid() const {
-    return !j_media_drm_bridge_.is_null() && j_media_crypto_ != NULL;
+    return !j_media_drm_bridge_.is_null() && !j_media_crypto_.is_null();
   }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
@@ -94,16 +98,14 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                          const char* type,
                          const void* initialization_data,
                          int initialization_data_size);
-    ~SessionUpdateRequest();
+    ~SessionUpdateRequest() = default;
 
-    void ConvertLocalRefToGlobalRef();
-    void Generate(jobject j_media_drm_bridge) const;
+    void Generate(ScopedJavaGlobalRef<jobject> j_media_drm_bridge) const;
 
    private:
-    bool references_are_global_ = false;
     jint j_ticket_;
-    jobject j_init_data_;
-    jobject j_mime_;
+    ScopedJavaGlobalRef<jbyteArray> j_init_data_;
+    ScopedJavaGlobalRef<jstring> j_mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
@@ -118,8 +120,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
-  jobject j_media_crypto_;
+  ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
+  ScopedJavaGlobalRef<jobject> j_media_crypto_;
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
       deferred_session_update_requests_;
