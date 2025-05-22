@@ -50,7 +50,7 @@ class CobaltMetricsServicesManagerClientTest : public ::testing::Test {
     temp_dir_.CreateUniqueTempDir();
 
     path_override_ = std::make_unique<base::ScopedPathOverride>(
-        content::SHELL_DIR_USER_DATA, temp_dir_.GetPath());
+        base::DIR_CACHE, temp_dir_.GetPath());
 
     metrics::MetricsService::RegisterPrefs(prefs_.registry());
     // Add any other prefs that might be accessed.
