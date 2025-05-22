@@ -35,7 +35,7 @@ TEST(PosixRandrTest, ReturnsValueWithinRange) {
 
 // Test that RAND_MAX is at least 32767 as per POSIX.
 TEST(PosixRandrTest, RandMaxIsAtLeast32767) {
-  EXPECT_LE(RAND_MAX, 32767);  // POSIX minimum
+  EXPECT_GE(RAND_MAX, 32767);  // POSIX minimum
 }
 
 // Test that different initial seeds produce different sequences.
