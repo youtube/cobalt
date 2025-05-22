@@ -19,16 +19,23 @@
 
 #include "starboard/android/shared/media_drm_bridge.h"
 
-#include "base/android/jni_android.h"
-#include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
 #include "starboard/android/shared/drm_system.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
+
+namespace starboard {
+namespace android {
+namespace shared {
 namespace {
-using base::android::AttachCurrentThread;
 using starboard::android::shared::DrmSystem;
 
 const char kNoUrl[] = "";
 
+// Using all capital names to be consistent with other Android media statuses.
+// They are defined in the same order as in their Java counterparts.  Their
+// values should be kept in consistent with their Java counterparts defined in
+// android.media.MediaDrm.KeyStatus.
 const jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
 const jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
 const jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
@@ -101,15 +108,12 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
 
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
-    // jbyteArray j_key_id = static_cast<jbyteArray>(
-    //     env->CallObjectMethodOrAbort(j_key_status, "getKeyId", "()[B"));
-    jclass mediaDrmClass = env->FindClass("android/media/MediaDrm/KeyStatus");
+    jclass mediaDrmKeyStatusClass =
+        env->FindClass("android/media/MediaDrm$KeyStatus");
     jmethodID getKeyIdMethod =
-        env->GetMethodID(mediaDrmClass, "getKeyId", "()[B");
+        env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
     jbyteArray j_key_id = static_cast<jbyteArray>(
         env->CallObjectMethod(j_key_status, getKeyIdMethod));
-    // jbyteArray j_key_id =
-    // static_cast<jbyteArray>(Java_MediaDrmBridge_getKeyId(env, j_key_status));
 
     jbyte* key_id_elements = env->GetByteArrayElements(j_key_id, NULL);
     jsize key_id_size = env->GetArrayLength(j_key_id);
@@ -120,13 +124,9 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
     env->ReleaseByteArrayElements(j_key_id, key_id_elements, JNI_ABORT);
     drm_key_ids[i].identifier_size = key_id_size;
 
-    // jint j_status_code =
-    //     env->CallIntMethodOrAbort(j_key_status, "getStatusCode", "()I");
     jmethodID getStatusCodeMethod =
-        env->GetMethodID(mediaDrmClass, "getStatusCode", "()I");
+        env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
     jint j_status_code = env->CallIntMethod(j_key_status, getStatusCodeMethod);
-    // jint j_status_code = Java_MediaDrmBridge_getStatusCode(env,
-    // j_key_status);
     if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
       drm_key_statuses[i] = kSbDrmKeyStatusExpired;
     } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
@@ -151,18 +151,45 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
   env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
 }
 
-namespace starboard {
-namespace android {
-namespace shared {
 // static
-bool MediaDrmBridge::IsWidevineSupported() {
-  JNIEnv* env = AttachCurrentThread();
+jboolean MediaDrmBridge::IsSuccess(JNIEnv* env,
+                                   const base::android::JavaRef<jobject>& obj) {
+  return Java_UpdateSessionResult_isSuccess(env, obj);
+}
+
+// static
+ScopedJavaLocalRef<jstring> MediaDrmBridge::GetErrorMessage(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj) {
+  return Java_UpdateSessionResult_getErrorMessage(env, obj);
+}
+
+// static
+ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
+    JNIEnv* env,
+    const JavaRef<jobject>& obj,
+    JniIntWrapper ticket,
+    const JavaRef<jbyteArray>& sessionId,
+    const JavaRef<jbyteArray>& response) {
+  return Java_MediaDrmBridge_updateSession(env, obj, ticket, sessionId,
+                                           response);
+}
+
+// static
+ScopedJavaLocalRef<jobject> MediaDrmBridge::CreateJavaMediaDrmBridge(
+    JNIEnv* env,
+    const JavaRef<jstring>& keySystem,
+    jlong nativeMediaDrmBridge) {
+  return Java_MediaDrmBridge_create(env, keySystem, nativeMediaDrmBridge);
+}
+
+// static
+bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isWidevineCryptoSchemeSupported(env) == JNI_TRUE;
 }
 
 // static
-bool MediaDrmBridge::IsCbcsSupported() {
-  JNIEnv* env = AttachCurrentThread();
+bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
