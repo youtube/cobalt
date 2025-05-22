@@ -88,7 +88,8 @@ def get_websocket_url():
         'tcp:9222',
         'localabstract:content_shell_devtools_remote',
         allow_rebind=True)
-    response = requests.get(f'http://{CDP_HOST}:{COBALT_DEBUG_PORT}/json')
+    response = requests.get(
+        f'http://{CDP_HOST}:{COBALT_DEBUG_PORT}/json', timeout=5)
     response.raise_for_status()  # Raise an exception for bad status codes
     targets = response.json()
 
@@ -97,20 +98,20 @@ def get_websocket_url():
     # For simplicity, we'll take the first 'page' type target.
     for target in targets:
       if target.get('type') == 'page' and target.get('webSocketDebuggerUrl'):
-        print(f'Found existing tab: {target["title"]} - '
-              f'{target["webSocketDebuggerUrl"]}')
+        print(f'Found existing tab: {target["title"]} - '  # pylint: disable=inconsistent-quotes
+              f'{target["webSocketDebuggerUrl"]}')  # pylint: disable=inconsistent-quotes
         return target['webSocketDebuggerUrl']
 
     # If no suitable page target is found, create a new one (optional,
     # but useful)
     print('No suitable existing page found, trying to create a new tab...')
     new_tab_url = f'http://{CDP_HOST}:{COBALT_DEBUG_PORT}/json/new'
-    new_tab_response = requests.get(new_tab_url)
+    new_tab_response = requests.get(new_tab_url, timeout=5)
     new_tab_response.raise_for_status()
     new_tab_data = new_tab_response.json()
     if new_tab_data.get('webSocketDebuggerUrl'):
-      print(f'Created new tab: {new_tab_data["title"]} - '
-            f'{new_tab_data["webSocketDebuggerUrl"]}')
+      print(f'Created new tab: {new_tab_data["title"]} - '  # pylint: disable=inconsistent-quotes
+            f'{new_tab_data["webSocketDebuggerUrl"]}')  # pylint: disable=inconsistent-quotes
       return new_tab_data['webSocketDebuggerUrl']
 
     raise Exception(  # pylint: disable=broad-exception-raised
@@ -177,7 +178,8 @@ def _interact_via_cdp(websocket_url: str):
     }
     ws.send(json.dumps(command))
     response = json.loads(ws.recv())
-    print(f'Enabled Performance domain (ID: {response["id"]})')
+    print(f'Enabled Performance domain (ID: '
+          f'{response["id"]})')  # pylint: disable=inconsistent-quotes
     message_id += 1
 
     # 2. Get Performance Metrics
@@ -193,7 +195,8 @@ def _interact_via_cdp(websocket_url: str):
     if 'result' in response and 'metrics' in response['result']:
       print(f'\nPerformance Metrics for {TARGET_URL}:')
       for metric in response['result']['metrics']:
-        print(f'  {metric["name"]}: {metric["value"]}')
+        print(f'  {metric["name"]}: '  # pylint: disable=inconsistent-quotes
+              f'{metric["value"]}')  # pylint: disable=inconsistent-quotes
     else:
       print(f'Could not retrieve metrics: {response}')
 
