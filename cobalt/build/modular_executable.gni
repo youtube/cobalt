@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-template("local_loader_final_target") {
+template("loader_final_target") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
     group("${original_target_name}_loader") {
@@ -98,7 +98,7 @@ template("modular_executable") {
   if (sb_is_evergreen) {
     target_type = "evergreen_final_target"
   } else {
-    target_type = "local_loader_final_target"
+    target_type = "loader_final_target"
   }
   target(target_type, target_name) {
     forward_variables_from(invoker, "*")
