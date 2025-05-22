@@ -129,40 +129,22 @@ def get_websocket_url():
 
 def _get_chrome_guiding_metrics() -> list:
   metrics = []
-  metrics.append('User.ClientCrashProportion.BrowserCrash3')
-  metrics.append('User.ClientCrashProportion.RendererCrash3')
-  metrics.append('User.ClientRetention')
-  metrics.append('WebVitals.FirstContentfulPaint4')
-  metrics.append('WebVitals.LargestContentfulPaint3')
+  metrics.append('FirstContentfulPaint')
+  metrics.append('LargestContentfulPaint')
+  metrics.append('PrivateMemoryFootprint')
+  metrics.append('MediatedSearchQueryVolume')
   metrics.append('Browser.MainThreadsCongestion')
   metrics.append('EventLatency.GestureScrollUpdate.Touchscreen.TotalLatency')
   metrics.append('Event.ScrollJank.DelayedFramesPercentage.FixedWindow')
   metrics.append('PageLoad.InteractiveTiming.InputDelay3')
-  metrics.append('WebVitals.InteractionToNextPaint2')
-  metrics.append('Startup.Android.Cold.TimeToFirstVisibleContent4')
-  metrics.append('WebVitals.CumulativeLayoutShift6')
-  metrics.append(
-      'PageLoad.Clients.Ads.AdPaintTiming.NavigationToFirstContentfulPaint3')
-  metrics.append('Memory.Browser.PrivateMemoryFootprint')
-  metrics.append('Memory.Renderer.PrivateMemoryFootprint')
-  metrics.append('Memory.Total.PrivateMemoryFootprint')
   metrics.append('Power.ForegroundBatteryDrain.30SecondsAvg2')
-  metrics.append('Omnibox.MediatedSearchQueryVolume')
+
   return metrics
 
 
-def _print_similar_histogram_names(ws):
+def _print_cobalt_histogram_names(ws, message_id: int):
   print('\n', '-' * 50, '\n')
-  metrics = []
-  metrics.append('Crash')
-  metrics.append('Retention')
-  metrics.append('Congestion')
-  metrics.append('Startup')
-  metrics.append('Memory')
-  metrics.append('Graphics')
-  metrics.append('Paint')
-  metrics.append('Latency')
-  for metric in metrics:
+  for metric in _get_chrome_guiding_metrics():
     command = {
         'id': message_id,
         'method': 'Browser.getHistograms',
@@ -215,22 +197,8 @@ def _interact_via_cdp(websocket_url: str):
     else:
       print(f'Could not retrieve metrics: {response}')
 
-  # 3. Get Chrome Histograms
-    print('\n', '-' * 50, '\n')
-    metrics = _get_chrome_guiding_metrics()
-    for metric in metrics:
-      command = {
-          'id': message_id,
-          'method': 'Browser.getHistogram',
-          'params': {
-              'name': metric
-          }
-      }
-      ws.send(json.dumps(command))
-      response = json.loads(ws.recv())
-      message_id += 1
-      print('\n', f'Metric - {metric}:', '\n', response, '\n')
-    print('\n', '-' * 50, '\n')
+    # 3. Get Chrome Histograms
+    _print_cobalt_histogram_names(ws, message_id)
   except Exception as e:  # pylint: disable=broad-exception-caught
     print(f'An error occurred: {e}')
   finally:
