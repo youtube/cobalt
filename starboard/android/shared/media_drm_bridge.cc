@@ -165,17 +165,6 @@ ScopedJavaLocalRef<jstring> MediaDrmBridge::GetErrorMessage(
 }
 
 // static
-ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
-    JNIEnv* env,
-    const JavaRef<jobject>& obj,
-    JniIntWrapper ticket,
-    const JavaRef<jbyteArray>& sessionId,
-    const JavaRef<jbyteArray>& response) {
-  return Java_MediaDrmBridge_updateSession(env, obj, ticket, sessionId,
-                                           response);
-}
-
-// static
 ScopedJavaLocalRef<jobject> MediaDrmBridge::CreateJavaMediaDrmBridge(
     JNIEnv* env,
     const JavaRef<jstring>& keySystem,
@@ -191,6 +180,62 @@ bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
 // static
 bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
   return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
+}
+
+// static
+void MediaDrmBridge::Destroy(JNIEnv* env,
+                             const base::android::JavaRef<jobject>& obj) {
+  Java_MediaDrmBridge_destroy(env, obj);
+}
+
+// static
+void MediaDrmBridge::CreateSession(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj,
+    JniIntWrapper ticket,
+    const base::android::JavaRef<jbyteArray>& initData,
+    const base::android::JavaRef<jstring>& mime) {
+  Java_MediaDrmBridge_createSession(env, obj, ticket, initData, mime);
+}
+
+// static
+ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
+    JNIEnv* env,
+    const JavaRef<jobject>& obj,
+    JniIntWrapper ticket,
+    const JavaRef<jbyteArray>& sessionId,
+    const JavaRef<jbyteArray>& response) {
+  return Java_MediaDrmBridge_updateSession(env, obj, ticket, sessionId,
+                                           response);
+}
+
+// static
+void MediaDrmBridge::CloseSession(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj,
+    const base::android::JavaRef<jbyteArray>& sessionId) {
+  Java_MediaDrmBridge_closeSession(env, obj, sessionId);
+}
+
+// static
+base::android::ScopedJavaLocalRef<jbyteArray>
+MediaDrmBridge::GetMetricsInBase64(JNIEnv* env,
+                                   const base::android::JavaRef<jobject>& obj) {
+  return Java_MediaDrmBridge_getMetricsInBase64(env, obj);
+}
+
+// static
+base::android::ScopedJavaLocalRef<jobject> MediaDrmBridge::GetMediaCrypto(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj) {
+  return Java_MediaDrmBridge_getMediaCrypto(env, obj);
+}
+
+// static
+bool MediaDrmBridge::CreateMediaCryptoSession(
+    JNIEnv* env,
+    const base::android::JavaRef<jobject>& obj) {
+  return Java_MediaDrmBridge_createMediaCryptoSession(env, obj);
 }
 
 }  // namespace shared

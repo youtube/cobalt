@@ -34,18 +34,36 @@ class MediaDrmBridge {
   static ScopedJavaLocalRef<jstring> GetErrorMessage(
       JNIEnv* env,
       const base::android::JavaRef<jobject>& obj);
-  static ScopedJavaLocalRef<jobject> UpdateSession(
-      JNIEnv* env,
-      const JavaRef<jobject>& obj,
-      JniIntWrapper ticket,
-      const JavaRef<jbyteArray>& sessionId,
-      const JavaRef<jbyteArray>& response);
   static ScopedJavaLocalRef<jobject> CreateJavaMediaDrmBridge(
       JNIEnv* env,
       const JavaRef<jstring>& keySystem,
       jlong nativeMediaDrmBridge);
   static bool IsWidevineSupported(JNIEnv* env);
   static bool IsCbcsSupported(JNIEnv* env);
+  static void Destroy(JNIEnv* env, const base::android::JavaRef<jobject>& obj);
+  static void CreateSession(JNIEnv* env,
+                            const base::android::JavaRef<jobject>& obj,
+                            JniIntWrapper ticket,
+                            const base::android::JavaRef<jbyteArray>& initData,
+                            const base::android::JavaRef<jstring>& mime);
+  static ScopedJavaLocalRef<jobject> UpdateSession(
+      JNIEnv* env,
+      const JavaRef<jobject>& obj,
+      JniIntWrapper ticket,
+      const JavaRef<jbyteArray>& sessionId,
+      const JavaRef<jbyteArray>& response);
+  static void CloseSession(JNIEnv* env,
+                           const base::android::JavaRef<jobject>& obj,
+                           const base::android::JavaRef<jbyteArray>& sessionId);
+  static base::android::ScopedJavaLocalRef<jbyteArray> GetMetricsInBase64(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& obj);
+  static base::android::ScopedJavaLocalRef<jobject> GetMediaCrypto(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& obj);
+  static bool CreateMediaCryptoSession(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& obj);
 };
 
 }  // namespace shared
