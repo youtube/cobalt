@@ -18,7 +18,11 @@ CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() =
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
   const GURL& url = navigation_handle()->GetURL();
-  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
+  if (!(url.SchemeIs(url::kHttpsScheme)
+#if !defined(COBALT_IS_RELEASE_BUILD)
+        || url.SchemeIs("chrome")
+#endif  // COBALT_IS_RELEASE_BUILD
+            )) {
     LOG(WARNING) << "Navigation throttle canceling navigation due to "
                     "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
@@ -30,7 +34,12 @@ CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
-  if (!(navigation_handle()->GetURL().SchemeIs(url::kHttpsScheme))) {
+  const GURL& url = navigation_handle()->GetURL();
+  if (!(url.SchemeIs(url::kHttpsScheme)
+#if !defined(COBALT_IS_RELEASE_BUILD)
+        || url.SchemeIs("chrome")
+#endif  // COBALT_IS_RELEASE_BUILD
+            )) {
     LOG(WARNING) << "Navigation throttle canceling navigation due to "
                     "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
