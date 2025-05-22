@@ -17,34 +17,32 @@ CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() =
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
+#if defined(COBALT_IS_RELEASE_BUILD)
   const GURL& url = navigation_handle()->GetURL();
-  if (!(url.SchemeIs(url::kHttpsScheme)
-#if !defined(COBALT_IS_RELEASE_BUILD)
-        || url.SchemeIs("chrome")
-#endif  // COBALT_IS_RELEASE_BUILD
-            )) {
+  if (!(url.SchemeIs(url::kHttpsScheme))) {
     LOG(WARNING) << "Navigation throttle canceling navigation due to "
                     "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
+#endif  // COBALT_IS_RELEASE_BUILD
+
   return content::NavigationThrottle::PROCEED;
 }
 
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
+#if defined(COBALT_IS_RELEASE_BUILD)
   const GURL& url = navigation_handle()->GetURL();
-  if (!(url.SchemeIs(url::kHttpsScheme)
-#if !defined(COBALT_IS_RELEASE_BUILD)
-        || url.SchemeIs("chrome")
-#endif  // COBALT_IS_RELEASE_BUILD
-            )) {
+  if (!(url.SchemeIs(url::kHttpsScheme))) {
     LOG(WARNING) << "Navigation throttle canceling navigation due to "
                     "HTTPS-only violation";
     return content::NavigationThrottle::ThrottleCheckResult(
         content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
   }
+#endif  // COBALT_IS_RELEASE_BUILD
+
   return content::NavigationThrottle::PROCEED;
 }
 
