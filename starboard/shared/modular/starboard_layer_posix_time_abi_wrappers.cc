@@ -73,25 +73,3 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
   }
   return errno_to_musl_errno(retval);
 }
-
-struct musl_tm* __abi_wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
-                                    struct musl_tm* musl_result) {
-  if (!musl_timer || !musl_result) {
-    return NULL;
-  }
-  time_t t = static_cast<time_t>(*musl_timer);  // Platform type may be 32-bits.
-  struct tm tm;  // The type from platform toolchain.
-  if (!gmtime_r(&t, &tm)) {
-    return NULL;
-  }
-  musl_result->tm_sec = tm.tm_sec;
-  musl_result->tm_min = tm.tm_min;
-  musl_result->tm_hour = tm.tm_hour;
-  musl_result->tm_mday = tm.tm_mday;
-  musl_result->tm_mon = tm.tm_mon;
-  musl_result->tm_year = tm.tm_year;
-  musl_result->tm_wday = tm.tm_wday;
-  musl_result->tm_yday = tm.tm_yday;
-  musl_result->tm_isdst = tm.tm_isdst;
-  return musl_result;
-}

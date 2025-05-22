@@ -34,10 +34,4 @@ int clock_nanosleep(clockid_t clk_id,
                     struct timespec* remain) {
   return __abi_wrap_clock_nanosleep(clk_id, flags, ts, remain);
 }
-
-struct tm* __abi_wrap_gmtime_r(const time_t* clock, struct tm* result);
-
-struct tm* gmtime_r(const time_t* clock, struct tm* result) {
-  return __abi_wrap_gmtime_r(clock, result);
-}
 }
