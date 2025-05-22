@@ -14,6 +14,7 @@
 
 static_library("libc") {
   sources = [
+    "icutime.cc",
     "no_destructor.h",
     "stdlib/environment.cc",
     "time/tzset.cc",
