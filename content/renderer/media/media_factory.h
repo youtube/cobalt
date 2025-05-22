@@ -132,7 +132,11 @@ class MediaFactory {
       media::DecoderFactory* decoder_factory,
       std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
       base::WeakPtr<media::MediaObserver>* out_media_observer,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      int element_id, const std::string& max_video_capabilities);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
       int element_id);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   blink::WebMediaPlayer* CreateWebMediaPlayerForMediaStream(
       blink::WebMediaPlayerClient* client,

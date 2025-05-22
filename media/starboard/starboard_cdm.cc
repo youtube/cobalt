@@ -125,6 +125,14 @@ void StarboardCdm::SetServerCertificate(
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "StarboardCdm - Set server cert - size:" << certificate.size();
 
+  if (!SbDrmIsServerCertificateUpdatable(sb_drm_)) {
+    LOG(WARNING)
+        << "Trying to update cert, but DRM system does not support it.";
+    promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+                    "DRM system doesn't support updating server certificate.");
+    return;
+  }
+
   int ticket = next_ticket_++;
   if (!SbDrmTicketIsValid(ticket)) {
     LOG(ERROR) << "Updating server with invalid ticket";

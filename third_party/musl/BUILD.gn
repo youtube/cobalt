@@ -484,6 +484,7 @@ static_library("c_internal") {
     "src/time/__month_to_secs.c",
     "src/time/__tm_to_secs.c",
     "src/time/__year_to_secs.c",
+    "src/time/gettimeofday.c",
     "src/time/strftime.c",
   ]
 
@@ -517,7 +518,7 @@ static_library("c_internal") {
 
   deps = [
     "//starboard:starboard_group",
-    "//starboard/client_porting/eztime",
+    "//cobalt/common/eztime",
     "//starboard/common:common_headers_only",
   ]
 }

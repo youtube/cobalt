@@ -1,6 +1,8 @@
 #include <time.h>
 #include <sys/time.h>
+#if !defined(STARBOARD)
 #include "syscall.h"
+#endif
 
 int gettimeofday(struct timeval *restrict tv, void *restrict tz)
 {

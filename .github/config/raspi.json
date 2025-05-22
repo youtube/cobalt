@@ -1,0 +1,17 @@
+{
+    "docker_service": "raspi",
+    "platforms": [
+      "raspi-2"
+    ],
+    "test_on_host": false,
+    "test_root_target": "//cobalt:gn_all",
+    "num_gtest_shards": 1,
+    "targets": [
+    ],
+    "includes": [
+      {
+        "name": "raspi-2",
+        "platform": "raspi-2"
+      }
+    ]
+  }

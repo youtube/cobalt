@@ -60,6 +60,12 @@ bool DrainFileIsAppDraining(const char* dir, const char* app_key);
 // with key different from |app_key|.
 bool DrainFileIsAnotherAppDraining(const char* dir, const char* app_key);
 
+// Converts a POSIX microseconds timestamp to a Windows microseconds timestamp.
+static SB_C_FORCE_INLINE int64_t PosixTimeToWindowsTime(int64_t posix_time) {
+  // Add number of microseconds since Jan 1, 1601 (UTC) until Jan 1, 1970 (UTC).
+  return posix_time + 11644473600000000ULL;
+}
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
