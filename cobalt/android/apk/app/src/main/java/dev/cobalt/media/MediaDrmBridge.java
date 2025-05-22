@@ -42,10 +42,12 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeClassQualifiedName;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
+@JNINamespace("starboard::android::shared")
 public class MediaDrmBridge {
   // Implementation Notes:
   // - A media crypto session (mMediaCryptoSession) is opened after MediaDrm
@@ -76,7 +78,7 @@ public class MediaDrmBridge {
   private static final UUID WIDEVINE_UUID = UUID.fromString("edef8ba9-79d6-4ace-a3c8-27dcd51d21ed");
 
   // Deprecated in API 26, but we still log it on earlier devices.
-  // We do handle STATUS_EXPIRED in oKeyStatusChange() for API 23+ devices.
+  // We do handle STATUS_EXPIRED in onKeyStatusChange() for API 23+ devices.
   @SuppressWarnings("deprecation")
   private static final int MEDIA_DRM_EVENT_KEY_EXPIRED = MediaDrm.EVENT_KEY_EXPIRED;
 
@@ -131,12 +133,12 @@ public class MediaDrmBridge {
           errorMessage + " StackTrace: " + android.util.Log.getStackTraceString(e));
     }
 
-    @CalledByNative
+    @CalledByNative("UpdateSessionResult")
     public boolean isSuccess() {
       return mIsSuccess;
     }
 
-    @CalledByNative
+    @CalledByNative("UpdateSessionResult")
     public String getErrorMessage() {
       return mErrorMessage;
     }
@@ -773,14 +775,15 @@ public class MediaDrmBridge {
 
   @NativeMethods
   interface Natives {
-    @NativeClassQualifiedName("MediaDrmBridge")
+    // @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmSessionMessage(
         long mediaDrmBridge,
         int ticket,
         byte[] sessionId,
         int requestType,
         byte[] message);
-    @NativeClassQualifiedName("MediaDrmBridge")
+
+    // @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmKeyStatusChange(
         long mediaDrmBridge,
         byte[] sessionId,

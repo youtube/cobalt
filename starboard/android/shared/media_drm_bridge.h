@@ -15,14 +15,37 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
 
+#include <jni.h>
+
+#include "base/android/jni_android.h"
+#include "base/android/jni_int_wrapper.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
 
+using base::android::JavaRef;
+using base::android::ScopedJavaLocalRef;
+
 class MediaDrmBridge {
  public:
-  static bool IsWidevineSupported();
-  static bool IsCbcsSupported();
+  static jboolean IsSuccess(JNIEnv* env,
+                            const base::android::JavaRef<jobject>& obj);
+  static ScopedJavaLocalRef<jstring> GetErrorMessage(
+      JNIEnv* env,
+      const base::android::JavaRef<jobject>& obj);
+  static ScopedJavaLocalRef<jobject> UpdateSession(
+      JNIEnv* env,
+      const JavaRef<jobject>& obj,
+      JniIntWrapper ticket,
+      const JavaRef<jbyteArray>& sessionId,
+      const JavaRef<jbyteArray>& response);
+  static ScopedJavaLocalRef<jobject> CreateJavaMediaDrmBridge(
+      JNIEnv* env,
+      const JavaRef<jstring>& keySystem,
+      jlong nativeMediaDrmBridge);
+  static bool IsWidevineSupported(JNIEnv* env);
+  static bool IsCbcsSupported(JNIEnv* env);
 };
 
 }  // namespace shared

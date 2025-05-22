@@ -17,7 +17,6 @@
 
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
-#include <jni.h>
 #include <memory>
 
 #include <atomic>
@@ -25,7 +24,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "starboard/android/shared/jni_utils.h"
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -79,7 +78,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   void OnInsufficientOutputProtection();
 
   bool is_valid() const {
-    return j_media_drm_bridge_ != NULL && j_media_crypto_ != NULL;
+    return !j_media_drm_bridge_.is_null() && j_media_crypto_ != NULL;
   }
   bool require_secured_decoder() const {
     return IsWidevineL1(key_system_.c_str());
@@ -119,7 +118,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // TODO: Update key statuses to Cobalt.
   SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
-  jobject j_media_drm_bridge_;
+  base::android::ScopedJavaGlobalRef<jobject> j_media_drm_bridge_;
   jobject j_media_crypto_;
 
   std::vector<std::unique_ptr<SessionUpdateRequest>>
