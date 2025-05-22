@@ -48,19 +48,6 @@ struct musl_timespec {
       (__SB_BYTE_ORDER != 4321);
 };
 
-struct musl_tm {
-  int32_t /* int */ tm_sec;
-  int32_t /* int */ tm_min;
-  int32_t /* int */ tm_hour;
-  int32_t /* int */ tm_mday;
-  int32_t /* int */ tm_mon;
-  int32_t /* int */ tm_year;
-  int32_t /* int */ tm_wday;
-  int32_t /* int */ tm_yday;
-  int32_t /* int */ tm_isdst;
-  __MUSL_LONG_TYPE /* long */ __tm_gmtoff;
-  const char* __tm_zone;
-};
 // Copying macro constants from //third_party/musl/include/time.h
 #define MUSL_CLOCK_REALTIME 0
 #define MUSL_CLOCK_MONOTONIC 1
@@ -105,10 +92,6 @@ SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);
 
 SB_EXPORT int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc);
-
-SB_EXPORT struct musl_tm* __abi_wrap_gmtime_r(
-    const int64_t* /* time_t* */ musl_timer,
-    struct musl_tm* musl_result);
 
 #ifdef __cplusplus
 }  // extern "C"
