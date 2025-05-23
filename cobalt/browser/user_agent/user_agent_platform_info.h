@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
-#define COBALT_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
+#ifndef COBALT_BROWSER_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
+#define COBALT_BROWSER_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
 
 #include <map>
 #include <string>
@@ -137,4 +137,4 @@ class UserAgentPlatformInfo {
 
 }  // namespace cobalt
 
-#endif  // COBALT_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
+#endif  // COBALT_BROWSER_USER_AGENT_USER_AGENT_PLATFORM_INFO_H_
