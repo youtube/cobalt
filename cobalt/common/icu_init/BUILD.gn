@@ -12,32 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("libc") {
-  sources = [
-    "no_destructor.h",
-    "stdlib/environment.cc",
-    "syslog/syslog.cc",
-    "time/tzset.cc",
-  ]
+static_library("icu_init") {
+  sources = [ "init.cc" ]
+
   deps = [
-    "//cobalt/common/icu_init",
-    "//cobalt/common/libc/tz",
     "//starboard:starboard_headers_only",
-    "//third_party/icu:icui18n",
-    "//third_party/icu:icuuc_public",
-  ]
-}
-
-source_set("libc_test") {
-  testonly = true
-
-  sources = [ "time/tzset_test.cc" ]
-
-  deps = [
-    ":libc",
-    "tz:tz_test",
-    "//testing/gmock",
-    "//testing/gtest",
+    "//starboard/common:common_headers_only",
     "//third_party/icu:icui18n",
     "//third_party/icu:icuuc_public",
   ]

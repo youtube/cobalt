@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "cobalt/common/libc/no_destructor.h"
+#include "starboard/time_zone.h"
 
 namespace cobalt {
 namespace common {
@@ -88,6 +89,13 @@ char** Environment::InitializeGlobalEnviron() {
   // Set the PATH environment variable, expected by `EnvironmentTest` from
   // base:base_unittests to exist and not be an empty string.
   setenv("PATH", "none", 0);
+
+  // Initialize the TZ variable from the Starboard API.
+  const char* iana_id = SbTimeZoneGetName();
+  if (iana_id) {
+    setenv("TZ", iana_id, 0 /* overwrite */);
+  }
+
   RebuildAndSetGlobalEnviron();
   return ::environ;
 }

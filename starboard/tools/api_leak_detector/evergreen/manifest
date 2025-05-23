@@ -40,7 +40,6 @@ fwrite
 getc
 getcwd
 getrlimit
-gmtime
 initstate
 ioctl
 link
@@ -74,8 +73,6 @@ timegm
 timerfd_create
 timerfd_settime
 tmpfile
-tzname
-tzset
 ungetc
 uselocale
 utimes
