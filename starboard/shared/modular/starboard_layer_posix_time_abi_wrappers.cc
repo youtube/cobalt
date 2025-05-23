@@ -24,6 +24,10 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   // The type from platform toolchain.
   // Map the MUSL clock_id constants to platform constants.
   clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
+  if (clock_id == MUSL_CLOCK_INVALID) {
+    errno = EINVAL;
+    return -1;
+  }
   struct timespec ts;  // The type from platform toolchain.
   int retval = clock_gettime(clock_id, &ts);
   mts->tv_sec = ts.tv_sec;
@@ -51,7 +55,7 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
   ts.tv_sec = mts->tv_sec;
   ts.tv_nsec = mts->tv_nsec;
   clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
-  if (clock_id < 0 || clock_id == CLOCK_PROCESS_CPUTIME_ID ||
+  if (clock_id == MUSL_CLOCK_INVALID || clock_id == CLOCK_PROCESS_CPUTIME_ID ||
       clock_id == MUSL_CLOCK_THREAD_CPUTIME_ID) {
     return MUSL_EINVAL;
   }
