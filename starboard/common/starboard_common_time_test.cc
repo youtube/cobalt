@@ -21,7 +21,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(PosixTimeTest, TimeMatchesGettimeofday) {
+TEST(StarboardCommonTimeTest, TimeMatchesGettimeofday) {
   time_t other_time_s = 0;
   time_t time_s = time(&other_time_s);  // Seconds since Unix epoch.
   struct timeval tv;
@@ -36,7 +36,7 @@ TEST(PosixTimeTest, TimeMatchesGettimeofday) {
   EXPECT_NEAR(time_us, gettimeofday_us, 1'000'000);
 }
 
-TEST(PosixTimeTest, TimeIsKindOfSane) {
+TEST(StarboardCommonTimeTest, TimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();
 
   // Now should be after 2024-01-01 UTC (the past).
@@ -48,7 +48,7 @@ TEST(PosixTimeTest, TimeIsKindOfSane) {
   EXPECT_LT(now_usec, future_usec);
 }
 
-TEST(PosixTimeTest, HasDecentResolution) {
+TEST(StarboardCommonTimeTest, HasDecentResolution) {
   const int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
     int64_t timerStart = CurrentMonotonicTime();
@@ -59,13 +59,12 @@ TEST(PosixTimeTest, HasDecentResolution) {
       // If time hasn't changed within a second, that's beyond low resolution.
       if ((CurrentMonotonicTime() - timerStart) >= 1'000'000) {
         GTEST_FAIL() << "CurrentPosixTime() hasn't changed within a second.";
-        break;
       }
     }
   }
 }
 
-TEST(PosixTimeTest, MonotonicIsMonotonic) {
+TEST(StarboardCommonTimeTest, MonotonicIsMonotonic) {
   const int kTrials = 100;
   for (int trial = 0; trial < kTrials; ++trial) {
     int64_t timerStart = CurrentPosixTime();
@@ -78,7 +77,7 @@ TEST(PosixTimeTest, MonotonicIsMonotonic) {
       if (initialMonotonic != newMonotonic) {
         EXPECT_GT(newMonotonic, initialMonotonic);
         EXPECT_LT(newMonotonic - initialMonotonic, 1'000'000);  // Less than 1s
-        return;
+        break;
       }
 
       // If time hasn't increased within a second, our "high-resolution"
@@ -86,13 +85,12 @@ TEST(PosixTimeTest, MonotonicIsMonotonic) {
       if (CurrentPosixTime() - timerStart >= 1'000'000) {
         GTEST_FAIL() << "CurrentMonotonicTime() hasn't changed within a "
                      << "second.";
-        return;
       }
     }
   }
 }
 
-TEST(PosixTimeTest, GmtimeR) {
+TEST(StarboardCommonTimeTest, GmtimeR) {
   time_t timer = 1722468779;  // Wed 2024-07-31 23:32:59 UTC.
   struct tm result;
   memset(&result, 0, sizeof(result));
