@@ -32,7 +32,7 @@
 #include "cobalt/browser/global_features.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
-#include "cobalt/user_agent/user_agent_platform_info.h"
+#include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
