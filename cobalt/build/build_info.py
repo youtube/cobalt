@@ -170,6 +170,23 @@ def write_build_id_header(output_path):
             cobalt_build_version_number=get_build_id()))
 
 
+def write_licenses(output_path):
+  """Writes a Cobalt licenses_cobalt txt file."""
+  out_dir = os.getcwd()
+  src_dir = os.path.dirname(os.path.dirname(out_dir))
+  command = [
+      'tools/licenses/licenses.py',
+      'license_file',
+      os.path.join(out_dir, output_path),
+      '--gn-target',
+      'cobalt:gn_all',
+      '--gn-out-dir',
+      out_dir,
+  ]
+  subprocess.call(command, cwd=src_dir)
+
+
 if __name__ == '__main__':
   write_build_id_header(sys.argv[1])
   write_build_json(sys.argv[2])
+  write_licenses(sys.argv[3])
