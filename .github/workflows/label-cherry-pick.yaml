@@ -104,7 +104,9 @@ jobs:
           base: ${{ matrix.target_branch }}
           branch: ${{ env.CHERRY_PICK_BRANCH }}
           committer: GitHub Release Automation <github@google.com>
-          reviewers: ${{ github.event.pull_request.user.login }}
+          reviewers: |
+            ${{ github.event.pull_request.user.login }}
+            ${{ github.actor }}
           title: "Cherry pick PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
           body: |
             Refer to the original PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
@@ -122,7 +124,7 @@ jobs:
                 issue_number: context.payload.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '> [!IMPORTANT]\n> Creating the cherry pick PR failed! Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
+                body: '> [!CAUTION]\n> Creating the cherry pick PR failed! Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
               });
             } else if ('${{ steps.cherry-pick.outcome }}' == 'failure') {
               // Comment on the new PR if the cherry pick failed.
@@ -130,6 +132,6 @@ jobs:
                 issue_number: '${{ steps.create-pr.outputs.pull-request-number }}',
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '> [!IMPORTANT]\n> There were merge conflicts while cherry picking! Check out [${{ env.CHERRY_PICK_BRANCH }}](${{ github.repository }}/tree/${{ env.CHERRY_PICK_BRANCH }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
+                body: '![MERGE CONFLICT CAT](https://services.google.com/fh/files/misc/merge_conflict_cat.png)\n> [!CAUTION]\n> There were merge conflicts while cherry picking! Check out [${{ env.CHERRY_PICK_BRANCH }}](${{ github.repository }}/tree/${{ env.CHERRY_PICK_BRANCH }}) and fix the conflicts before proceeding. Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
               });
             }
