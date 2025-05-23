@@ -142,6 +142,8 @@ test("nplb") {
     "posix_compliance/posix_mutex_create_test.cc",
     "posix_compliance/posix_mutex_destroy_test.cc",
     "posix_compliance/posix_once_test.cc",
+    "posix_compliance/posix_rand_r_test.cc",
+    "posix_compliance/posix_rand_test.cc",
     "posix_compliance/posix_socket_accept_test.cc",
     "posix_compliance/posix_socket_bind_test.cc",
     "posix_compliance/posix_socket_connect_test.cc",
