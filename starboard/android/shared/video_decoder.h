@@ -114,10 +114,13 @@ class VideoDecoder
   void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
+  int64_t seek_to_time() override;
 
   void TryToSignalPrerollForTunnelMode();
   bool IsFrameRenderedCallbackEnabled();
+  bool IsFirstTunnelFrameReadyCallbackEnabled();
   void OnFrameRendered(int64_t frame_timestamp);
+  void OnFirstTunnelFrameRendered();
   void OnTunnelModePrerollTimeout();
   void OnTunnelModeCheckForNeedMoreInput();
 
@@ -171,6 +174,8 @@ class VideoDecoder
   // Preroll in tunnel mode is handled in this class instead of in the renderer.
   std::atomic_bool tunnel_mode_prerolling_{true};
   std::atomic_bool tunnel_mode_frame_rendered_{false};
+  std::atomic_bool first_tunnel_frame_ready_{false};
+  starboard::shared::starboard::player::JobQueue::JobToken job_token_;
 
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a

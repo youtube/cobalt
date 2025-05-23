@@ -47,6 +47,7 @@ enum MediaCodecStatus {
 
 const jint BUFFER_FLAG_CODEC_CONFIG = 2;
 const jint BUFFER_FLAG_END_OF_STREAM = 4;
+const jint BUFFER_FLAG_DECODE_ONLY = 32;
 
 const jint CRYPTO_MODE_UNENCRYPTED = 0;
 const jint CRYPTO_MODE_AES_CTR = 1;
@@ -142,6 +143,7 @@ class MediaCodecBridge {
     virtual void OnMediaCodecOutputFormatChanged() = 0;
     // This is only called on video decoder when tunnel mode is enabled.
     virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    virtual void OnMediaCodecFirstTunnelFrameReady() = 0;
 
    protected:
     ~Handler() {}
@@ -192,7 +194,8 @@ class MediaCodecBridge {
   jint QueueSecureInputBuffer(jint index,
                               jint offset,
                               const SbDrmSampleInfo& drm_sample_info,
-                              jlong presentation_time_microseconds);
+                              jlong presentation_time_microseconds,
+                              jint flags);
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
@@ -218,8 +221,10 @@ class MediaCodecBridge {
                                          int size);
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFirstTunnelFrameReady();
 
   static jboolean IsFrameRenderedCallbackEnabled();
+  static jboolean IsFirstTunnelFrameReadyCallbackEnabled();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.

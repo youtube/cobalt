@@ -220,6 +220,7 @@ const int64_t kNeedMoreInputCheckIntervalInTunnelMode = 50'000;  // 50ms
 
 const int kInitialPrerollFrameCount = 8;
 const int kNonInitialPrerollFrameCount = 1;
+const int64_t kNonInitialPrerollTimeout = 2'000'000;  // 2000ms
 
 const int kSeekingPrerollPendingWorkSizeInTunnelMode =
     16 + kInitialPrerollFrameCount;
@@ -293,7 +294,11 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
   void Render(MediaTimeProvider* media_time_provider,
               std::list<scoped_refptr<VideoFrame>>* frames,
-              VideoRendererSink::DrawFrameCB draw_frame_cb) override {}
+              VideoRendererSink::DrawFrameCB draw_frame_cb) override {
+    while (frames->size() > 0 && !frames->front()->is_end_of_stream()) {
+      frames->pop_front();
+    }
+  }
   void Seek(int64_t seek_to_time) override {
     frame_tracker_->Seek(seek_to_time);
   }
@@ -363,6 +368,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      tunnel_mode_frame_rendered_(false),
       enable_flush_during_seek_(enable_flush_during_seek),
       force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
@@ -618,6 +624,7 @@ void VideoDecoder::Reset() {
   output_format_ = starboard::nullopt;
 
   tunnel_mode_prerolling_.store(true);
+  first_tunnel_frame_ready_.store(false);
   tunnel_mode_frame_rendered_.store(false);
   end_of_stream_written_ = false;
   pending_input_buffers_.clear();
@@ -726,6 +733,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       j_output_surface, drm_system_,
       color_metadata_ ? &*color_metadata_ : nullptr, require_software_codec_,
       std::bind(&VideoDecoder::OnFrameRendered, this, _1),
+      std::bind(&VideoDecoder::OnFirstTunnelFrameRendered, this),
       tunnel_mode_audio_session_id_, force_big_endian_hdr_metadata_,
       max_video_input_size_, error_message));
   if (media_decoder_->is_valid()) {
@@ -867,14 +875,24 @@ void VideoDecoder::WriteInputBuffersInternal(
       bool prerolled = tunnel_mode_frame_rendered_.load() > 0 ||
                        enough_buffers_written_to_media_codec || cache_full;
 
-      if (prerolled && tunnel_mode_prerolling_.exchange(false)) {
+      if ((!IsFirstTunnelFrameReadyCallbackEnabled() ||
+           first_tunnel_frame_ready_.load()) &&
+          prerolled && tunnel_mode_prerolling_.exchange(false)) {
         SB_LOG(INFO)
             << "Tunnel mode preroll finished on enqueuing input buffer "
             << max_timestamp << ", for seek time "
             << video_frame_tracker_->seek_to_time();
+        RemoveJobByToken(job_token_);
+        job_token_.ResetToInvalid();
         decoder_status_cb_(
             kNeedMoreInput,
             new VideoFrame(video_frame_tracker_->seek_to_time()));
+        return;
+      }
+      if (prerolled && !job_token_.is_valid()) {
+        job_token_ =
+            Schedule(std::bind(&VideoDecoder::OnTunnelModePrerollTimeout, this),
+                     kNonInitialPrerollTimeout);
       }
     }
   }
@@ -909,6 +927,12 @@ void VideoDecoder::ProcessOutputBuffer(
       is_end_of_stream ? kBufferFull : kNeedMoreInput,
       new VideoFrameImpl(dequeue_output_result, media_codec_bridge,
                          std::bind(&VideoDecoder::OnVideoFrameRelease, this)));
+}
+
+void VideoDecoder::OnFirstTunnelFrameRendered() {
+  SB_LOG(INFO) << "OnFirstTunnelFrameRendered";
+  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  first_tunnel_frame_ready_.store(true);
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -1167,6 +1191,10 @@ bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
   return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
 
+bool VideoDecoder::IsFirstTunnelFrameReadyCallbackEnabled() {
+  return MediaCodecBridge::IsFirstTunnelFrameReadyCallbackEnabled() == JNI_TRUE;
+}
+
 void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
@@ -1180,6 +1208,9 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+
+  RemoveJobByToken(job_token_);
+  job_token_.ResetToInvalid();
 
   if (tunnel_mode_prerolling_.exchange(false)) {
     SB_LOG(INFO) << "Tunnel mode preroll finished due to timeout.";
@@ -1247,7 +1278,13 @@ void VideoDecoder::ReportError(SbPlayerError error,
   error_cb_(kSbPlayerErrorDecode, error_message);
 }
 
-}  // namespace starboard::android::shared
+int64_t VideoDecoder::seek_to_time() {
+  return video_frame_tracker_->seek_to_time();
+}
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_VideoSurfaceTexture_nativeOnFrameAvailable(

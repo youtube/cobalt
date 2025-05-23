@@ -14,6 +14,9 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <memory>
+#include <string>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
@@ -105,6 +108,16 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_MediaCodecBridge_OnMediaCodecFirstTunnelFrameReady(
+    JNIEnv* env,
+    jlong native_media_codec_bridge) {
+  MediaCodecBridge* media_codec_bridge =
+      reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
+  SB_DCHECK(media_codec_bridge);
+  media_codec_bridge->OnMediaCodecFirstTunnelFrameReady();
 }
 
 extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
@@ -385,7 +398,8 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     jint index,
     jint offset,
     const SbDrmSampleInfo& drm_sample_info,
-    jlong presentation_time_microseconds) {
+    jlong presentation_time_microseconds,
+    jint flags) {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_iv =
@@ -421,7 +435,7 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
   return Java_MediaCodecBridge_queueSecureInputBuffer(
       env, j_media_codec_bridge_, index, offset, j_iv, j_key_id, j_clear_bytes,
       j_encrypted_bytes, subsample_count, cipher_mode, blocks_to_encrypt,
-      blocks_to_skip, presentation_time_microseconds);
+      blocks_to_skip, presentation_time_microseconds, flags);
 }
 
 ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -539,6 +553,10 @@ void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
   handler_->OnMediaCodecFrameRendered(frame_timestamp);
 }
 
+void MediaCodecBridge::OnMediaCodecFirstTunnelFrameReady() {
+  handler_->OnMediaCodecFirstTunnelFrameReady();
+}
+
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
   SB_DCHECK(handler_);
 }
@@ -563,4 +581,12 @@ jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
   return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
-}  // namespace starboard::android::shared
+// static
+jboolean MediaCodecBridge::IsFirstTunnelFrameReadyCallbackEnabled() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_isFirstTunnelFrameReadyCallbackEnabled(env);
+}
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
