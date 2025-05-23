@@ -279,6 +279,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       was_playing = true;
       last_playback_head_event_at = -1;
       bridge_.Play();
+      // Update the consumed frames immediately after play() finishes.
+      continue;
     }
 
     if (!is_playing || frames_in_buffer == 0) {
