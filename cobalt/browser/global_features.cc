@@ -100,7 +100,7 @@ void GlobalFeatures::CreateExperimentConfig() {
 void GlobalFeatures::CreateMetricsServices() {
   CreateMetricsLocalState();
   DCHECK(metrics_local_state_)
-      << "CreateLocalState() must have been called previously";
+      << "CreateMetricsLocalState() must have been called previously";
   auto client = std::make_unique<CobaltMetricsServicesManagerClient>(
       metrics_local_state_.get());
   metrics_services_manager_client_ = client.get();

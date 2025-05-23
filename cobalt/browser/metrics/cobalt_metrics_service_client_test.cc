@@ -21,6 +21,7 @@
 #include "base/allocator/partition_allocator/pointers/raw_ptr.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/path_service.h"
 #include "base/test/mock_callback.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
@@ -189,7 +190,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     path_override_ = std::make_unique<base::ScopedPathOverride>(
-        content::SHELL_DIR_USER_DATA, temp_dir_.GetPath());
+        base::DIR_CACHE, temp_dir_.GetPath());
 
     // Register all metric-related prefs, otherwise tests crash when calling
     // upstream metrics code.
