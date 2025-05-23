@@ -43,14 +43,14 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
-  # This is cobalt on linux using evergreen build config
-  linux-evergreen:
+  # This is cobalt on linux using modular build config
+  linux-modular:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-evergreen
+      platform: linux-modular
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
