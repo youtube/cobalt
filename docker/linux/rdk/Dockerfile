@@ -15,6 +15,7 @@
 FROM cobalt-build-base
 
 ARG rdk_home=/root/rdk-home
+ARG rdk_toolchain=20250521_rdk-glibc-x86_64-arm-toolchain-2.0.sh
 
 # Required by the gyp build system.
 ENV RDK_HOME=${rdk_home}
@@ -28,9 +29,15 @@ RUN apt update -qqy \
         binutils-arm-linux-gnueabi \
         libglib2.0-dev \
         pkg-config \
+        libtool \
     && /opt/clean-after-apt.sh
 
-# TODO(b/402053134): fetch and extract the RDK sysroot at $RDK_HOME, once the sysroot is public available
+# Get the toolchain package.
+RUN cd /tmp \
+    && curl --silent -O -J \
+    "https://storage.googleapis.com/cobalt-static-storage-public/${rdk_toolchain}" \
+    && sh ${rdk_toolchain} -y -d ${rdk_home} \
+    && rm /tmp/${rdk_toolchain}
 
 # TODO(b/402053134): for now we only build evergreen targets, once modular builds are working this needs to updated to build modular by default
 CMD gn gen ${OUTDIR}/${PLATFORM}${SB_API_VERSION:+-sbversion-$SB_API_VERSION}_${CONFIG:-debug} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG:-debug}\" target_cpu=\"arm\" target_os=\"linux\" is_clang=false using_old_compiler=true rdk_build_with_yocto=false rdk_starboard_root=\"//starboard/contrib/rdk/src\" rdk_enable_securityagent=false ${SB_API_VERSION:+sb_api_version=$SB_API_VERSION}" && \
