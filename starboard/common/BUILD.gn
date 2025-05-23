@@ -110,6 +110,7 @@ source_set("common_test") {
     "player_test.cc",
     "queue_test.cc",
     "semaphore_test.cc",
+    "starboard_common_time_test.cc",
   ]
   deps = [
     ":common",

@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <errno.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
 
 #include <array>
+#include <cerrno>
 #include <cstddef>
 #include <string>
 
@@ -31,34 +33,34 @@ namespace {
 const UChar kTimeZoneUTC[] = u"Etc/UTC";
 const UChar* kTimeZoneLocal = nullptr;
 
+// Converts time_usec to struct timeval.
+static struct timeval TimeToTimeval(const time_t time_sec) {
+  struct timeval tv = {time_sec, 0};  // NOLINT(readability/casting)
+  return tv;
+}
+
 // Converts time_usec to time_t. NOTE: This is LOSSY.
-static time_t TimeUsecToTimeT(int64_t time_usec) {
-  return time_usec >= 0 ? time_usec / 1'000'000
-                        : (time_usec - 1'000'000 + 1) / 1'000'000;
+static time_t UDateToTimeT(const UDate time_udate) {
+  return time_udate >= 0 ? time_udate / 1'000
+                         : (time_udate - 1'000 + 1) / 1'000;
 }
 
 // Converts time_usec to struct timeval.
-static struct timeval TimeUsecToTimeval(int64_t time_usec) {
-  time_t sec = TimeUsecToTimeT(time_usec);
-  int64_t diff = time_usec - sec * 1'000'000;
+static struct timeval UDateToTimeval(const UDate time_udate) {
+  time_t sec = UDateToTimeT(time_udate);
+  int64_t diff = time_udate * 1'000 - sec * 1'000'000;
   struct timeval tv = {sec, (int)diff};  // NOLINT(readability/casting)
   return tv;
 }
 
 // Converts struct timeval to time_usec.
-static int64_t TimevalToTimeUsec(const struct timeval* tv) {
-  return tv->tv_sec * 1'000'000 + tv->tv_usec;
-}
-
-// Converts from an ICU UDate to an time_usec. NOTE: This is LOSSY.
-UDate TimeUsecToUDate(int64_t time_usec) {
-  return static_cast<UDate>(time_usec >= 0 ? time_usec / 1000
-                                           : (time_usec - 1000 + 1) / 1000);
+static UDate TimevalToUDate(const struct timeval* tv) {
+  return tv->tv_sec * 1'000 + tv->tv_usec / 1'000;
 }
 
 // Explodes |value| to a time in the given |timezone|, placing the result in
 // |out_exploded|, with the remainder milliseconds in |out_millisecond|, if not
-// NULL. Returns whether the explosion was successful. NOTE: This is LOSSY.
+// nullptr. Returns whether the explosion was successful. NOTE: This is LOSSY.
 bool timevalExplode(const struct timeval* value,
                     const UChar* zone_id,
                     struct tm* out_exploded,
@@ -82,8 +84,7 @@ bool timevalExplode(const struct timeval* value,
     return false;
   }
 
-  int64_t sb_time = TimevalToTimeUsec(value);
-  UDate udate = TimeUsecToUDate(sb_time);
+  UDate udate = TimevalToUDate(value);
   ucal_setMillis(calendar, udate, &status);
   out_exploded->tm_year = ucal_get(calendar, UCAL_YEAR, &status) - 1900;
   out_exploded->tm_mon = ucal_get(calendar, UCAL_MONTH, &status) - UCAL_JANUARY;
@@ -145,30 +146,53 @@ struct timeval timevalImplode(struct tm* exploded,
   ucal_close(calendar);
 
   if (status <= U_ZERO_ERROR) {
-    return TimeUsecToTimeval(udate * 1000LL);
+    return UDateToTimeval(udate);
   }
 
   return zero_time;
 }
 
+// The maximum time_t value that doesn't overflow 'struct tm'.
+const time_t kMaxTimeValForStructTm =
+    67767976233521999;  // Tue Dec 31 23:59:59 2147483647
+
+const time_t kMinTimeValForStructTm =
+    -67768040609712422;  // Thu Jan  1 00:00:00 -2147481748
+
 }  // namespace
 
 struct tm* localtime_r(const time_t* in_time, struct tm* out_exploded) {
-  struct timeval value = TimeUsecToTimeval(*in_time * 1'000'000);
-  if (timevalExplode(&value, kTimeZoneLocal, out_exploded, NULL)) {
+  if (!in_time) {
+    errno = EINVAL;
+    return nullptr;
+  }
+  if (*in_time < kMinTimeValForStructTm || *in_time > kMaxTimeValForStructTm) {
+    errno = EOVERFLOW;
+    return nullptr;
+  }
+  struct timeval value = TimeToTimeval(*in_time);
+  if (timevalExplode(&value, kTimeZoneLocal, out_exploded, nullptr)) {
     return out_exploded;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct tm* gmtime_r(const time_t* in_time, struct tm* out_exploded) {
-  struct timeval value = TimeUsecToTimeval(*in_time * 1'000'000);
-  if (timevalExplode(&value, kTimeZoneUTC, out_exploded, NULL)) {
+  if (!in_time) {
+    errno = EINVAL;
+    return nullptr;
+  }
+  if (*in_time < kMinTimeValForStructTm || *in_time > kMaxTimeValForStructTm) {
+    errno = EOVERFLOW;
+    return nullptr;
+  }
+  struct timeval value = TimeToTimeval(*in_time);
+  if (timevalExplode(&value, kTimeZoneUTC, out_exploded, nullptr)) {
     return out_exploded;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 struct tm* gmtime(const time_t* in_time) {
@@ -182,10 +206,10 @@ struct tm* localtime(const time_t* in_time) {
 
 time_t mktime(struct tm* exploded) {
   struct timeval value = timevalImplode(exploded, 0, kTimeZoneLocal);
-  return TimeUsecToTimeT(TimevalToTimeUsec(&value));
+  return value.tv_sec;
 }
 
 time_t timegm(struct tm* exploded) {
   struct timeval value = timevalImplode(exploded, 0, kTimeZoneUTC);
-  return TimeUsecToTimeT(TimevalToTimeUsec(&value));
+  return value.tv_sec;
 }
