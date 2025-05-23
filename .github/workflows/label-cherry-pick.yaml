@@ -122,7 +122,7 @@ jobs:
                 issue_number: context.payload.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: '> [!IMPORTANT]\n> Creating the cherry pick PR failed! Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
+                body: '> ![MERGE CONFLICT CAT](https://services.google.com/fh/files/misc/merge_conflict_cat.png)\n[!CAUTION]\n> Creating the cherry pick PR failed! Check the log at ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} for details.'
               });
             } else if ('${{ steps.cherry-pick.outcome }}' == 'failure') {
               // Comment on the new PR if the cherry pick failed.
