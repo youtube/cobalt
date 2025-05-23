@@ -93,6 +93,7 @@ if (current_toolchain == starboard_toolchain) {
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+    output_dir = root_build_dir
     if (cobalt_font_package == "empty") {
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     } else {
@@ -135,6 +136,8 @@ if (current_toolchain == starboard_toolchain) {
     # Example run:
     # export LD_LIBRARY_PATH=.
     # ./elf_loader_sys_sandbox --evergreen_library=app/cobalt/lib/libcobalt.so --evergreen_content=app/cobalt/content
+    output_dir = root_build_dir
+
     sources = [ "elf_loader_sandbox.cc" ]
     configs += [ ":elf_loader_config" ]
 
