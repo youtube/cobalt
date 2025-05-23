@@ -7,9 +7,9 @@
     "components/viz:viz_unittests_loader"
   ],
   "executables": [
-    "out/linux-x64x11-evergreen_devel/base_unittests_loader",
-    "out/linux-x64x11-evergreen_devel/nplb_loader",
-    "out/linux-x64x11-evergreen_devel/cc_unittests_loader",
-    "out/linux-x64x11-evergreen_devel/viz_unittests_loader"
+    "out/linux-x64x11-modular_devel/base_unittests_loader",
+    "out/linux-x64x11-modular_devel/nplb_loader",
+    "out/linux-x64x11-modular_devel/cc_unittests_loader",
+    "out/linux-x64x11-modular_devel/viz_unittests_loader"
   ]
 }
