@@ -3,6 +3,7 @@ import("//cobalt/build/configs/linux-x64x11-evergreen/args.gn")
 use_asan = false
 target_os = "linux"
 target_cpu = "arm"
+target_platform = "raspi-2"
 treat_warnings_as_errors = false
 fatal_linker_warnings = true
 use_gold = false

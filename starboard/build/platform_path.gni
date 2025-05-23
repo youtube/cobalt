@@ -36,7 +36,8 @@ if (starboard_path == "") {
       if (target_cpu == "x64") {
         target_platform = "linux-x64x11"
       } else if (target_cpu == "arm") {
-        target_platform = "raspi-2"
+        assert(target_platform != "",
+               "Override the platform in the platform's args.gn file")
       } else {
         assert(false, "Unsupported linux target cpu ${target_cpu}.")
       }
