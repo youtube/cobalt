@@ -56,7 +56,11 @@ config("icu_config") {
     # To prevent re-entrant calls into tzset(), we must disable ICU's
     # internal call to tzset(). Defining U_HAVE_TZSET achieves this by
     # making ICU's uprv_tzset() a no-op.
-    defines += [ "U_HAVE_TZSET", "U_HAVE_TIMEZONE", "U_TIMEZONE=timezone" ]
+    defines += [
+      "U_HAVE_TZSET",
+      "U_HAVE_TIMEZONE",
+      "U_TIMEZONE=timezone",
+    ]
   }
 
   include_dirs = [
