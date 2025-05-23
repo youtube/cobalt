@@ -67,6 +67,7 @@ struct musl_tm {
   const char* __tm_zone;
 };
 // Copying macro constants from //third_party/musl/include/time.h
+#define MUSL_CLOCK_INVALID -1
 #define MUSL_CLOCK_REALTIME 0
 #define MUSL_CLOCK_MONOTONIC 1
 #define MUSL_CLOCK_PROCESS_CPUTIME_ID 2
@@ -126,7 +127,8 @@ inline int clock_id_to_musl_clock_id(int clock_id) {
       return MUSL_CLOCK_TAI;
 #endif
     default:
-      return -1;
+      // return a value to be treated as an invalid clock ID.
+      return MUSL_CLOCK_INVALID;
   }
 }
 
@@ -177,7 +179,8 @@ inline int musl_clock_id_to_clock_id(int musl_clock_id) {
       return CLOCK_TAI;
 #endif
     default:
-      return -1;
+      // return a value to be treated as an invalid clock ID.
+      return MUSL_CLOCK_INVALID;
   }
 }
 
