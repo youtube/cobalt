@@ -16,15 +16,25 @@
 
 #include <utility>
 
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
 #include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/gpu/starboard/starboard_gpu_factory.h"
 #include "media/mojo/services/mojo_media_log.h"
+#include "ui/gl/gl_bindings.h"
 
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
+#if BUILDFLAG(IS_ANDROID)
+    StarboardRendererTraits traits,
+    scoped_refptr<gpu::RefCountedLock> drdc_lock)
+    : gpu::RefCountedLockHelperDrDc(std::move(drdc_lock)),
+#else   // BUILDFLAG(IS_ANDROID)
     StarboardRendererTraits traits)
-    : renderer_extension_receiver_(
+    :
+#endif  // BUILDFLAG(IS_ANDROID)
+      renderer_extension_receiver_(
           this,
           std::move(traits.renderer_extension_receiver)),
       client_extension_remote_(std::move(traits.client_extension_remote),
@@ -36,7 +46,12 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
           traits.audio_write_duration_remote,
-          traits.max_video_capabilities) {
+          traits.max_video_capabilities),
+      get_starboard_command_buffer_stub_cb_(
+          traits.get_starboard_command_buffer_stub_cb),
+      gpu_factory_(traits.gpu_task_runner,
+                   traits.get_starboard_command_buffer_stub_cb),
+      gpu_task_runner_(std::move(traits.gpu_task_runner)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -50,9 +65,19 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
   // OnGpuChannelTokenReady() is called before Initialize()
   // in StarboardRendererClient, so it is safe to access
   // |command_buffer_id_| for posting gpu tasks.
-  if (command_buffer_id_) {
-    // TODO(b/409105749): create TextureOwner if SbPlayer works in
-    // decode-to-texture mode.
+  if (IsGpuChannelTokenAvailable()) {
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    gpu_factory_.AsyncCall(&StarboardGpuFactory::Initialize)
+        .WithArgs(command_buffer_id_->channel_token,
+                  command_buffer_id_->route_id, &done_event)
+        .Then(base::BindOnce(&StarboardRendererWrapper::OnGpuFactoryInitialized,
+                             weak_factory_.GetWeakPtr()));
+    // Blocking is okay here because it ensures TextureOwner is created
+    // with valid |texture_native_id_| before OnGpuFactoryInitialized().
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+    done_event.Wait();
   }
 
   renderer_.SetStarboardRendererCallbacks(
@@ -62,6 +87,14 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
       base::BindRepeating(
           &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
           weak_factory_.GetWeakPtr()));
+
+  if (IsGpuChannelTokenAvailable() && !is_gpu_factory_initialized_) {
+    media_resource_ = media_resource;
+    client_ = client;
+    init_cb_ = std::move(init_cb);
+    return;
+  }
+
   renderer_.Initialize(media_resource, client, std::move(init_cb));
 }
 
@@ -119,6 +152,104 @@ void StarboardRendererWrapper::OnGpuChannelTokenReady(
   command_buffer_id_ = std::move(command_buffer_id);
 }
 
+void StarboardRendererWrapper::GetCurrentVideoFrame(
+    GetCurrentVideoFrameCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  {
+    // Post renderer_.GetSbDecodeTarget() on the gpu thread.
+    base::RepeatingCallback<void()> get_current_decode_target_cb =
+        base::BindRepeating(&StarboardRendererWrapper::GetCurrentDecodeTarget,
+                            base::Unretained(this));
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    gpu_factory_.AsyncCall(&StarboardGpuFactory::RunCallbackOnGpu)
+        .WithArgs(std::move(get_current_decode_target_cb), &done_event);
+    // TODO(borongchen): Blocking is okay here because XYZ.
+    base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+    done_event.Wait();
+  }
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    auto info = std::make_unique<SbDecodeTargetInfo>();
+    memset(info.get(), 0, sizeof(SbDecodeTargetInfo));
+    CHECK(SbDecodeTargetGetInfo(decode_target_, info.get()));
+
+    VideoPixelFormat format;
+    std::vector<uint32_t> texture_service_ids;
+    std::vector<gpu::Mailbox> mailboxes;
+    int plane_count = SbDecodeTargetNumberOfPlanesForFormat(info.get()->format);
+    DCHECK_GE(plane_count, 1);
+    const SbDecodeTargetInfoPlane& plane = info.get()->planes[0];
+    auto coded_size = gfx::Size(info.get()->width, info.get()->height);
+    auto visible_rect = gfx::Rect(
+        gfx::Point(0, 0),
+        gfx::Size(
+            std::abs(plane.content_region.right - plane.content_region.left),
+            std::abs(plane.content_region.top - plane.content_region.bottom)));
+    auto natural_size = visible_rect.size();
+
+    if (info.get()->format == kSbDecodeTargetFormat1PlaneRGBA) {
+      DCHECK_EQ(plane_count, 1u);
+      format = PIXEL_FORMAT_ABGR;
+    } else if (info.get()->format == kSbDecodeTargetFormat3PlaneYUVI420) {
+      DCHECK_EQ(plane_count, 3u);
+      format = PIXEL_FORMAT_YV12;
+    } else {
+      NOTREACHED() << "Unsupported SbDecodeTargetFormat: "
+                   << static_cast<int>(info.get()->format);
+      std::move(callback).Run(nullptr);
+      return;
+    }
+    for (int plane_index = 0; plane_index < plane_count; plane_index++) {
+      SbDecodeTargetInfoPlane plane = info.get()->planes[plane_index];
+      texture_service_ids.push_back(plane.texture);
+    }
+    DCHECK_EQ(texture_service_ids.size(), plane_count);
+    {
+      base::WaitableEvent done_event(
+          base::WaitableEvent::ResetPolicy::MANUAL,
+          base::WaitableEvent::InitialState::NOT_SIGNALED);
+      gpu_factory_.AsyncCall(&StarboardGpuFactory::CreateImageOnGpu)
+          .WithArgs(coded_size, renderer_.color_space(), plane_count,
+                    std::ref(mailboxes), std::ref(texture_service_ids),
+#if BUILDFLAG(IS_ANDROID)
+                    GetDrDcLock(),
+#endif  // BUILDFLAG(IS_ANDROID)
+                    &done_event);
+      // TODO(borongchen): Blocking is okay here because XYZ.
+      base::ScopedAllowBaseSyncPrimitivesOutsideBlockingScope allow_wait;
+      done_event.Wait();
+      DCHECK_EQ(mailboxes.size(), plane_count);
+      if (mailboxes.size()) {
+        CreateVideoFrame_OnImageReady(format, coded_size, visible_rect,
+                                      natural_size, mailboxes);
+      }
+    }
+  }
+  if (current_frame_) {
+    // TODO(borongchen): return VideoFrame
+    std::move(callback).Run(std::move(current_frame_));
+    // std::move(callback).Run(nullptr);
+  } else {
+    std::move(callback).Run(nullptr);
+  }
+}
+
+void StarboardRendererWrapper::OnGpuFactoryInitialized() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  is_gpu_factory_initialized_ = true;
+  decode_target_graphics_context_provider_.gles_context_runner_context = this;
+  decode_target_graphics_context_provider_.gles_context_runner =
+      &StarboardRendererWrapper::GraphicsContextRunner;
+  renderer_.set_decode_target_graphics_context_provider(base::BindRepeating(
+      &StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider,
+      base::Unretained(this)));
+
+  if (media_resource_ != nullptr && client_ != nullptr && !init_cb_.is_null()) {
+    renderer_.Initialize(media_resource_, client_, std::move(init_cb_));
+  }
+}
+
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(
     const gfx::Size& size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
@@ -129,6 +260,68 @@ void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
     const StarboardRenderingMode mode) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->UpdateStarboardRenderingMode(mode);
+}
+
+SbDecodeTargetGraphicsContextProvider*
+StarboardRendererWrapper::GetSbDecodeTargetGraphicsContextProvider() {
+  return &decode_target_graphics_context_provider_;
+}
+
+// static
+void StarboardRendererWrapper::GraphicsContextRunner(
+    SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+    SbDecodeTargetGlesContextRunnerTarget target_function,
+    void* target_function_context) {
+  StarboardRendererWrapper* provider =
+      reinterpret_cast<StarboardRendererWrapper*>(
+          graphics_context_provider->gles_context_runner_context);
+
+  if (!provider->is_gpu_factory_initialized_) {
+    return;
+  }
+  if (provider->gpu_task_runner_->RunsTasksInCurrentSequence()) {
+    // If it is on the gpu thread, post target_function() directly on it.
+    target_function(target_function_context);
+  } else if (provider->gpu_factory_) {
+    // If it is not on the gpu thread, post target_function() with
+    // |gpu_factory_|.
+    base::WaitableEvent done_event(
+        base::WaitableEvent::ResetPolicy::MANUAL,
+        base::WaitableEvent::InitialState::NOT_SIGNALED);
+    provider->gpu_factory_
+        .AsyncCall(&StarboardGpuFactory::RunSbDecodeTargetFunctionOnGpu)
+        .WithArgs(target_function, target_function_context, &done_event);
+    // TODO(borongchen): Blocking is okay here because XYZ.
+    base::ScopedAllowBaseSyncPrimitives allow_wait;
+    done_event.Wait();
+  }
+}
+
+void StarboardRendererWrapper::GetCurrentDecodeTarget() {
+  decode_target_ = renderer_.GetSbDecodeTarget();
+}
+
+void StarboardRendererWrapper::CreateVideoFrame_OnImageReady(
+    VideoPixelFormat format,
+    const gfx::Size& coded_size,
+    const gfx::Rect& visible_rect,
+    const gfx::Size& natural_size,
+    std::vector<gpu::Mailbox>& mailboxes) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  gpu::MailboxHolder mailbox_holders[VideoFrame::kMaxPlanes];
+  for (size_t plane = 0; plane < mailboxes.size(); plane++) {
+    mailbox_holders[plane] = gpu::MailboxHolder(
+        mailboxes[plane], gpu::SyncToken(), GL_TEXTURE_EXTERNAL_OES);
+  }
+  auto frame = VideoFrame::WrapNativeTextures(
+      format, mailbox_holders, VideoFrame::ReleaseMailboxCB(), coded_size,
+      visible_rect, natural_size, base::TimeDelta());
+  if (!frame) {
+    LOG(ERROR) << __func__ << " failed to create video frame";
+    return;
+  }
+  frame->metadata().texture_owner = true;
+  current_frame_ = std::move(frame);
 }
 
 }  // namespace media
