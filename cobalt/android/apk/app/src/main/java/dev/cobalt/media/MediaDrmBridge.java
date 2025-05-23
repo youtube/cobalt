@@ -253,7 +253,7 @@ public class MediaDrmBridge {
    * @param response Response data from the server.
    */
   @UsedByNative
-  UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
+  UpdateSessionResult updateSession(byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
