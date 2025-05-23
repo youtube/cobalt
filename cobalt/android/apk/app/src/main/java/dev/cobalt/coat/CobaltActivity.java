@@ -98,6 +98,13 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
 
+
+      // ==========
+      // IMPORTANT:
+      //
+      // These switch defaults do not affect non-android platforms.
+      // If you are making changes to these values, please check that other
+      // platforms (such as Linux/Evergreen) are getting corresponding updates.
       String[] cobaltCommandLineParams =
           new String[] {
             // Disable first run experience.
