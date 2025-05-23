@@ -126,10 +126,10 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
+    "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
     "//cobalt/cobalt_switch_defaults_test.cc",
-    "//cobalt/user_agent/user_agent_platform_info_test.cc",
   ]
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
@@ -142,8 +142,8 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
+    "//cobalt/browser/user_agent",
     "//cobalt/common/eztime:eztime_test",
-    "//cobalt/user_agent",
     "//components/metrics",
     "//components/prefs",
     "//components/prefs:test_support",
