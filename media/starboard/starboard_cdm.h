@@ -98,8 +98,14 @@ class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
   typedef std::unordered_map<int, SessionUpdate> TicketToSessionUpdateMap;
 
   struct SessionTicketAndOptionalId {
-    int ticket;
-    std::optional<std::string> id;
+    const int ticket;
+    const std::optional<std::string> id;
+
+    SessionTicketAndOptionalId(int ticket,
+                               const void* session_id_data,
+                               int session_id_size);
+
+    std::string ToString() const;
   };
 
   // Default task runner.

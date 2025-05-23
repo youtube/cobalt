@@ -76,6 +76,10 @@ CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
   NOTREACHED() << "Unexpected SbDrmKeyStatus " << status;
 }
 
+std::string BytesToString(const void* data, int length) {
+  return std::string(static_cast<const char*>(data), length);
+}
+
 }  // namespace
 
 StarboardCdm::StarboardCdm(
@@ -291,8 +295,8 @@ void StarboardCdm::OnSessionUpdateRequestGenerated(
 
   LOG(INFO) << "Receiving session update request notification from drm system ("
             << sb_drm_ << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id.value_or("n/a");
+            << ", ticket_and_optional_id: "
+            << ticket_and_optional_id.ToString();
 
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
@@ -465,25 +469,18 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
   StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
   DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  std::optional<std::string> session_id_copy;
-  if (session_id) {
-    session_id_copy =
-        std::string(static_cast<const char*>(session_id),
-                    static_cast<const char*>(session_id) + session_id_size);
-  }
-
   const uint8_t* begin = static_cast<const uint8_t*>(content);
   const uint8_t* end = begin + content_size;
   const std::vector<uint8_t> content_copy(begin, end);
 
   cdm->task_runner_->PostTask(
       FROM_HERE,
-      base::BindOnce(&StarboardCdm::OnSessionUpdateRequestGenerated,
-                     cdm->weak_factory_.GetWeakPtr(),
-                     SessionTicketAndOptionalId{ticket, session_id_copy},
-                     status, type,
-                     error_message ? std::string(error_message) : "",
-                     std::move(content_copy), content_size));
+      base::BindOnce(
+          &StarboardCdm::OnSessionUpdateRequestGenerated,
+          cdm->weak_factory_.GetWeakPtr(),
+          SessionTicketAndOptionalId(ticket, session_id, session_id_size),
+          status, type, error_message ? std::string(error_message) : "",
+          std::move(content_copy), content_size));
 }
 
 // static
@@ -520,10 +517,6 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
 
   DCHECK(session_id != NULL);
 
-  std::string session_id_copy =
-      std::string(static_cast<const char*>(session_id),
-                  static_cast<const char*>(session_id) + session_id_size);
-
   bool has_additional_usable_key = false;
   CdmKeysInfo keys_info;
 
@@ -540,7 +533,8 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
   cdm->task_runner_->PostTask(
       FROM_HERE,
       base::BindOnce(&StarboardCdm::OnSessionKeyStatusChanged,
-                     cdm->weak_factory_.GetWeakPtr(), session_id_copy,
+                     cdm->weak_factory_.GetWeakPtr(),
+                     BytesToString(session_id, session_id_size),
                      std::move(keys_info), has_additional_usable_key));
 }
 
@@ -572,14 +566,23 @@ void StarboardCdm::OnSessionClosedFunc(SbDrmSystem sb_drm,
 
   DCHECK(session_id != NULL);
 
-  std::string session_id_copy =
-      std::string(static_cast<const char*>(session_id),
-                  static_cast<const char*>(session_id) + session_id_size);
-
   cdm->task_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&StarboardCdm::OnSessionClosed,
-                     cdm->weak_factory_.GetWeakPtr(), session_id_copy));
+      FROM_HERE, base::BindOnce(&StarboardCdm::OnSessionClosed,
+                                cdm->weak_factory_.GetWeakPtr(),
+                                BytesToString(session_id, session_id_size)));
 }
 
+StarboardCdm::SessionTicketAndOptionalId::SessionTicketAndOptionalId(
+    int ticket,
+    const void* session_id_data,
+    int session_id_size)
+    : ticket(ticket),
+      id(session_id_data ? std::optional<std::string>(
+                               BytesToString(session_id_data, session_id_size))
+                         : std::nullopt) {}
+
+std::string StarboardCdm::SessionTicketAndOptionalId::ToString() const {
+  return "{ticket: " + std::to_string(ticket) + ", id: " + id.value_or("n/a") +
+         "}";
+}
 }  // namespace media
