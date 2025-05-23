@@ -127,9 +127,13 @@ std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
     scoped_refptr<base::SequencedTaskRunner> task_runner);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+using GetStarboardCommandBufferStubCB = base::RepeatingCallback<
+    gpu::CommandBufferStub*(base::UnguessableToken, int32_t)>;
+
 // Encapsulate parameters to pass to StarboardRenderer.
 struct StarboardRendererTraits {
   scoped_refptr<base::SequencedTaskRunner> task_runner;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner;
   mojo::PendingRemote<mojom::MediaLog> media_log_remote;
   const base::UnguessableToken& overlay_plane_id;
   base::TimeDelta audio_write_duration_local;
@@ -140,8 +144,12 @@ struct StarboardRendererTraits {
   mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote;
 
+  // StarboardRenderer uses this twice.
+  GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb;
+
   StarboardRendererTraits(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
+      scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
@@ -150,7 +158,9 @@ struct StarboardRendererTraits {
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
-          client_extension_remote);
+          client_extension_remote,
+      GetStarboardCommandBufferStubCB
+          get_starboard_command_buffer_stub_cb);
   ~StarboardRendererTraits();
 };
 

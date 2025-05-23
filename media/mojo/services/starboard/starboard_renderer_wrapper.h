@@ -18,7 +18,9 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
+#include "base/threading/sequence_bound.h"
 #include "base/threading/thread_checker.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
@@ -27,12 +29,15 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "starboard/decode_target.h"
 
 namespace base {
 class TimeDelta;
 }  // namespace base
 
 namespace media {
+
+class StarboardGpuFactory;
 
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
@@ -72,20 +77,51 @@ class StarboardRendererWrapper final
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
+  void GetCurrentVideoFrame(GetCurrentVideoFrameCallback callback) override;
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
   void OnUpdateStarboardRenderingModeByStarboard(
       const StarboardRenderingMode mode);
+  void OnGpuFactoryInitialized();
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider();
+  void GetCurrentDecodeTarget();
+  void CreateImage(int plane_count,
+                   VideoPixelFormat format,
+                   const gfx::Size& coded_size,
+                   const gfx::Rect& visible_rect,
+                   const gfx::Size& natural_size);
+
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   std::unique_ptr<StarboardRenderer> renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
+  base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
 
-  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
+  raw_ptr<RendererClient> client_ = nullptr;
+  raw_ptr<MediaResource> media_resource_ = nullptr;
+  PipelineStatusCallback init_cb_;
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+
+  bool is_gpu_factory_initialized_ = false;
+  base::RepeatingCallback<gpu::CommandBufferStub*(base::UnguessableToken,
+                                                  int32_t)>
+      get_starboard_command_buffer_stub_cb_;
+  scoped_refptr<VideoFrame> current_frame_;
+  SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
 
   THREAD_CHECKER(thread_checker_);
+
+  base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 };
 
 }  // namespace media

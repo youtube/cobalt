@@ -120,6 +120,8 @@ component("services") {
       "starboard/starboard_renderer_wrapper.cc",
       "starboard/starboard_renderer_wrapper.h",
     ]
+
+    deps += [ "//starboard/common" ]
   } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]
   } else if (is_mac) {
