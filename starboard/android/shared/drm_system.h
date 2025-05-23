@@ -33,6 +33,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -116,9 +117,6 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   // From Thread.
   void Run() override;
 
-  void ScheduleTask(const std::function<void(JniEnvExt*)>& task);
-  void StopThread();
-
   const std::string key_system_;
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
@@ -146,6 +144,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::atomic<bool> running_;  // Flag to control the Run loop
 
   std::atomic<bool> is_key_provided_ = false;
+
+  std::unique_ptr<starboard::shared::starboard::player::JobQueue> job_queue_;
 };
 
 }  // namespace shared

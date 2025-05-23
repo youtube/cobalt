@@ -263,55 +263,16 @@ DrmSystem::DrmSystem(
   Start();
 }
 
-void DrmSystem::ScheduleTask(const std::function<void(JniEnvExt*)>& task) {
-  std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
-  pending_tasks_.push(task);
-
-  condition_.notify_one();
-}
-
-void DrmSystem::StopThread() {
-  running_ = false;
-  condition_.notify_all();
-  SB_LOG(INFO) << "Stop signal sent to scheduler." << std::endl;
-}
-
 void DrmSystem::Run() {
-  SB_CHECK(!running_);
-
-  running_ = true;
-  SB_LOG(INFO) << "Thread loop started.";
-
-  while (running_.load()) {
-    JniEnvExt* env = JniEnvExt::Get();
-
-    std::function<void(JniEnvExt*)> task;
-    {
-      std::unique_lock<std::mutex> lock(pending_tasks_mutex_);
-      // Wait until there's a task or the scheduler is stopped
-      condition_.wait(
-          lock, [this] { return !pending_tasks_.empty() || !running_.load(); });
-
-      // If scheduler is stopped and no more tasks, exit
-      if (!running_.load() && pending_tasks_.empty()) {
-        break;
-      }
-
-      SB_CHECK(!pending_tasks_.empty());
-      task = std::move(pending_tasks_.front());
-      pending_tasks_.pop();
-    }
-
-    SB_CHECK(task != nullptr);
-
-    task(env);
-  }
-  SB_LOG(INFO) << "Scheduler stopped and exited run loop.";
+  job_queue_ =
+      std::make_unique<starboard::shared::starboard::player::JobQueue>();
+  job_queue_->RunUntilStopped();
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-  StopThread();
+  job_queue_->StopSoon();
+
   Join();
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -407,7 +368,9 @@ void DrmSystem::UpdateSession(int ticket,
                             error_msg.c_str(), session_id, session_id_size);
 
   if (update_success == JNI_TRUE) {
-    ScheduleTask([this](JniEnvExt* env) {
+    job_queue_->Schedule([this] {
+      SB_LOG(INFO) << "Run pending task.";
+      auto env = JniEnvExt::Get();
       env->CallVoidMethodOrAbort(j_media_drm_bridge_, "runPendingTasks", "()V");
     });
   }
