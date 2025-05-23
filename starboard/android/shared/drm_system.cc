@@ -235,6 +235,7 @@ const void* DrmSystem::GetMetrics(int* size) {
 
   metrics_.assign(metrics_elements, metrics_elements + metrics_size);
 
+  env->ReleaseByteArrayElements(j_metrics.obj(), metrics_elements, JNI_ABORT);
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
 }

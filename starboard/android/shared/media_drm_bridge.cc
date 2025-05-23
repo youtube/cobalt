@@ -106,12 +106,12 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
+  jclass mediaDrmKeyStatusClass =
+      env->FindClass("android/media/MediaDrm$KeyStatus");
+  jmethodID getKeyIdMethod =
+      env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
-    jclass mediaDrmKeyStatusClass =
-        env->FindClass("android/media/MediaDrm$KeyStatus");
-    jmethodID getKeyIdMethod =
-        env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
     jbyteArray j_key_id = static_cast<jbyteArray>(
         env->CallObjectMethod(j_key_status, getKeyIdMethod));
 
