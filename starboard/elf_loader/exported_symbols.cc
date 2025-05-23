@@ -281,7 +281,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(ftruncate);
   REGISTER_WRAPPER(getaddrinfo);
   REGISTER_WRAPPER(getifaddrs);
-  REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
   REGISTER_WRAPPER(pthread_attr_destroy);
