@@ -209,6 +209,11 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'write',
+    'opendir',
+    'closedir',
+    'readdir_r',
+    'malloc_usable_size',
+    'readdir',
 ]
 
 
