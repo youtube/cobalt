@@ -25,10 +25,21 @@ config("cobalt_config") {
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
     configs += [
-      # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
       "//starboard/build/config/modular/x64",
       "//starboard/build/config:starboard",
     ]
+    if (target_cpu == "arm") {
+      # TODO: b/390500840 - Find a way to switch between hardfp, softfp.
+      if (target_platform == "raspi-2") {
+        configs += [ "//starboard/build/config/modular/arm/hardfp" ]
+      } else {
+        # Not asserting here as partner platforms with softfp will need to disable it
+      }
+    } else if (target_cpu == "x64") {
+      configs += [ "//starboard/build/config/modular/x64" ]
+    } else {
+      assert("{target_cpu} not supported")
+    }
   } else {
     # No configs to add for any other toolchain
   }
