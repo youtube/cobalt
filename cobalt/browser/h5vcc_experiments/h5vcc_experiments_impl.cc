@@ -41,11 +41,6 @@ h5vcc_experiments::mojom::OverrideState GetFeatureInternal(
   return h5vcc_experiments::mojom::OverrideState::OVERRIDE_USE_DEFAULT;
 }
 
-std::string GetFeatureParamInternal(const std::string& feature_param_name) {
-  return base::GetFieldTrialParamValue(cobalt::kCobaltExperimentName,
-                                       feature_param_name);
-}
-
 }  // namespace
 
 // static
@@ -67,18 +62,19 @@ void H5vccExperimentsImpl::SetExperimentState(
   auto* experiment_config_ptr =
       cobalt::GlobalFeatures::GetInstance()->experiment_config();
 
-  experiment_config_ptr->SetDict(
-      cobalt::kExperimentConfigFeatures,
-      std::move(experiment_config.Find(cobalt::kExperimentConfigFeatures)
-                    ->GetDict()));
-  experiment_config_ptr->SetDict(
-      cobalt::kExperimentConfigFeatureParams,
-      std::move(experiment_config.Find(cobalt::kExperimentConfigFeatureParams)
-                    ->GetDict()));
-  experiment_config_ptr->SetList(
-      cobalt::kExperimentConfigExpIds,
-      std::move(
-          experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
+  // experiment_config_ptr->SetDict(
+  //     cobalt::kExperimentConfigFeatures,
+  //     std::move(experiment_config.Find(cobalt::kExperimentConfigFeatures)
+  //                   ->GetDict()));
+  // experiment_config_ptr->SetDict(
+  //     cobalt::kExperimentConfigFeatureParams,
+  //     std::move(experiment_config.Find(cobalt::kExperimentConfigFeatureParams)
+  //                   ->GetDict()));
+  // experiment_config_ptr->SetList(
+  //     cobalt::kExperimentConfigExpIds,
+  //     std::move(
+  //         experiment_config.Find(cobalt::kExperimentConfigExpIds)->GetList()));
+  experiment_config_ptr->SetDict(cobalt::kExperimentConfig, experiment_config);
   experiment_config_ptr->CommitPendingWrite();
   std::move(callback).Run();
 }
@@ -92,16 +88,16 @@ void H5vccExperimentsImpl::ResetExperimentState(
   std::move(callback).Run();
 }
 
-void H5vccExperimentsImpl::GetActiveExperimentIds(
-    GetActiveExperimentIdsCallback callback) {
-  std::move(callback).Run(
-      cobalt::GlobalFeatures::GetInstance()->active_experiment_ids());
-}
+// void H5vccExperimentsImpl::GetActiveExperimentIds(
+//     GetActiveExperimentIdsCallback callback) {
+//   std::move(callback).Run(
+//       cobalt::GlobalFeatures::GetInstance()->active_experiment_ids());
+// }
 
-void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
-                                      GetFeatureCallback callback) {
-  std::move(callback).Run(GetFeatureInternal(feature_name));
-}
+// void H5vccExperimentsImpl::GetFeature(const std::string& feature_name,
+//                                       GetFeatureCallback callback) {
+//   std::move(callback).Run(GetFeatureInternal(feature_name));
+// }
 
 void H5vccExperimentsImpl::GetFeatureParam(
     const std::string& feature_param_name,

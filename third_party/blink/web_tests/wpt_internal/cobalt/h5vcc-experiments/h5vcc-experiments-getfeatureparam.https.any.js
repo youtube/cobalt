@@ -5,6 +5,9 @@ h5vcc_experiments_tests(async (t, mockH5vccExperiments) => {
   const expected = "FAKE_PARAM_VALUE";
   const test_feature_param_name = "test_feature_param_name";
   mockH5vccExperiments.stubGetFeatureParam(test_feature_param_name, expected);
-  let actual = await window.h5vcc.experiments.getFeatureParam(test_feature_param_name);
-  assert_equals(actual, expected);
+  // let actual = await window.h5vcc.experiments.getFeatureParam(test_feature_param_name);
+  // assert_equals(actual, expected);
+  await promise_rejects_exactly(
+    t, e, window.h5vcc.experiments.getFeatureParam(test_feature_param_name));
+  assert_unreached('Promise should have rejected');
 }, 'exercises H5vccExperiments.getFeatureParam()');
