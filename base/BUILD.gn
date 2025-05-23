@@ -58,6 +58,10 @@ if (is_win) {
   import("//build/config/win/control_flow_guard.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 declare_args() {
   # Unsafe developer build. Has developer-friendly features that may weaken or
   # disable security measures like sandboxing or ASLR.
