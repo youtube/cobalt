@@ -20,21 +20,13 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
 namespace {
-
-// Helper function to create a temporary directory for testing
-std::string CreateTemporaryDirectory(const std::string& base_name) {
-  char temp_dir_template[] = "/tmp/cobalt_readdir_test_XXXXXX";
-  char* temp_dir_path = mkdtemp(temp_dir_template);
-  EXPECT_NE(temp_dir_path, nullptr) << "Failed to create temporary directory.";
-
-  return std::string(temp_dir_path) + "/" + base_name;
-}
 
 // Helper function to clean up a directory and its contents
 void RemoveDirectoryRecursively(const std::string& path) {
@@ -64,6 +56,7 @@ void RemoveDirectoryRecursively(const std::string& path) {
 Scenarios that aren't tested:
 1. Invalid directory pointer (ie, readdir(invalid_pointer)) as this behavior
 crashes with a seg fault.
+TODO: b/419539055 - Test seg fault scenarios.
 2. EOVERFLOW error: This error is hard to reliably test as it depends on
 filesystem characteristics and internal structure of dirent. It's usually
 handled by the underlying filesystem implementation.
@@ -74,15 +67,21 @@ not necessarily threadsafe, so this behavior shouldn't be tested.
 class PosixReaddirTests : public ::testing::Test {
  protected:
   void SetUp() override {
-    test_dir_ = CreateTemporaryDirectory("readdir_test_dir");
-    ASSERT_EQ(mkdir(test_dir_.c_str(), 0777), 0)
-        << "Failed to create test directory: " << test_dir_;
+    std::vector<char> temp_path(kSbFileMaxPath);
+    bool system_path_success = SbSystemGetPath(
+        kSbSystemPathTempDirectory, temp_path.data(), kSbFileMaxPath);
+    ASSERT_TRUE(system_path_success);
+    struct stat info;
+    test_dir_ = temp_path.data();
+    EXPECT_TRUE(stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
+    EXPECT_TRUE(mkdir(temp_path.data(), 0700) == 0 ||
+                stat(temp_path.data(), &info) == 0 && S_ISDIR(info.st_mode));
   }
 
   void TearDown() override { RemoveDirectoryRecursively(test_dir_); }
 
   std::string test_dir_;
-  int flags = O_CREAT | O_WRONLY | O_TRUNC;
+  int flags_ = O_CREAT | O_WRONLY | O_TRUNC;
 };
 
 // Test reading an empty directory
@@ -107,7 +106,7 @@ TEST_F(PosixReaddirTests, EmptyDirectory) {
 TEST_F(PosixReaddirTests, DirectoryWithContents) {
   // Create a file
   std::string file_path = test_dir_ + "/test_file.txt";
-  int fd = open(file_path.c_str(), flags, 0666);
+  int fd = open(file_path.c_str(), flags_, 0666);
   ASSERT_NE(fd, -1) << "Failed to create test file.";
   close(fd);
 
@@ -141,7 +140,7 @@ TEST_F(PosixReaddirTests, DirectoryWithContents) {
 TEST_F(PosixReaddirTests, DInoPopulated) {
   // Create a file
   std::string file_path = test_dir_ + "/inode_test_file.txt";
-  int fd = open(file_path.c_str(), flags, 0666);
+  int fd = open(file_path.c_str(), flags_, 0666);
   ASSERT_NE(fd, -1) << "Failed to create test file.";
   close(fd);
 
@@ -169,7 +168,7 @@ TEST_F(PosixReaddirTests, DInoPopulated) {
 TEST_F(PosixReaddirTests, DTypePopulatedRegularFileAndDirectory) {
   // Create a regular file
   std::string regular_file_path = test_dir_ + "/regular_file.txt";
-  int fd = open(regular_file_path.c_str(), flags, 0666);
+  int fd = open(regular_file_path.c_str(), flags_, 0666);
   ASSERT_NE(fd, -1) << "Failed to create regular file.";
   close(fd);
 
@@ -260,7 +259,7 @@ TEST_F(PosixReaddirTests, LargeNumberOfEntries) {
   const int kNumFiles = 1000;  // A reasonably large number of files
   for (int i = 0; i < kNumFiles; ++i) {
     std::string file_path = test_dir_ + "/file_" + std::to_string(i);
-    int fd = open(file_path.c_str(), flags, 0666);
+    int fd = open(file_path.c_str(), flags_, 0666);
     ASSERT_NE(fd, -1) << "Failed to create file " << i;
     close(fd);
   }
@@ -287,7 +286,7 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
   std::string dir1_path = test_dir_ + "_dir1";
   ASSERT_EQ(mkdir(dir1_path.c_str(), 0777), 0) << "Failed to create dir1.";
   std::string file1_path = dir1_path + "/file_in_dir1.txt";
-  int fd1 = open(file1_path.c_str(), flags, 0666);
+  int fd1 = open(file1_path.c_str(), flags_, 0666);
   ASSERT_NE(fd1, -1) << "Failed to create file in dir1.";
   close(fd1);
 
@@ -295,7 +294,7 @@ TEST_F(PosixReaddirTests, SeparateDirectoriesSeparateReaddir) {
   std::string dir2_path = test_dir_ + "_dir2";
   ASSERT_EQ(mkdir(dir2_path.c_str(), 0777), 0) << "Failed to create dir2.";
   std::string file2_path = dir2_path + "/file_in_dir2.txt";
-  int fd2 = open(file2_path.c_str(), flags, 0666);
+  int fd2 = open(file2_path.c_str(), flags_, 0666);
   ASSERT_NE(fd2, -1) << "Failed to create file in dir2.";
   close(fd2);
 
