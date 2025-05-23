@@ -30,6 +30,8 @@ from starboard.tools import abstract_launcher
 from starboard.shared import retry
 
 
+# TODO(b/419600115): Consider moving all files under starboard/rdk to starboard/contrib/rdk
+
 # pylint: disable=unused-argument
 def _sigint_or_sigterm_handler(signum, frame):
   """Clean up and exit with status |signum|.
@@ -44,7 +46,7 @@ def _sigint_or_sigterm_handler(signum, frame):
 
 
 # First call returns True, otherwise return false.
-def first_run():
+def is_first_run():
   v = globals()
   if 'first_run' not in v:
     v['first_run'] = False
@@ -147,17 +149,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
     rdk_storage_dir = '/data/cobalt_test_data'
 
     # rsync command setup
-    options = '-avzLhc'
-    source = os.path.join(self.out_directory, 'content', 'app',
-                          self.target_name)
+    options = '-avzLhc -e=\'ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o \"HostKeyAlgorithms=+ssh-rsa\" -o \"PubkeyAcceptedAlgorithms=+ssh-rsa\"\''
+    source = os.path.join(self.out_directory)
     destination = f'{rdk_user_hostname}:{rdk_storage_dir}/'
-    self.rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
+    self.rsync_command = 'sshpass -p \'\' rsync ' + options + ' ' + source + '/ ' + destination
 
     # ssh command setup
     rsa_options = (
+        '-v '
         '-o \"LogLevel ERROR\" '
-        '-o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\"')
-    self.ssh_command = (f'ssh -t {rsa_options} {rdk_user_hostname} '
+        '-o \"UserKnownHostsFile=/dev/null\" -o \"StrictHostKeyChecking=no\" '
+        '-o \"HostKeyAlgorithms=+ssh-rsa\" -o \"PubkeyAcceptedAlgorithms=+ssh-rsa\" '
+        )
+    self.ssh_command = (f'sshpass -p \'\' ssh -t {rsa_options} {rdk_user_hostname} '
                         f'TERM=dumb bash -l')
 
     # test file preparation
@@ -165,34 +169,46 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # used in RDK's loader
     rdk_tmp = '/var/lib/persistent/rdkservices/Cobalt/Cobalt/.cobalt_storage'
     self.test_prep_command = (f'rm -rf {rdk_tmp}; '
-                              f'rm -rf {rdk_test_dir}/cobalt; '
-                              f'ln -s {rdk_storage_dir}/{self.target_name} '
-                              f'{rdk_test_dir}/cobalt')
+                              f'rm -rf {rdk_test_dir}/{self.target_name}; '
+                              f'ln -s {rdk_storage_dir}/install/content {rdk_storage_dir}/content/app/{self.target_name}/content; '
+                              f'ln -s {rdk_storage_dir}/content/app/{self.target_name} {rdk_test_dir}/{self.target_name}')
+
+    # escape command line metacharacters in the flags
+    flags = ' '.join(self.target_command_line_params)
+    meta_chars = '()[]{}%!^"<>&|'
+    meta_re = re.compile('(' + '|'.join(
+        re.escape(char) for char in list(meta_chars)) + ')')
+    escaped_flags = re.subn(meta_re, r'\\\1', flags)[0]
 
     # test output tags
-    self.test_complete_tag_1 = 'test suite ran.'
-    self.test_complete_tag_2 = 'test suites ran.'
-    self.test_failure_tag = 'tests, listed below'
+    self.test_complete_tag = f'TEST-{time.time()}'
     self.test_success_tag = 'succeeded'
-
-    def _request_payload(method):
-      """Create the request paylaod needed for running the test."""
-
-      cmd_test_param = (f'"sbmainargs":{self.target_command_line_params}'
-                        if self.target_command_line_params else '')
-      json_cmd = (
-          f'\'{{"jsonrpc": "2.0","id": 3,"method": "org.rdk.RDKShell.{method}",'
-          f'"params": {{"callsign":"YouTube","type":"Cobalt",'
-          f'"configuration":{{ {cmd_test_param}}} }} }}\' ')
-      return json_cmd
+    self.test_failure_tag = 'failed'
 
     # test command setup
-    cmd_log = f'tail -f {Launcher._RDK_LOG_FILE}'
-    self.test_command = (f'curl -X POST http://127.0.0.1:9998/jsonrpc -d '
-                         f'{_request_payload("1.launch")}; '
-                         f'{cmd_log}')
-    self.terminate_command = (f'curl -X POST http://127.0.0.1:9998/jsonrpc -d '
-                              f'{_request_payload("destroy")}; ')
+    rdk_loader_path = os.path.join(rdk_storage_dir, "install", "elf_loader_sandbox_bin")
+    test_base_command = rdk_loader_path + ' ' + escaped_flags
+    test_success_output = (f' && echo {self.test_complete_tag} '
+                           f'{self.test_success_tag}')
+    test_failure_output = (f' || echo {self.test_complete_tag} '
+                           f'{self.test_failure_tag}')
+    test_environ = ('WESTEROS_GL_USE_BEST_MODE=1 '
+                    'WESTEROS_GL_MAX_MODE=3840x2160 '
+                    'WESTEROS_GL_GRAPHICS_MAX_SIZE=1920x1080 '
+                    'WESTEROS_GL_USE_AMLOGIC_AVSYNC=1 '
+                    'WESTEROS_GL_REFRESH_PRIORITY=F,80 '
+                    'WESTEROS_SINK_AMLOGIC_USE_DMABUF=1 '
+                    'WESTEROS_SINK_USE_FREERUN=1 '
+                    'WESTEROS_SINK_USE_ESSRMGR=1 '
+                    'WESTEROS_GL_USE_REFRESH_LOCK=1 '
+                    'WESTEROS_GL_USE_UEVENT_HOTPLUG=1 '
+                    'RDKSHELL_KEYMAP_FILE=/etc/rdkshell_keymapping.json '
+                    'ESSOS_NO_EVENT_LOOP_THROTTLE=1 '
+                    'AVPK_SKIP_HDMI_VALIDATION=1 '
+                    'LD_PRELOAD=/usr/lib/libwesteros_gl.so.0.0.0 '
+                    'XDG_RUNTIME_DIR=/run ')
+    self.test_command = (f'({test_environ} {test_base_command}) {test_success_output} '
+                         f'{test_failure_output}')
 
   # pylint: disable=no-method-argument
   def _CommandBackoff():
@@ -274,9 +290,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
           return
         # Check for the test complete tag. It will be followed by either a
         # success or failure tag.
-        if (line.find(self.test_complete_tag_1) != -1 or
-            line.find(self.test_complete_tag_2) != -1):
-          self.return_value = 0
+        if line.startswith(self.test_complete_tag):
+          if line.find(self.test_success_tag) != -1:
+            self.return_value = 0
           return
 
     _readloop()
@@ -332,8 +348,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
     cause other problems.
     """
     logging.info('Killing existing processes')
-    self._PexpectSendLine(self.terminate_command)
+    self._PexpectSendLine(
+        'systemctl stop wpeframework')
+    self._PexpectSendLine(
+        'pkill -9 -ef "(cobalt)|(crashpad_handler)|(elf_loader)"')
     self._WaitForPrompt()
+    # Print the return code of pkill. 0 if a process was halted
+    self._PexpectSendLine('echo PROCKILL:${?}')
+    i = self.pexpect_process.expect([r'PROCKILL:0', r'PROCKILL:(\d+)'])
+    if i == 0:
+      logging.warning('Forced to pkill existing instance(s) of cobalt. '
+                      'Pausing to ensure no further operations are run '
+                      'before processes shut down.')
+      time.sleep(Launcher._PROCESS_KILL_SLEEP_TIME)
     logging.info('Done killing existing processes')
 
   def Run(self):
@@ -372,7 +399,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         first_run_commands.append(f'touch {self.test_result_xml_path}')
 
       first_run_commands.extend(['free -mh', 'ps -ux', 'df -h'])
-      if first_run():
+      if is_first_run():
         for cmd in first_run_commands:
           if not self.shutdown_initiated.is_set():
             self._PexpectSendLine(cmd)
