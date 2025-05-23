@@ -83,9 +83,6 @@ long timeval_diff_us(const struct timeval* start, const struct timeval* end) {
   return (seconds_diff * 1000000L) + useconds_diff;
 }
 
-// Note: The return value EINTR is not tested here because Starboard does not
-// implement signal handling.
-
 // Test successful relative sleep with CLOCK_MONOTONIC
 TEST_F(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
   struct timeval start_time;
@@ -296,7 +293,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidClockId) {
 
 // Test EINVAL for invalid flags
 TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  //
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
   struct timespec req = {0, kShortSleepNs};
@@ -315,7 +312,7 @@ TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
 // Test ENOTSUP for a clock that might not be supported for nanosleep,
 // like a CPU-time clock.
 TEST_F(PosixClockNanosleepTest, ErrorEnotsupForProcessCpuClock) {
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  //
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
   // If CLOCK_PROCESS_CPUTIME_ID itself is not supported for clock_nanosleep
