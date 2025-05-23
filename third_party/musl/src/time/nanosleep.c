@@ -1,5 +1,7 @@
 #include <time.h>
 #if defined(STARBOARD)
+#include <errno.h>
+#else
 #include "syscall.h"
 #endif  // defined(STARBOARD)
 
