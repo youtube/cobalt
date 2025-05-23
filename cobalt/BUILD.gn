@@ -105,10 +105,12 @@ action("cobalt_build_info") {
   outputs = [
     "$root_gen_dir/cobalt/cobalt_build_id.h",
     "$root_gen_dir/build_info.json",
+    "$root_gen_dir/licenses_cobalt.txt",
   ]
   args = [
     rebase_path(outputs[0], root_build_dir),
     rebase_path(outputs[1], root_build_dir),
+    rebase_path(outputs[2], root_build_dir),
   ]
 }
 
