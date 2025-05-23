@@ -35,8 +35,7 @@ void SbAudioSinkImpl::PlatformInitialize() {
     ::starboard::shared::alsa::PlatformInitialize();
     is_fallback_to_alsa = true;
   }
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
-      EnableFallbackToStub();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::EnableFallbackToStub();
 }
 
 // static
