@@ -14,14 +14,14 @@
 
 #include <android/native_window.h>
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/window.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   if (!SbWindowIsValid(window)) {
@@ -36,14 +36,16 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
   size->width = ANativeWindow_getWidth(window->native_window);
   size->height = ANativeWindow_getHeight(window->native_window);
 
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> display_size(
-      env->CallStarboardObjectMethodOrAbort("getDeviceResolution",
-                                            "()Landroid/util/Size;"));
-  int display_width =
-      env->CallIntMethodOrAbort(display_size.Get(), "getWidth", "()I");
-  int display_height =
-      env->CallIntMethodOrAbort(display_size.Get(), "getHeight", "()I");
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> display_dpi =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetDeviceResolution(env);
+
+  jclass sizeClass = env->FindClass("android/util/Size");
+  jmethodID getWidthMethod = env->GetMethodID(sizeClass, "getWidth", "()I");
+  jmethodID getHeightMethod = env->GetMethodID(sizeClass, "getHeight", "()I");
+  int display_width = env->CallIntMethod(display_dpi.obj(), getWidthMethod);
+  int display_height = env->CallIntMethod(display_dpi.obj(), getHeightMethod);
 
   // In the off chance we have non-square pixels, use the max ratio so the
   // highest quality video suitable to the device gets selected.
