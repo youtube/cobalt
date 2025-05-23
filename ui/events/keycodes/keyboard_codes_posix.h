@@ -32,6 +32,7 @@
 #define UI_EVENTS_KEYCODES_KEYBOARD_CODES_POSIX_H_
 
 #include "build/build_config.h"
+
 #include "build/chromeos_buildflags.h"
 
 namespace ui {
@@ -281,6 +282,11 @@ enum KeyboardCode : unsigned short {
   VKEY_BUTTON_Y = 0xFF0E,
   VKEY_BUTTON_Z = 0xFF0F,
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+  // Toggle subtitles
+  KEY_SUBTITLES = 0x1CC,
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace ui
