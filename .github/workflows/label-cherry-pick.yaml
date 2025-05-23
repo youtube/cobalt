@@ -104,7 +104,9 @@ jobs:
           base: ${{ matrix.target_branch }}
           branch: ${{ env.CHERRY_PICK_BRANCH }}
           committer: GitHub Release Automation <github@google.com>
-          reviewers: ${{ github.event.pull_request.user.login }}
+          reviewers: |
+            ${{ github.event.pull_request.user.login }}
+            ${{ github.actor }}
           title: "Cherry pick PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
           body: |
             Refer to the original PR: https://github.com/${{ github.repository }}/pull/${{ github.event.pull_request.number }}
