@@ -52,7 +52,10 @@ config("icu_config") {
   }
 
   if (is_cobalt) {
-    defines += [ "U_HAVE_TZSET", "U_TIMEZONE=timezone" ]
+    defines += [
+      "U_HAVE_TZSET",
+      "U_TIMEZONE=timezone",
+    ]
   }
 
   include_dirs = [
