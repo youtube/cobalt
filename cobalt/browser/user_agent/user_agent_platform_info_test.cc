@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/user_agent/user_agent_platform_info.h"
+#include "cobalt/browser/user_agent/user_agent_platform_info.h"
 
 #include <map>
 
