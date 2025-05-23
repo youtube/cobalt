@@ -159,10 +159,7 @@ public class MediaDrmBridge {
     } catch (UnsupportedSchemeException e) {
       Log.e(TAG, "Unsupported DRM scheme", e);
       return null;
-    } catch (IllegalArgumentException e) {
-      Log.e(TAG, "Failed to create MediaDrmBridge", e);
-      return null;
-    } catch (IllegalStateException e) {
+    } catch (IllegalArgumentException|IllegalStateException e) {
       Log.e(TAG, "Failed to create MediaDrmBridge", e);
       return null;
     }
