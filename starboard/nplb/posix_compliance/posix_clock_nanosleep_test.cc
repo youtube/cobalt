@@ -34,6 +34,43 @@ const long kTestSleepNs = 50'000'000;  // 50 milliseconds
 const long kTestSleepUs = kTestSleepNs / 1'000;
 // A very long duration for testing interruption.
 const long kLongSleepSec = 10;  // 10 seconds
+// Duration for alarm to trigger, should be less than kLongSleepSec
+const unsigned int kAlarmSec = 1;
+
+// Signal handler for EINTR tests (can be used for SIGALRM)
+void InterruptSignalHandler(int signum) {
+  // Do nothing, just here to interrupt sleep
+  (void)signum;  // Suppress unused parameter warning
+}
+
+class PosixClockNanosleepTest : public ::testing::Test {
+ protected:
+  struct sigaction old_sa_sigalrm;  // To store original SIGALRM handler
+
+  void SetUp() override {
+    // Ensure no stale errno
+    errno = 0;
+    // Clear any pending alarm from a previous failed test or other source
+    alarm(0);
+
+    // Store current SIGALRM handler
+    struct sigaction current_sa;
+    if (sigaction(SIGALRM, nullptr, &old_sa_sigalrm) != 0) {
+      // This should ideally not happen in a test setup.
+      // If it does, we might not be able to restore it properly.
+      perror("Warning: Could not get old SIGALRM handler in SetUp");
+    }
+  }
+
+  void TearDown() override {
+    // Restore default/original signal handler for SIGALRM
+    if (sigaction(SIGALRM, &old_sa_sigalrm, nullptr) != 0) {
+      perror("Warning: Could not restore old SIGALRM handler in TearDown");
+    }
+    // Clear any pending alarm
+    alarm(0);
+  }
+};
 
 // Helper function to calculate the difference between two timeval structs in
 // microseconds.
@@ -50,7 +87,7 @@ long timeval_diff_us(const struct timeval* start, const struct timeval* end) {
 // implement signal handling.
 
 // Test successful relative sleep with CLOCK_MONOTONIC
-TEST(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
+TEST_F(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
   struct timeval start_time;
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
@@ -73,7 +110,7 @@ TEST(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
 }
 
 // Test successful relative sleep with CLOCK_REALTIME
-TEST(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
+TEST_F(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
   struct timeval start_time;
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
@@ -96,7 +133,7 @@ TEST(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
 }
 
 // Test successful absolute sleep with CLOCK_MONOTONIC
-TEST(PosixClockNanosleepTest, AbsoluteSleepMonotonicClock) {
+TEST_F(PosixClockNanosleepTest, AbsoluteSleepMonotonicClock) {
   struct timespec req;
   clockid_t clock_id = CLOCK_MONOTONIC;
 
@@ -132,7 +169,7 @@ TEST(PosixClockNanosleepTest, AbsoluteSleepMonotonicClock) {
 }
 
 // Test successful absolute sleep with CLOCK_REALTIME
-TEST(PosixClockNanosleepTest, AbsoluteSleepRealtimeClock) {
+TEST_F(PosixClockNanosleepTest, AbsoluteSleepRealtimeClock) {
   struct timespec req;
   clockid_t clock_id = CLOCK_REALTIME;
 
@@ -168,7 +205,7 @@ TEST(PosixClockNanosleepTest, AbsoluteSleepRealtimeClock) {
 }
 
 // Test immediate return for absolute sleep when requested time is in the past
-TEST(PosixClockNanosleepTest, AbsoluteSleepTimeInPastReturnsImmediately) {
+TEST_F(PosixClockNanosleepTest, AbsoluteSleepTimeInPastReturnsImmediately) {
   struct timespec req;
   clockid_t clock_id = CLOCK_MONOTONIC;
   ASSERT_EQ(0, clock_gettime(clock_id, &req))
@@ -208,7 +245,7 @@ TEST(PosixClockNanosleepTest, AbsoluteSleepTimeInPastReturnsImmediately) {
 // Linux man page for clock_nanosleep(2) states for EINVAL: "The value in the
 // tv_nsec field was not in the range 0 to 999,999,999 or tv_sec was negative."
 // This applies to the 'request' timespec.
-TEST(PosixClockNanosleepTest, ErrorEinvalRequestNsNegative) {
+TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsNegative) {
   struct timespec req = {0, -1};  // Invalid nanoseconds
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
@@ -220,7 +257,7 @@ TEST(PosixClockNanosleepTest, ErrorEinvalRequestNsNegative) {
 // Linux man page for clock_nanosleep(2) states for EINVAL: "The value in the
 // tv_nsec field was not in the range 0 to 999,999,999 or tv_sec was negative."
 // This applies to the 'request' timespec.
-TEST(PosixClockNanosleepTest, ErrorEinvalRequestNsTooLarge) {
+TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestNsTooLarge) {
   struct timespec req = {0, 1000000000};  // Invalid nanoseconds (>= 10^9)
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
@@ -237,7 +274,7 @@ TEST(PosixClockNanosleepTest, ErrorEinvalRequestNsTooLarge) {
 // for clock_nanosleep(2) states for EINVAL: "The value in the tv_nsec field was
 // not in the range 0 to 999,999,999 or tv_sec was negative." This applies to
 // the 'request' timespec.
-TEST(PosixClockNanosleepTest, ErrorEinvalRequestSecondsNegative) {
+TEST_F(PosixClockNanosleepTest, ErrorEinvalRequestSecondsNegative) {
   struct timespec req = {-1, 0};  // Invalid seconds
   struct timespec rem;
   // For relative sleep, a negative tv_sec is an invalid interval.
@@ -248,7 +285,7 @@ TEST(PosixClockNanosleepTest, ErrorEinvalRequestSecondsNegative) {
 }
 
 // Test EINVAL for invalid clock_id
-TEST(PosixClockNanosleepTest, ErrorEinvalInvalidClockId) {
+TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidClockId) {
   struct timespec req = {0, kShortSleepNs};  // 1 millisecond
   struct timespec rem;
   clockid_t bad_clock_id = -123;  // An unlikely to be valid clock ID
@@ -258,7 +295,7 @@ TEST(PosixClockNanosleepTest, ErrorEinvalInvalidClockId) {
 }
 
 // Test EINVAL for invalid flags
-TEST(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
+TEST_F(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  //
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
@@ -277,7 +314,7 @@ TEST(PosixClockNanosleepTest, ErrorEinvalInvalidFlags) {
 
 // Test ENOTSUP for a clock that might not be supported for nanosleep,
 // like a CPU-time clock.
-TEST(PosixClockNanosleepTest, ErrorEnotsupForProcessCpuClock) {
+TEST_F(PosixClockNanosleepTest, ErrorEnotsupForProcessCpuClock) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)  //
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
@@ -298,7 +335,7 @@ TEST(PosixClockNanosleepTest, ErrorEnotsupForProcessCpuClock) {
 
 // Test ENOTSUP for a clock that might not be supported for nanosleep,
 // like a CPU-time clock.
-TEST(PosixClockNanosleepTest, ErrorEnotsupForThreadCpuClock) {
+TEST_F(PosixClockNanosleepTest, ErrorEnotsupForThreadCpuClock) {
   // If CLOCK_PROCESS_CPUTIME_ID itself is not supported for clock_nanosleep
   // or if it specifically refers to the calling process's CPU time, it should
   // give ENOTSUP.
@@ -315,7 +352,7 @@ TEST(PosixClockNanosleepTest, ErrorEnotsupForThreadCpuClock) {
 }
 
 // Test behavior with NULL remain and relative sleep (should be fine)
-TEST(PosixClockNanosleepTest, RelativeSleepNullRemain) {
+TEST_F(PosixClockNanosleepTest, RelativeSleepNullRemain) {
   struct timespec req = {0, kShortSleepNs};  // 1 millisecond
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, nullptr);
   EXPECT_EQ(0, ret) << "Expected successful sleep with NULL remain, got: "
@@ -323,7 +360,7 @@ TEST(PosixClockNanosleepTest, RelativeSleepNullRemain) {
 }
 
 // Test behavior with NULL remain and absolute sleep (should be fine)
-TEST(PosixClockNanosleepTest, AbsoluteSleepNullRemain) {
+TEST_F(PosixClockNanosleepTest, AbsoluteSleepNullRemain) {
   struct timespec req;
   clockid_t clock_id = CLOCK_MONOTONIC;
   ASSERT_EQ(0, clock_gettime(clock_id, &req));
@@ -339,13 +376,81 @@ TEST(PosixClockNanosleepTest, AbsoluteSleepNullRemain) {
 }
 
 // Test relative sleep with zero duration (should return immediately)
-TEST(PosixClockNanosleepTest, RelativeSleepZeroDuration) {
+TEST_F(PosixClockNanosleepTest, RelativeSleepZeroDuration) {
   struct timespec req = {0, 0};  // Zero duration
   struct timespec rem;
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   EXPECT_EQ(0, ret)
       << "Expected immediate return for zero duration relative sleep, got: "
       << strerror(ret);
+}
+
+// Test EINTR for relative sleep using SIGALRM
+TEST_F(PosixClockNanosleepTest, ErrorEintrRelativeSleep) {
+  struct timespec req = {kLongSleepSec, 0};  // Sleep longer than alarm
+  struct timespec rem;
+
+  struct sigaction sa;
+  sa.sa_handler = InterruptSignalHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;  // No SA_RESTART, to ensure EINTR
+  ASSERT_EQ(0, sigaction(SIGALRM, &sa, nullptr));
+
+  alarm(kAlarmSec);  // Send SIGALRM after kAlarmSec seconds
+
+  errno = 0;
+  int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
+  alarm(0);  // Cancel any pending alarm immediately after sleep returns
+
+  EXPECT_EQ(EINTR, ret) << "Expected EINTR, got: " << ret << " (errno was "
+                        << errno << " - " << strerror(errno) << ")";
+  if (ret == EINTR) {
+    // Check if 'rem' contains a plausible remaining time
+    EXPECT_TRUE(
+        rem.tv_sec < req.tv_sec ||
+        (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
+         rem.tv_nsec >= 0) ||
+        (rem.tv_sec == 0 && rem.tv_nsec == 0)  // Interrupted very quickly
+        )
+        << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
+        << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
+    EXPECT_GE(rem.tv_sec, 0);
+    EXPECT_GE(rem.tv_nsec, 0);
+    EXPECT_LT(rem.tv_nsec, 1000000000);
+  }
+}
+
+// Test EINTR for absolute sleep using SIGALRM
+TEST_F(PosixClockNanosleepTest, ErrorEintrAbsoluteSleep) {
+  struct timespec req;
+  struct timespec rem = {
+      7, 7};  // Should not be modified for absolute sleep on EINTR
+  clockid_t clock_id = CLOCK_MONOTONIC;
+
+  ASSERT_EQ(0, clock_gettime(clock_id, &req))
+      << "Failed to get current time for CLOCK_MONOTONIC, errno: " << errno
+      << " (" << strerror(errno) << ")";
+  // Set sleep target time far enough in the future to be interrupted by alarm
+  req.tv_sec += kLongSleepSec;
+
+  struct sigaction sa;
+  sa.sa_handler = InterruptSignalHandler;
+  sigemptyset(&sa.sa_mask);
+  sa.sa_flags = 0;  // No SA_RESTART
+  ASSERT_EQ(0, sigaction(SIGALRM, &sa, nullptr));
+
+  alarm(kAlarmSec);  // Send SIGALRM after kAlarmSec seconds
+
+  errno = 0;
+  int ret = clock_nanosleep(clock_id, TIMER_ABSTIME, &req, &rem);
+  alarm(0);  // Cancel any pending alarm
+
+  EXPECT_EQ(EINTR, ret) << "Expected EINTR for absolute sleep, got: " << ret
+                        << " (errno was " << errno << " - " << strerror(errno)
+                        << ")";
+  // For absolute sleep, 'rem' should not be modified on EINTR.
+  EXPECT_EQ(7, rem.tv_sec) << "rem.tv_sec should be unmodified";
+  EXPECT_EQ(7, rem.tv_nsec) << "rem.tv_nsec should be unmodified";
 }
 
 }  // namespace.

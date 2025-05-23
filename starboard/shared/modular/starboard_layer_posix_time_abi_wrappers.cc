@@ -58,7 +58,7 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
   int retval =
       clock_nanosleep(clock_id, musl_nanosleep_flags_to_nanosleep_flags(flags),
                       &ts, mremain ? &remain : nullptr);
-  if (mremain) {
+  if (mremain && !((retval == EINTR) && (flags & MUSL_TIMER_ABSTIME))) {
     mremain->tv_sec = remain.tv_sec;
     mremain->tv_nsec = remain.tv_nsec;
   }
