@@ -51,12 +51,16 @@ config("icu_config") {
     defines += [ "U_STATIC_IMPLEMENTATION" ]
   }
 
+  if (is_cobalt) {
+    defines += [ "U_HAVE_TZSET", "U_TIMEZONE=timezone" ]
+  }
+
   include_dirs = [
     "source/common",
     "source/i18n",
   ]
 
-  if (icu_use_data_file) {
+  if (icu_use_data_file || is_cobalt) {
     defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_FILE" ]
   } else {
     defines += [ "ICU_UTIL_DATA_IMPL=ICU_UTIL_DATA_STATIC" ]

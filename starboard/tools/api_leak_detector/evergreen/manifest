@@ -59,7 +59,6 @@ geteuid
 gethostname
 getpid
 getrlimit
-gmtime
 in6addr_any
 in6addr_loopback
 initstate
@@ -124,8 +123,6 @@ timegm
 timerfd_create
 timerfd_settime
 tmpfile
-tzname
-tzset
 uname
 ungetc
 uselocale
