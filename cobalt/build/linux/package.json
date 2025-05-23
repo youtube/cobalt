@@ -6,6 +6,7 @@
                 "cobalt.stripped",
                 "content_shell.pak",
                 "gen/build_info.json",
+                "gen/licenses_cobalt.txt",
                 "icudtl.dat",
                 "starboard/libstarboard.so.17",
                 "v8_context_snapshot.bin"
@@ -20,6 +21,10 @@
                     "to_file": "build_info.json"
                 },
                 {
+                    "from_file": "gen/licenses_cobalt.txt",
+                    "to_file": "licenses_cobalt.txt"
+                },
+                {
                     "from_file": "starboard/libstarboard.so.17",
                     "to_file": "libstarboard.so.17"
                 }
@@ -30,7 +35,8 @@
             "files": [
                 "cobalt",
                 "cobalt.debug",
-                "gen/build_info.json"
+                "gen/build_info.json",
+                "gen/licenses_cobalt.txt"
             ],
             "rename_files": [
                 {
@@ -44,6 +50,10 @@
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "gen/licenses_cobalt.txt",
+                    "to_file": "licenses_cobalt.txt"
                 }
             ],
             "archive_type": "ARCHIVE_TYPE_FILES"
