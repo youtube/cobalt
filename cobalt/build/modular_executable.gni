@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-template("modular_executable") {
+template("loader_final_target") {
   original_target_name = target_name
   if (current_toolchain == default_toolchain) {
     group("${original_target_name}_loader") {
@@ -68,4 +68,39 @@ template("modular_executable") {
 set_defaults("modular_executable") {
   configs = default_shared_library_configs
   configs -= [ "//build/config/compiler:no_unresolved_symbols" ]
+}
+
+template("evergreen_final_target") {
+  original_target_name = target_name
+  group("${original_target_name}_loader") {
+    forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
+    deps = [ ":${original_target_name}" ]
+  }
+
+  shared_library(original_target_name) {
+    forward_variables_from(invoker, "*")
+
+    if (!defined(data_deps)) {
+      data_deps = []
+    }
+    data_deps +=
+        [ "//starboard/loader_app:loader_assets($starboard_toolchain)" ]
+    write_runtime_deps = "$root_build_dir/${original_target_name}.runtime_deps"
+  }
+}
+
+set_defaults("evergreen_final_target") {
+  configs = default_shared_library_configs
+  configs -= [ "//build/config/compiler:no_unresolved_symbols" ]
+}
+
+template("modular_executable") {
+  if (sb_is_evergreen) {
+    target_type = "evergreen_final_target"
+  } else {
+    target_type = "loader_final_target"
+  }
+  target(target_type, target_name) {
+    forward_variables_from(invoker, "*")
+  }
 }

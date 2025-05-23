@@ -97,6 +97,7 @@ static_library("record_loader_app_status") {
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
+    output_dir = root_build_dir
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
       if (cobalt_font_package == "empty") {
         data_deps = [ "//starboard/content/fonts:copy_font_data" ]
@@ -369,6 +370,15 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard:starboard_with_main",
       "//testing/gmock",
       "//testing/gtest",
+    ]
+  }
+}
+
+if (current_toolchain == starboard_toolchain) {
+  group("loader_assets") {
+    deps = [
+      ":loader_app",
+      "//starboard/elf_loader:elf_loader_sandbox",
     ]
   }
 }
