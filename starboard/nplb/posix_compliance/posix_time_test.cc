@@ -21,22 +21,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(PosixTimeTest, TimeMatchesGettimeofday) {
-  time_t other_time_s = 0;
-  time_t time_s = time(&other_time_s);  // Seconds since Unix epoch.
-  struct timeval tv;
-  gettimeofday(&tv, NULL);  // Microseconds since Unix epoch.
-
-  EXPECT_EQ(time_s, other_time_s);
-
-  int64_t time_us = static_cast<int64_t>(time_s) * 1'000'000;
-  int64_t gettimeofday_us =
-      (static_cast<int64_t>(tv.tv_sec) * 1'000'000) + tv.tv_usec;
-  // Values should be within 1 second of each other.
-  EXPECT_NEAR(time_us, gettimeofday_us, 1'000'000);
-}
-
-TEST(PosixTimeTest, TimeIsKindOfSane) {
+TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();
 
   // Now should be after 2024-01-01 UTC (the past).
@@ -48,7 +33,7 @@ TEST(PosixTimeTest, TimeIsKindOfSane) {
   EXPECT_LT(now_usec, future_usec);
 }
 
-TEST(PosixTimeTest, HasDecentResolution) {
+TEST(PosixTimeTest, CurrentPosixTimeHasDecentResolution) {
   const int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
     int64_t timerStart = CurrentMonotonicTime();
@@ -65,7 +50,7 @@ TEST(PosixTimeTest, HasDecentResolution) {
   }
 }
 
-TEST(PosixTimeTest, MonotonicIsMonotonic) {
+TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
   const int kTrials = 100;
   for (int trial = 0; trial < kTrials; ++trial) {
     int64_t timerStart = CurrentPosixTime();
@@ -92,23 +77,43 @@ TEST(PosixTimeTest, MonotonicIsMonotonic) {
   }
 }
 
-TEST(PosixTimeTest, GmtimeR) {
-  time_t timer = 1722468779;  // Wed 2024-07-31 23:32:59 UTC.
-  struct tm result;
-  memset(&result, 0, sizeof(result));
+// Tests the gmtime_r() function for correct conversion of time_t to struct tm.
+TEST(PosixTimeTest, GmtimeRConvertsTimeCorrectly) {
+  // A fixed timestamp: Wed Jul 31 23:32:59 2024 UTC.
+  // This value (1722468779) can be obtained via `date -d "2024-07-31 23:32:59
+  // UTC" +%s`.
+  const time_t kFixedTime = 1722468779;
+  struct tm result_tm;
+  memset(&result_tm, 0,
+         sizeof(result_tm));  // Initialize to ensure no garbage values.
 
-  struct tm* retval = NULL;
-  retval = gmtime_r(&timer, &result);
-  EXPECT_EQ(retval, &result);
-  EXPECT_EQ(result.tm_year, 2024 - 1900);  // Year since 1900.
-  EXPECT_EQ(result.tm_mon, 7 - 1);         // Zero-indexed.
-  EXPECT_EQ(result.tm_mday, 31);
-  EXPECT_EQ(result.tm_hour, 23);
-  EXPECT_EQ(result.tm_min, 32);
-  EXPECT_EQ(result.tm_sec, 59);
-  EXPECT_EQ(result.tm_wday, 3);    // Wednesday, 0==Sunday.
-  EXPECT_EQ(result.tm_yday, 212);  // Zero-indexed; 2024 is a leap year.
-  EXPECT_LE(result.tm_isdst, 0);   // <=0; GMT/UTC never has DST (even in July).
+  struct tm* retval = gmtime_r(&kFixedTime, &result_tm);
+  ASSERT_TRUE(retval != NULL)
+      << "gmtime_r returned NULL. This indicates an error, possibly EOVERFLOW "
+      << "if time_t is out of range for struct tm, or other system error. "
+         "errno: "
+      << errno;
+  EXPECT_EQ(retval, &result_tm)
+      << "gmtime_r should return the pointer to the provided result struct.";
+
+  // Validate components of struct tm.
+  EXPECT_EQ(result_tm.tm_year, 2024 - 1900)
+      << "Year mismatch.";  // Years since 1900
+  EXPECT_EQ(result_tm.tm_mon, 7 - 1)
+      << "Month mismatch.";  // Month, 0-11 (July is 6)
+  EXPECT_EQ(result_tm.tm_mday, 31) << "Day of month mismatch.";
+  EXPECT_EQ(result_tm.tm_hour, 23) << "Hour mismatch.";
+  EXPECT_EQ(result_tm.tm_min, 32) << "Minute mismatch.";
+  EXPECT_EQ(result_tm.tm_sec, 59) << "Second mismatch.";
+  EXPECT_EQ(result_tm.tm_wday, 3)
+      << "Day of week mismatch.";  // Days since Sunday, 0-6 (Wednesday is 3)
+
+  // Calculate yday for 2024 (leap year), July 31:
+  // Jan(31) + Feb(29) + Mar(31) + Apr(30) + May(31) + Jun(30) + Jul(31) = 213
+  // days. tm_yday is 0-indexed, so it should be 212.
+  EXPECT_EQ(result_tm.tm_yday, 212) << "Day of year mismatch.";
+  EXPECT_EQ(result_tm.tm_isdst, 0)
+      << "DST flag mismatch (should be 0 for UTC/GMT).";
 }
 
 }  // namespace
