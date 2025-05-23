@@ -1,0 +1,62 @@
+diff --git a/source/data/brkitr/ja.txt b/source/data/brkitr/ja.txt
+index dba2fdcf..71f090da 100644
+--- a/source/data/brkitr/ja.txt
++++ b/source/data/brkitr/ja.txt
+@@ -1,4 +1,4 @@
+-// © 2016 and later: Unicode, Inc. and others.
++﻿// © 2016 and later: Unicode, Inc. and others.
+ // License & terms of use: http://www.unicode.org/copyright.html#License
+ ja{
+     Version{"2.1.44.56"}
+@@ -7,5 +7,6 @@ ja{
+         line_loose:process(dependency){"line_loose_cj.brk"}
+         line_normal:process(dependency){"line_normal_cj.brk"}
+         line_strict:process(dependency){"line.brk"}
++	word:process(dependency){"word_ja.brk"}
+     }
+ }
+diff --git a/source/data/brkitr/root.txt b/source/data/brkitr/root.txt
+index cb87c7ff..ef60ab6f 100644
+--- a/source/data/brkitr/root.txt
++++ b/source/data/brkitr/root.txt
+@@ -13,9 +13,6 @@ root{
+         word:process(dependency){"word.brk"}
+     }
+     dictionaries{
+-        Hani:process(dependency){"cjdict.dict"}
+-        Hira:process(dependency){"cjdict.dict"}
+-        Kana:process(dependency){"cjdict.dict"}
+         Khmr:process(dependency){"khmerdict.dict"}
+         Laoo:process(dependency){"laodict.dict"}
+         Mymr:process(dependency){"burmesedict.dict"}
+diff --git a/source/data/brkitr/rules/word.txt b/source/data/brkitr/rules/word.txt
+index 5bffd5d7..7ce80da2 100644
+--- a/source/data/brkitr/rules/word.txt
++++ b/source/data/brkitr/rules/word.txt
+@@ -67,13 +67,11 @@ $Control        = [\p{Grapheme_Cluster_Break = Control}];
+ $HangulSyllable = [\uac00-\ud7a3];
+ $ComplexContext = [:LineBreak = Complex_Context:];
+ $KanaKanji      = [$Han $Hiragana $Katakana];
+-$dictionaryCJK  = [$KanaKanji $HangulSyllable];
+-$dictionary     = [$ComplexContext $dictionaryCJK];
++$dictionary     = [$ComplexContext];
+ 
+ # TODO: check if handling of katakana in dictionary makes rules incorrect/void
+ 
+-# leave CJK scripts out of ALetterPlus
+-$ALetterPlus  = [$ALetter-$dictionaryCJK [$ComplexContext-$Extend-$Control]];
++$ALetterPlus  = [$ALetter [$ComplexContext-$Extend-$Control]];
+ 
+ 
+ ## -------------------------------------------------
+@@ -168,10 +166,6 @@ $ExtendNumLet  $ExFm* $Katakana     {400};    #  (13b)
+ #
+ ^$Regional_Indicator $ExFm* $Regional_Indicator;
+ 
+-# special handling for CJK characters: chain for later dictionary segmentation
+-$HangulSyllable $HangulSyllable {200};
+-$KanaKanji $KanaKanji {400}; # different rule status if both kana and kanji found
+-
+ # Rule 999
+ #     Match a single code point if no other rule applies.
+ .;

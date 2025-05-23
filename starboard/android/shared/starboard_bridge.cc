@@ -293,7 +293,7 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   SB_DCHECK(env);
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
-  return limit_ad_tracking_java;
+  return limit_ad_tracking_java == JNI_TRUE;
 }
 
 SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
@@ -301,6 +301,31 @@ SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
   return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
 }
 
+std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> timezone_id_java =
+      Java_StarboardBridge_getTimeZoneId(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, timezone_id_java);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetDeviceResolution(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+}
+
+bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isNetworkConnected(env, j_starboard_bridge_);
+}
+void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
