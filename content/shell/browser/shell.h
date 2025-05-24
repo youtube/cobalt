@@ -195,16 +195,33 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
  private:
   class DevToolsWebContentsObserver;
 
+#if BUILDFLAG(IS_COBALT)
+  // TODO: b/87654321 - Cobalt: Remove these hacks as we remove Shell dependency
+  // Cobalt Hack: make following members protected to be able to partially
+  // customize Shell in a derived class.
+protected:
+#endif
   Shell(std::unique_ptr<WebContents> web_contents, bool should_set_delegate);
 
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
                             const gfx::Size& initial_size,
                             bool should_set_delegate);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt Hack: Splits CreateShell to two parts, so a derived class instance can be
+  //              passed to factory function.
+  static Shell* CreateShellFromPointer(Shell * shell, WebContents* raw_web_contents,
+                            const gfx::Size& initial_size,
+                            bool should_set_delegate);
+#endif
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.
   static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
+
+#if BUILDFLAG(IS_COBALT)
+private:
+#endif
 
   // Helper method for the two public LoadData methods.
   void LoadDataWithBaseURLInternal(const GURL& url,
