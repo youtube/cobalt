@@ -460,15 +460,13 @@ public class StarboardBridge {
     return networkStatus.isConnected();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if there is no microphone connected to the system.
    *
    * @return true if no device is connected.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean isMicrophoneDisconnected() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
@@ -491,15 +489,13 @@ public class StarboardBridge {
     return true;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if the microphone is muted.
    *
    * @return true if the microphone mute is on.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean isMicrophoneMute() {
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     return audioManager.isMicrophoneMute();
@@ -551,8 +547,8 @@ public class StarboardBridge {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/audio_track_bridge.cc
+  // TODO(b/418059619): can only be migrated after AudioOutputManager.java is migrated
+  // to jni_generator/jni_zero.
   @SuppressWarnings("unused")
   @UsedByNative
   AudioOutputManager getAudioOutputManager() {
@@ -564,7 +560,7 @@ public class StarboardBridge {
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioPermissionRequester getAudioPermissionRequester() {
     return audioPermissionRequester;
   }
@@ -573,10 +569,8 @@ public class StarboardBridge {
     audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/video_window.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void resetVideoSurface() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -584,10 +578,8 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/player_set_bounds.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
