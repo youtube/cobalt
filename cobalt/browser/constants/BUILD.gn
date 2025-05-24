@@ -12,21 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("h5vcc_experiments") {
-  testonly = true
-  sources = [
-    "h5vcc_experiments_impl.cc",
-    "h5vcc_experiments_impl.h",
-  ]
-
-  deps = [
-    "//base",
-    "//cobalt/browser:global_features",
-    "//cobalt/browser/constants:cobalt_experiment_names",
-    "//cobalt/browser/h5vcc_experiments/public/mojom",
-    "//components/prefs",
-    "//content/public/browser",
-    "//mojo/public/cpp/bindings",
-    "//starboard:starboard_group",
-  ]
+source_set("cobalt_experiment_names") {
+  sources = [ "cobalt_experiment_names.h" ]
 }

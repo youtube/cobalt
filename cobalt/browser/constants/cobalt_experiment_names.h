@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_COBALT_EXPERIMENT_NAMES_H_
-#define COBALT_BROWSER_COBALT_EXPERIMENT_NAMES_H_
+#ifndef COBALT_BROWSER_CONSTANTS_COBALT_EXPERIMENT_NAMES_H_
+#define COBALT_BROWSER_CONSTANTS_COBALT_EXPERIMENT_NAMES_H_
 
 namespace cobalt {
 
@@ -28,4 +28,4 @@ constexpr char kExperimentConfigExpIds[] = "experiment_config.exp_ids";
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_COBALT_EXPERIMENT_NAMES_H_
+#endif  // COBALT_BROWSER_CONSTANTS_COBALT_EXPERIMENT_NAMES_H_
