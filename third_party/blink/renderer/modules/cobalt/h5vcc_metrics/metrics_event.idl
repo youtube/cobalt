@@ -12,12 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// A custom event that carries deep link information. This event is
-// dispatched on the H5vccRuntime object when a deep link is received.
+// The various metric types we support to be published through the H5vccMetrics
+// API. The proto will be serialized and then base64 encoded.
+enum H5vccMetricType {
+  // //third_party/metrics_proto/chrome_user_metrics_extension.proto
+  // ChromeUserMetricsExtension proto.
+  "UMA",
+  // //third_party/metrics_proto/ukm/report.proto Report proto.
+  "UKM",
+  // Cobalt's trimmed down version of the UMA proto
+  // //third_party/metrics_proto/cobalt_uma_event.proto
+  "COBALT_UMA",
+};
+
+// A custom event that carries metric/UMA information. This event is
+// dispatched on the H5vccMetrics object when a UMA payload is ready.
 [
     Exposed=Window,
     SecureContext
 ]
 interface MetricsEvent : Event {
-    readonly attribute DOMString tbd;
+    readonly attribute H5vccMetricType metricType;
+    readonly attribute DOMString metricPayload;
 };

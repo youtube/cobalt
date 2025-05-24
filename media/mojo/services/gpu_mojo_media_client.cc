@@ -114,6 +114,7 @@ StarboardRendererTraits::StarboardRendererTraits(
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
@@ -123,6 +124,7 @@ StarboardRendererTraits::StarboardRendererTraits(
       overlay_plane_id(overlay_plane_id),
       audio_write_duration_local(audio_write_duration_local),
       audio_write_duration_remote(audio_write_duration_remote),
+      max_video_capabilities(max_video_capabilities),
       renderer_extension_receiver(std::move(renderer_extension_receiver)),
       client_extension_remote(std::move(client_extension_remote)) {}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -278,16 +280,15 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
     mojom::FrameInterfaceFactory* /* frame_interfaces */,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
+    const StarboardRendererConfig& config,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote) {
   StarboardRendererTraits traits(std::move(task_runner),
-      std::move(media_log_remote), overlay_plane_id,
-      audio_write_duration_local, audio_write_duration_remote,
+      std::move(media_log_remote), config.overlay_plane_id,
+      config.audio_write_duration_local, config.audio_write_duration_remote,
+      config.max_video_capabilities,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
   return CreatePlatformStarboardRenderer(traits);

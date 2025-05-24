@@ -17,6 +17,7 @@
 #include <utility>
 
 #include "base/time/time.h"
+#include "media/base/starboard/starboard_rendering_mode.h"
 #include "media/mojo/services/mojo_media_log.h"
 
 namespace media {
@@ -34,7 +35,8 @@ StarboardRendererWrapper::StarboardRendererWrapper(
                                          traits.task_runner),
           traits.overlay_plane_id,
           traits.audio_write_duration_local,
-          traits.audio_write_duration_remote)) {
+          traits.audio_write_duration_remote,
+          traits.max_video_capabilities)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -53,9 +55,13 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
     // decode-to-texture mode.
   }
 
-  renderer_->set_paint_video_hole_frame_callback(base::BindRepeating(
-      &StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard,
-      weak_factory_.GetWeakPtr()));
+  renderer_->SetStarboardRendererCallbacks(
+      base::BindRepeating(
+          &StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard,
+          weak_factory_.GetWeakPtr()),
+      base::BindRepeating(
+          &StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard,
+          weak_factory_.GetWeakPtr()));
   renderer_->Initialize(media_resource, client, std::move(init_cb));
 }
 
@@ -117,6 +123,12 @@ void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(
     const gfx::Size& size) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   client_extension_remote_->PaintVideoHoleFrame(size);
+}
+
+void StarboardRendererWrapper::OnUpdateStarboardRenderingModeByStarboard(
+    const StarboardRenderingMode mode) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  client_extension_remote_->UpdateStarboardRenderingMode(mode);
 }
 
 }  // namespace media

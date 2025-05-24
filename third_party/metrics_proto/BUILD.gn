@@ -39,6 +39,9 @@ _proto_files = [
 
 proto_library("metrics_proto") {
   sources = _proto_files
+  if (is_cobalt) {
+    sources += ["cobalt_uma_event.proto"]
+  }
   proto_in_dir = "."
 }
 

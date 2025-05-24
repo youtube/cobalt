@@ -2389,6 +2389,20 @@ source_set("browser") {
       "//third_party/blink/public/mojom:memory_usage_monitor_linux_mojo_bindings",
     ]
   }
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "child_process_launcher_helper_linux.cc",
+      "sandbox_host_linux.cc",
+      "sandbox_host_linux.h",
+      "sandbox_ipc_linux.cc",
+      "sandbox_ipc_linux.h",
+      "zygote_host/zygote_host_impl_linux.cc",
+      "zygote_host/zygote_host_impl_linux.h",
+    ]
+    sources += [
+      "child_process_launcher_helper_starboard.cc",
+    ]
+  }
 
   if (is_chromeos) {
     sources += [

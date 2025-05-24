@@ -234,9 +234,9 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   void SetIsLockedToSite();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual uint64_t mediaSourceSizeLimit() const override;
-  virtual uint64_t totalMediaSourceSize() const override;
-  virtual uint64_t usedMediaSourceMemorySize() const override;
+  virtual uint64_t GetMediaSourceMaximumMemoryCapacity() const override;
+  virtual uint64_t GetMediaSourceCurrentMemoryCapacity() const override;
+  virtual uint64_t GetMediaSourceTotalAllocatedMemory() const override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:

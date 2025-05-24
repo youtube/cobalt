@@ -15,7 +15,6 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
@@ -68,6 +67,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
+  std::vector<std::unique_ptr<content::NavigationThrottle>>
+  CreateThrottlesForNavigation(content::NavigationHandle* handle) override;
   content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
       content::BrowserContext* context) override;
   std::string GetApplicationLocale() override;

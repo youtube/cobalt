@@ -111,14 +111,16 @@ StarboardRenderer::StarboardRenderer(
     std::unique_ptr<MediaLog> media_log,
     const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote)
+    TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities)
     : state_(STATE_UNINITIALIZED),
       task_runner_(std::move(task_runner)),
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote) {
+      audio_write_duration_remote_(audio_write_duration_remote),
+      max_video_capabilities_(max_video_capabilities) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -288,6 +290,16 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  if (audio_read_in_progress_ || video_read_in_progress_) {
+    constexpr TimeDelta kDelay = base::Milliseconds(50);
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::StartPlayingFrom,
+                       weak_factory_.GetWeakPtr(), time),
+        kDelay);
+    return;
+  }
+
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
   StoreMediaTime(time);
@@ -414,9 +426,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::set_paint_video_hole_frame_callback(
-    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+void StarboardRenderer::SetStarboardRendererCallbacks(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+  update_starboard_rendering_mode_cb_ =
+      std::move(update_starboard_rendering_mode_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
@@ -483,10 +498,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         // TODO(b/326497953): Support suspend/resume.
         false,
         // TODO(b/326825450): Revisit 360 videos.
-        // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
-        // TODO(b/326827007): Support secondary videos.
-        "",
+        kSbPlayerOutputModeInvalid, max_video_capabilities_,
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
         -1));
     if (player_bridge_->IsValid()) {
@@ -498,7 +510,9 @@ void StarboardRenderer::CreatePlayerBridge() {
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_for_preroll_;
+                << audio_write_duration_for_preroll_
+                << " and with max_video_capabilities_ at "
+                << max_video_capabilities_;
     } else {
       error_message = player_bridge_->GetPlayerCreationErrorMessage();
       player_bridge_.reset();
@@ -507,6 +521,21 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    const auto output_mode = player_bridge_->GetSbPlayerOutputMode();
+    switch (output_mode) {
+      case kSbPlayerOutputModeDecodeToTexture:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kDecodeToTexture);
+        break;
+      case kSbPlayerOutputModePunchOut:
+        update_starboard_rendering_mode_cb_.Run(
+            StarboardRenderingMode::kPunchOut);
+        break;
+      case kSbPlayerOutputModeInvalid:
+        NOTREACHED() << "Invalid SbPlayer output mode";
+        break;
+    }
+
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }

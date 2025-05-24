@@ -17,6 +17,7 @@
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/mojo/clients/mojo_media_log_service.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/mojo/clients/mojo_renderer_factory.h"
@@ -42,6 +43,7 @@ StarboardRendererClientFactory::StarboardRendererClientFactory(
       get_gpu_factories_cb_(get_gpu_factories_cb),
       audio_write_duration_local_(traits->audio_write_duration_local),
       audio_write_duration_remote_(traits->audio_write_duration_remote),
+      max_video_capabilities_(traits->max_video_capabilities),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
 
 StarboardRendererClientFactory::~StarboardRendererClientFactory() = default;
@@ -90,13 +92,16 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   DCHECK(get_gpu_factories_cb_);
   GpuVideoAcceleratorFactories* gpu_factories = get_gpu_factories_cb_.Run();
 
+  // Initialize StarboardRendererWrapper via StarboardRendererConfig.
+  StarboardRendererConfig config(
+      overlay_factory->overlay_plane_id(), audio_write_duration_local_,
+      audio_write_duration_remote_, max_video_capabilities_);
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
-          std::move(media_log_pending_remote),
+          std::move(media_log_pending_remote), config,
           std::move(renderer_extension_receiver),
           std::move(client_extension_remote), media_task_runner,
-          audio_write_duration_local_, audio_write_duration_remote_,
-          overlay_factory->overlay_plane_id(), video_renderer_sink);
+          video_renderer_sink);
 
   return std::make_unique<media::StarboardRendererClient>(
       media_task_runner, media_log_->Clone(), std::move(mojo_renderer),

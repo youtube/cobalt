@@ -19,23 +19,20 @@
 #include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
-#include "base/features.h"
-#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
-#include "base/json/json_reader.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/path_service.h"
-#include "cc/base/switches.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/global_features.h"
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
-#include "cobalt/user_agent/user_agent_platform_info.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -49,9 +46,7 @@
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
 #include "content/shell/browser/shell.h"
-// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
-// being a ShellBrowserMainParts.
-#include "content/shell/browser/shell_browser_main_parts.h"
+#include "content/shell/browser/shell_paths.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -64,8 +59,6 @@ namespace cobalt {
 namespace {
 
 constexpr base::FilePath::CharType kCacheDirname[] = FILE_PATH_LITERAL("Cache");
-const char kCobaltExperimentName[] = "CobaltExperiment";
-const char kCobaltGroupName[] = "CobaltGroup";
 constexpr base::FilePath::CharType kCookieFilename[] =
     FILE_PATH_LITERAL("Cookies");
 constexpr base::FilePath::CharType kNetworkDataDirname[] =
@@ -135,6 +128,15 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
+}
+
+std::vector<std::unique_ptr<content::NavigationThrottle>>
+CobaltContentBrowserClient::CreateThrottlesForNavigation(
+    content::NavigationHandle* handle) {
+  std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
+  throttles.push_back(
+      std::make_unique<content::CobaltHttpsOnlyNavigationThrottle>(handle));
+  return throttles;
 }
 
 content::GeneratedCodeCacheSettings
@@ -350,7 +352,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
   auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
 
   const base::Value::Dict& feature_map =
-      experiment_config->GetDict(kExperimentConfigFeature);
+      experiment_config->GetDict(kExperimentConfigFeatures);
   const base::Value::Dict& param_map =
       experiment_config->GetDict(kExperimentConfigFeatureParams);
 
@@ -390,14 +392,14 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
-  base::FilePath path;
-  base::PathService::Get(content::SHELL_DIR_USER_DATA, &path);
-
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
       ->InstantiateFieldTrialList();
 
   auto feature_list = std::make_unique<base::FeatureList>();
+
+  auto accessor = feature_list->ConstructAccessor();
+  GlobalFeatures::GetInstance()->set_accessor(std::move(accessor));
 
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();

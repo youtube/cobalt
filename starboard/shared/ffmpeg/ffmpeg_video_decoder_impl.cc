@@ -245,8 +245,13 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
       packet.data = const_cast<uint8_t*>(event.input_buffer->data());
       packet.size = event.input_buffer->size();
       packet.pts = event.input_buffer->timestamp();
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+// |reordered_opaque| is deprecated.
+// We use ffmpeg's default mechanism to calculate |AVFrame.pts| from
+// |AVPacket.pts|.
+#else
       codec_context_->reordered_opaque = packet.pts;
-
+#endif
       DecodePacket(&packet);
       decoder_status_cb_(kNeedMoreInput, NULL);
     } else {
@@ -353,10 +358,16 @@ bool VideoDecoderImpl<FFMPEG>::ProcessDecodedFrame(const AVFrame& av_frame) {
   int uv_pitch = av_frame.linesize[1];
 
   const int kBitDepth = 8;
+  const int64_t frame_pts =
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+      av_frame.pts;
+#else
+      av_frame.reordered_opaque;
+#endif
+
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      kBitDepth, av_frame.width, av_frame.height, y_pitch, uv_pitch,
-      av_frame.reordered_opaque, av_frame.data[0], av_frame.data[1],
-      av_frame.data[2]);
+      kBitDepth, av_frame.width, av_frame.height, y_pitch, uv_pitch, frame_pts,
+      av_frame.data[0], av_frame.data[1], av_frame.data[2]);
 
   bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
@@ -526,7 +537,13 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   frame->height = codec_context->height;
   frame->format = codec_context->pix_fmt;
 
+#if LIBAVCODEC_VERSION_MAJOR >= 61
+// We don't copy user data using |reordered_opaque|. |reordered_opaque| is
+// deprecated and we don't need it, since we use ffmpeg's default mechanism to
+// calculate |AVFrame.pts| from |AVPacket.pts|.
+#else
   frame->reordered_opaque = codec_context->reordered_opaque;
+#endif
 
   frame->buf[0] = static_cast<AVBufferRef*>(ffmpeg_->av_buffer_create(
       frame_buffer, GetYV12SizeInBytes(y_stride, aligned_height),

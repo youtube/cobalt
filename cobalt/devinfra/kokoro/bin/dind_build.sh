@@ -44,18 +44,18 @@ pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
 
+  git config --global --add safe.directory "${gclient_root}/src"
+  local git_url="$(git -C "${gclient_root}/src" remote get-url origin)"
+
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
-  # TODO(b/406532110): Pin depot_tools to avoid using bundled python.
-  git -C tools/depot_tools reset --hard 22e5a04e5975a4308c15b45b34b1b120bd0c7224
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' rpc://lbshell-internal/cobalt_src
+  gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' "${git_url}"
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
-  git config --global --add safe.directory "${gclient_root}/src"
   gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
   build_telemetry opt-out
 
@@ -65,12 +65,6 @@ pipeline () {
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
     --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
-
-  # Generate license file
-  echo "Generating license file"
-  vpython3 tools/licenses/licenses.py \
-    license_file --gn-target cobalt:gn_all --gn-out-dir ${out_dir} \
-      > "${out_dir}/licenses_cobalt.txt"
 
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then

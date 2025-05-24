@@ -14,11 +14,14 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
+#include <memory>
+
 #include "base/logging.h"
 #include "base/notreached.h"
+#include "base/posix/file_descriptor_shuffle.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "components/metrics/metrics_log_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -27,50 +30,73 @@
 
 namespace cobalt {
 
-namespace {
-
-class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
- public:
-  CobaltMetricsLogUploader() = default;
-  ~CobaltMetricsLogUploader() = default;
-
-  void UploadLog(const std::string& compressed_log_data,
-                 const std::string& log_hash,
-                 const std::string& log_signature,
-                 const metrics::ReportingInfo& reporting_info) {
-    DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
-    NOTIMPLEMENTED();
-  }
-};
-
-}  // namespace
-
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
-    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    std::unique_ptr<variations::SyntheticTrialRegistry>
+        synthetic_trial_registry,
     PrefService* local_state)
     : metrics_state_manager_(state_manager),
-      synthetic_trial_registry_(synthetic_trial_registry),
+      synthetic_trial_registry_(std::move(synthetic_trial_registry)),
       local_state_(local_state) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
 void CobaltMetricsServiceClient::Initialize() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  metrics_service_ = std::make_unique<metrics::MetricsService>(
-      metrics_state_manager_.get(), this, local_state_.get());
+  metrics_service_ = CreateMetricsServiceInternal(metrics_state_manager_.get(),
+                                                  this, local_state_.get());
+  log_uploader_ = CreateLogUploaderInternal();
+  log_uploader_weak_ptr_ = log_uploader_->GetWeakPtr();
+  StartIdleRefreshTimer();
+}
+
+void CobaltMetricsServiceClient::StartIdleRefreshTimer() {
+  if (idle_refresh_timer_.IsRunning()) {
+    idle_refresh_timer_.Stop();
+  }
+
+  // At a rate of half the upload interval, we force UMA to consider the app
+  // as non-idle. This guarantees metrics are uploaded regularly. This is done
+  // for two reasons:
+  //
+  //   1) The nature of the YouTube application is such that the user can be
+  //      "idle" for long periods (e.g., watching a movie). We still want to
+  //      send metrics in these cases.
+  //
+  //   2) The typical way Chromium handles non-idle is page loads and user
+  //      actions. User actions are currently sparse and/or not working due to
+  //      the nature of Kabuki's implementation (see b/417477183).
+  auto timer_interval = GetStandardUploadInterval() / 2;
+  timer_interval = timer_interval > kMinIdleRefreshInterval
+                       ? timer_interval
+                       : kMinIdleRefreshInterval;
+  idle_refresh_timer_.Start(
+      FROM_HERE, timer_interval, this,
+      &CobaltMetricsServiceClient::OnApplicationNotIdleInternal);
+  DLOG(INFO) << "Starting refresh timer for: "
+             << idle_refresh_timer_.GetCurrentDelay().InSeconds() << " seconds";
+}
+
+std::unique_ptr<metrics::MetricsService>
+CobaltMetricsServiceClient::CreateMetricsServiceInternal(
+    metrics::MetricsStateManager* state_manager,
+    metrics::MetricsServiceClient* client,
+    PrefService* local_state) {
+  return std::make_unique<metrics::MetricsService>(state_manager, client,
+                                                   local_state);
 }
 
 // static
 std::unique_ptr<CobaltMetricsServiceClient> CobaltMetricsServiceClient::Create(
     metrics::MetricsStateManager* state_manager,
-    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    std::unique_ptr<variations::SyntheticTrialRegistry>
+        synthetic_trial_registry,
     PrefService* local_state) {
   // Perform two-phase initialization so that `client->metrics_service_` only
   // receives pointers to fully constructed objects.
   std::unique_ptr<CobaltMetricsServiceClient> client(
-      new CobaltMetricsServiceClient(state_manager, synthetic_trial_registry,
-                                     local_state));
+      new CobaltMetricsServiceClient(
+          state_manager, std::move(synthetic_trial_registry), local_state));
   client->Initialize();
 
   return client;
@@ -161,6 +187,9 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
   // done_callback when done else the uploader will never get invoked.
   std::move(done_callback).Run();
 
+  OnApplicationNotIdleInternal();
+}
+void CobaltMetricsServiceClient::OnApplicationNotIdleInternal() {
   // MetricsService will shut itself down if the app doesn't periodically tell
   // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
   // sessions for LR can happen for extended periods of time with no action by
@@ -188,18 +217,32 @@ CobaltMetricsServiceClient::CreateUploader(
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // TODO(b/372559349): Finish implementing log uploader.
+  // Uploader should already be initialized early in construction.
+  CHECK(log_uploader_);
+  log_uploader_->setOnUploadComplete(on_upload_complete);
+  return std::move(log_uploader_);
+}
+
+std::unique_ptr<CobaltMetricsLogUploader>
+CobaltMetricsServiceClient::CreateLogUploaderInternal() {
   return std::make_unique<CobaltMetricsLogUploader>();
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
-  // TODO(b/372559349): Wire this to the appropriate Web platform IDL method.
-  const int kStandardUploadIntervalMinutes = 5;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  DLOG(INFO) << "Setting log upload interval to:"
-             << kStandardUploadIntervalMinutes;
-  return base::Minutes(kStandardUploadIntervalMinutes);
+  return upload_interval_;
 }
 
+void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
+  upload_interval_ = interval;
+  // If upload interval changes, update idle refresh timer accordingly.
+  StartIdleRefreshTimer();
+}
+
+void CobaltMetricsServiceClient::SetMetricsListener(
+    ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
+}
 }  // namespace cobalt

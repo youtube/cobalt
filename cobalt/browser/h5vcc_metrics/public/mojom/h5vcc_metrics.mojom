@@ -14,8 +14,14 @@
 
 module h5vcc_metrics.mojom;
 
+enum H5vccMetricType {
+  kUma,
+  kUkm,
+  kCobaltUma,
+};
+
 interface MetricsListener {
-  OnMetrics(string tbd);
+  OnMetrics(H5vccMetricType metricType, string metricsPayload);
 };
 
 interface H5vccMetrics {

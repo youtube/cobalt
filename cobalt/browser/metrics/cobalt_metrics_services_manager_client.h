@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
+#include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics_services_manager/metrics_services_manager_client.h"
 
@@ -27,6 +28,8 @@ class EnabledStateProvider;
 }  // namespace metrics
 
 namespace cobalt {
+
+class CobaltMetricsServiceClient;
 
 // Cobalt implementation of MetricsServicesManagerClient. Top level manager
 // of metrics reporting state and uploading.
@@ -64,11 +67,17 @@ class CobaltMetricsServicesManagerClient
     return enabled_state_provider_.get();
   }
 
+  CobaltMetricsServiceClient* metrics_service_client() {
+    return metrics_service_client_;
+  }
+
   ::metrics::MetricsStateManager* GetMetricsStateManager() override;
 
  private:
   // MetricsStateManager which is passed as a parameter to service constructors.
   std::unique_ptr<::metrics::MetricsStateManager> metrics_state_manager_;
+
+  base::raw_ptr<CobaltMetricsServiceClient> metrics_service_client_;
 
   // EnabledStateProvider to communicate if the client has consented to metrics
   // reporting, and if it's enabled.

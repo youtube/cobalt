@@ -18,6 +18,8 @@
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_accessibility/h5vcc_accessibility_impl.h"
 #include "cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom.h"
+#include "cobalt/browser/h5vcc_experiments/h5vcc_experiments_impl.h"
+#include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom.h"
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
@@ -33,11 +35,6 @@
 #else
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
-
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-#include "cobalt/browser/h5vcc_storage/testing/h5vcc_storage_for_testing_impl.h"
-#include "cobalt/browser/h5vcc_storage/testing/public/mojom/h5vcc_storage_for_testing.mojom.h"
-#endif
 
 namespace cobalt {
 
@@ -60,14 +57,11 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
 #endif  // BUILDFLAG(IS_ANDROIDTV)
-#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  binder_map->Add<h5vcc_storage_for_testing::mojom::H5vccStorageForTesting>(
-      base::BindRepeating(
-          &h5vcc_storage_for_testing::H5vccStorageForTestingImpl::Create));
-#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   binder_map->Add<h5vcc_accessibility::mojom::H5vccAccessibilityBrowser>(
       base::BindRepeating(
           &h5vcc_accessibility::H5vccAccessibilityImpl::Create));
+  binder_map->Add<h5vcc_experiments::mojom::H5vccExperiments>(
+      base::BindRepeating(&h5vcc_experiments::H5vccExperimentsImpl::Create));
   binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(
       base::BindRepeating(&h5vcc_metrics::H5vccMetricsImpl::Create));
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(

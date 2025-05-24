@@ -76,6 +76,18 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
+  void CloseApp(JNIEnv* env);
+
+  std::string GetTimeZoneId(JNIEnv* env);
+
+  ScopedJavaLocalRef<jobject> GetDisplayDpi(JNIEnv* env);
+
+  ScopedJavaLocalRef<jobject> GetDeviceResolution(JNIEnv* env);
+
+  bool IsNetworkConnected(JNIEnv* env);
+
+  void ReportFullyDrawn(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

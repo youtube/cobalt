@@ -28,26 +28,28 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "components/variations/service/variations_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "content/public/common/content_paths.h"
+#include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
 
-// TODO(b/372559349): Implement CobaltEnabledStateProvider to be configurable by
-// user.
 CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
     PrefService* local_state)
     : enabled_state_provider_(
-          std::make_unique<CobaltEnabledStateProvider>(true, true)),
+          std::make_unique<CobaltEnabledStateProvider>(local_state)),
       local_state_(local_state) {
   DCHECK(local_state_);
 }
 
 std::unique_ptr<::metrics::MetricsServiceClient>
 CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
-  return CobaltMetricsServiceClient::Create(
-      GetMetricsStateManager(), new variations::SyntheticTrialRegistry(),
+  auto metrics_service_client = CobaltMetricsServiceClient::Create(
+      GetMetricsStateManager(),
+      std::make_unique<variations::SyntheticTrialRegistry>(),
       local_state_.get());
+  metrics_service_client_ = metrics_service_client.get();
+  return metrics_service_client;
 }
 
 std::unique_ptr<variations::VariationsService>
@@ -85,8 +87,7 @@ std::unique_ptr<::metrics::ClientInfo> LoadMetricsClientInfo() {
 CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
   if (!metrics_state_manager_) {
     base::FilePath user_data_dir;
-    // TODO(b/372559349): use a real path.
-    base::PathService::Get(content::PATH_START, &user_data_dir);
+    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
         local_state_.get(), enabled_state_provider_.get(), std::wstring(),
         user_data_dir, metrics::StartupVisibility::kForeground);

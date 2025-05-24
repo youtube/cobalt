@@ -17,7 +17,6 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -28,11 +27,11 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
+import android.view.WindowManager;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
@@ -45,7 +44,6 @@ import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -114,8 +112,8 @@ public abstract class CobaltActivity extends Activity {
             "--autoplay-policy=no-user-gesture-required",
             // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
-            // Pass javascript console log to adb log.
-            "--enable-features=LogJsConsoleMessages",
+            // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
+            "--enable-features=LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
             // Enable low end device mode.
@@ -130,6 +128,8 @@ public abstract class CobaltActivity extends Activity {
             "--js-flags=--optimize_for_size=true",
             // Use SurfaceTexture for decode-to-texture mode.
             "--disable-features=AImageReader",
+            // Disable concurrent-marking due to b/415843979
+            "--js-flags=--concurrent_marking=false",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
@@ -228,9 +228,6 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    // Set to overlay video mode.
-    mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
-
     // Load an empty page to let shell create WebContents.
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
@@ -371,21 +368,11 @@ public abstract class CobaltActivity extends Activity {
 
     videoSurfaceView = new VideoSurfaceView(this);
 
-    videoSurfaceView.setBackgroundColor(getThemeColorPrimary(this));
+    // TODO: b/408279606 - Set this to app theme primary color once we fix
+    // error with it being unresolvable.
+    videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-  }
-
-  private static int getThemeColorPrimary(final Context context) {
-    try {
-      final TypedValue value = new TypedValue();
-      if (context.getTheme().resolveAttribute(R.attr.colorPrimary, value, true)) {
-        return value.data;
-      }
-    } catch (NullPointerException e) {
-      Log.w(TAG, "Unable to get application context theme.");
-    }
-    return Color.TRANSPARENT;
   }
 
   /**
@@ -430,7 +417,6 @@ public abstract class CobaltActivity extends Activity {
    */
   protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
 
-  @UsedByNative
   protected StarboardBridge getStarboardBridge() {
     return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
   }
@@ -454,9 +440,24 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // document.onresume event
+      webContents.onResume();
+      // visibility:visible event
       webContents.onShow();
     }
     super.onStart();
+  }
+
+  @Override
+  protected void onResume() {
+    super.onResume();
+    getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+  }
+
+  @Override
+  protected void onPause() {
+    super.onPause();
+    getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
   }
 
   @Override
@@ -466,7 +467,10 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      // visibility:hidden event
       webContents.onHide();
+      // document.onfreeze event
+      webContents.onFreeze();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {

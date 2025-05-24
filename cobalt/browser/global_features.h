@@ -15,11 +15,11 @@
 #ifndef COBALT_BROWSER_GLOBAL_FEATURES_H_
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
+#include "base/feature_list.h"
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "content/shell/browser/shell_paths.h"
 
 class PrefService;
 
@@ -34,10 +34,6 @@ class MetricsServicesManager;
 namespace cobalt {
 class CobaltMetricsServicesManagerClient;
 
-extern const char kExperimentConfigFeature[];
-extern const char kExperimentConfigFeatureParams[];
-extern const char kExperimentConfigExpIds[];
-
 // This class owns features that are globally scoped. It follows the structure
 // of BrowserProcess class in Chrome. This class is a singleton and can only be
 // accessed on a single SequenceTaskRunner.
@@ -51,10 +47,18 @@ class GlobalFeatures {
   // Registers experiment config prefs used by this class.
   static void RegisterPrefs(PrefRegistrySimple* registry);
 
+  base::FeatureList::Accessor* accessor() { return accessor_.get(); }
   metrics_services_manager::MetricsServicesManager* metrics_services_manager();
   metrics::MetricsService* metrics_service();
+  CobaltMetricsServicesManagerClient* metrics_services_manager_client();
   PrefService* experiment_config();
+  PrefService* metrics_local_state();
   PrefService* local_state();
+  const std::vector<uint32_t>& active_experiment_ids() {
+    return active_experiment_ids_;
+  }
+
+  void set_accessor(std::unique_ptr<base::FeatureList::Accessor> accessor);
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
@@ -66,20 +70,30 @@ class GlobalFeatures {
   // Initialize CobaltMetricsServicesManagerClient instance and use it to
   // initialize MetricsServicesManager.
   void CreateMetricsServices();
+  // Initialize a PrefService instance for local state for Metrics services.
+  void CreateMetricsLocalState();
   // Initialize a PrefService instance for local state.
   void CreateLocalState();
+  // Record the active experiments ids in the member variable.
+  void InitializeActiveExperimentIds();
 
+  std::unique_ptr<base::FeatureList::Accessor> accessor_;
+
+  // Finch config/state.
   std::unique_ptr<PrefService> experiment_config_;
 
-  std::unique_ptr<PrefService> local_state_;
+  // UMA config/state.
+  std::unique_ptr<PrefService> metrics_local_state_;
 
   // |metrics_services_manager_| owns this.
   raw_ptr<CobaltMetricsServicesManagerClient, DanglingUntriaged>
       metrics_services_manager_client_;
 
-  // Must be destroyed before |local_state_|.
+  // Must be destroyed before |metrics_local_state_|.
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
       metrics_services_manager_;
+
+  std::vector<uint32_t> active_experiment_ids_;
 
   SEQUENCE_CHECKER(sequence_checker_);
 };

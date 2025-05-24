@@ -1,0 +1,13 @@
+diff --git a/source/common/uposixdefs.h b/source/common/uposixdefs.h
+index 23c3f6d4..3770a335 100644
+--- a/source/common/uposixdefs.h
++++ b/source/common/uposixdefs.h
+@@ -33,7 +33,7 @@
+  */
+ #ifdef _XOPEN_SOURCE
+     /* Use the predefined value. */
+-#else
++#elif !defined(ICU_IS_IN_FUCHSIA) || !defined(__APPLE__)
+     /*
+      * Version 6.0:
+      * The Open Group Base Specifications Issue 6 (IEEE Std 1003.1, 2004 Edition)

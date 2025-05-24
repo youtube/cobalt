@@ -40,9 +40,4 @@ bool Process::CanBackgroundProcesses() {
   return false;
 }
 
-bool Process::SetProcessBackgrounded(bool background) {
-  COBALT_LINKER_STUB();
-  return false;
-}
-
 }  // namespace base

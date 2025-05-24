@@ -394,9 +394,7 @@ void MediaInterfaceProxy::CreateMediaFoundationRenderer(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void MediaInterfaceProxy::CreateStarboardRenderer(
     mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta video_write_duration_remote,
+    const media::StarboardRendererConfig& config,
     mojo::PendingReceiver<media::mojom::Renderer> receiver,
     mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
         renderer_extension_receiver,
@@ -408,8 +406,7 @@ void MediaInterfaceProxy::CreateStarboardRenderer(
   InterfaceFactory* factory = media_interface_factory_ptr_->Get();
   if (factory) {
     factory->CreateStarboardRenderer(
-        std::move(media_log_remote), overlay_plane_id,
-        audio_write_duration_local, video_write_duration_remote,
+        std::move(media_log_remote), config,
         std::move(receiver), std::move(renderer_extension_receiver),
         std::move(client_extension_remote));
   }

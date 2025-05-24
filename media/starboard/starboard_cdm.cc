@@ -125,6 +125,14 @@ void StarboardCdm::SetServerCertificate(
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(INFO) << "StarboardCdm - Set server cert - size:" << certificate.size();
 
+  if (!SbDrmIsServerCertificateUpdatable(sb_drm_)) {
+    LOG(WARNING)
+        << "Trying to update cert, but DRM system does not support it.";
+    promise->reject(CdmPromise::Exception::NOT_SUPPORTED_ERROR, 0,
+                    "DRM system doesn't support updating server certificate.");
+    return;
+  }
+
   int ticket = next_ticket_++;
   if (!SbDrmTicketIsValid(ticket)) {
     LOG(ERROR) << "Updating server with invalid ticket";
@@ -463,12 +471,6 @@ void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
         std::string(static_cast<const char*>(session_id),
                     static_cast<const char*>(session_id) + session_id_size);
   }
-
-  LOG(INFO) << "Receiving session update request notification from drm "
-               "system ("
-            << sb_drm << "), status: " << status << ", type: " << type
-            << ", ticket: " << ticket
-            << ", session id: " << session_id_copy.value_or("n/a");
 
   const uint8_t* begin = static_cast<const uint8_t*>(content);
   const uint8_t* end = begin + content_size;
