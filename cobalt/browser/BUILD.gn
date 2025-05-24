@@ -32,6 +32,10 @@ source_set("browser") {
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "page_load_metrics_initialize.cc",
+    "page_load_metrics_initialize.h",
+    "page_load_metrics_memory_tracker_factory.cc",
+    "page_load_metrics_memory_tracker_factory.h",
   ]
 
   if (is_androidtv) {
@@ -65,10 +69,12 @@ source_set("browser") {
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//components/js_injection/browser:browser",
+    "//components/keyed_service/content:content",
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
+    "//components/page_load_metrics/browser",
     "//components/prefs",
     "//components/variations/service:service",
     "//content/public/browser",
