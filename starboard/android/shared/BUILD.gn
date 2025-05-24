@@ -216,6 +216,8 @@ static_library("starboard_platform") {
     "media_common.h",
     "media_decoder.cc",
     "media_decoder.h",
+    "media_drm_bridge.cc",
+    "media_drm_bridge.h",
     "media_get_audio_configuration.cc",
     "media_get_audio_output_count.cc",
     "media_get_initial_buffer_capacity.cc",
