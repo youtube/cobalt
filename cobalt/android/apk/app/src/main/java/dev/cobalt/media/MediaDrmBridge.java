@@ -33,7 +33,6 @@ import android.util.Base64;
 import androidx.annotation.RequiresApi;
 import dev.cobalt.coat.CobaltHttpHelper;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -43,7 +42,6 @@ import java.util.Locale;
 import java.util.UUID;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeClassQualifiedName;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
@@ -775,17 +773,15 @@ public class MediaDrmBridge {
 
   @NativeMethods
   interface Natives {
-    @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmSessionMessage(
-        long mediaDrmBridge,
+        long nativeDrmSystem,
         int ticket,
         byte[] sessionId,
         int requestType,
         byte[] message);
 
-    @NativeClassQualifiedName("MediaDrmBridge")
     void onMediaDrmKeyStatusChange(
-        long mediaDrmBridge,
+        long nativeDrmSystem,
         byte[] sessionId,
         MediaDrm.KeyStatus[] keyInformation);
   }

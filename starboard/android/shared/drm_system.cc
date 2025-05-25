@@ -23,7 +23,6 @@
 #include "base/android/jni_int_wrapper.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
@@ -35,13 +34,126 @@ namespace {
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::ConvertUTF8ToJavaString;
+using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaByteArray;
 using starboard::android::shared::DrmSystem;
 
+const char kNoUrl[] = "";
+
+// Using all capital names to be consistent with other Android media statuses.
+// They are defined in the same order as in their Java counterparts.  Their
+// values should be kept in consistent with their Java counterparts defined in
+// android.media.MediaDrm.KeyStatus.
+const jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
+const jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
+const jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
+const jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
+const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
+
+// They must have the same values as defined in MediaDrm.KeyRequest.
+const jint REQUEST_TYPE_INITIAL = 0;
+const jint REQUEST_TYPE_RENEWAL = 1;
+const jint REQUEST_TYPE_RELEASE = 2;
+
 DECLARE_INSTANCE_COUNTER(AndroidDrmSystem)
 
+SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
+    jint request_type) {
+  if (request_type == REQUEST_TYPE_INITIAL) {
+    return kSbDrmSessionRequestTypeLicenseRequest;
+  }
+  if (request_type == REQUEST_TYPE_RENEWAL) {
+    return kSbDrmSessionRequestTypeLicenseRenewal;
+  }
+  if (request_type == REQUEST_TYPE_RELEASE) {
+    return kSbDrmSessionRequestTypeLicenseRelease;
+  }
+  SB_NOTREACHED();
+  return kSbDrmSessionRequestTypeLicenseRequest;
+}
+
+std::string JByteArrayToString(
+    JNIEnv* env,
+    const base::android::JavaRef<jbyteArray>& j_array) {
+  std::string out_string;
+  ::base::android::JavaByteArrayToString(env, j_array, &out_string);
+  return out_string;
+}
+
+std::string JByteArrayToString(JNIEnv* env, const jbyteArray& j_array) {
+  return JByteArrayToString(env, ScopedJavaLocalRef<jbyteArray>(env, j_array));
+}
 }  // namespace
+
+namespace starboard::android::shared {
+
+void DrmSystem::OnMediaDrmSessionMessage(
+    JNIEnv* env,
+    jint ticket,
+    const JavaParamRef<jbyteArray>& sessionId,
+    jint requestType,
+    const JavaParamRef<jbyteArray>& message) {
+  std::string session_id = JByteArrayToString(env, sessionId);
+  std::string message_str = JByteArrayToString(env, message);
+
+  update_request_callback_(
+      this, context_, ticket, kSbDrmStatusSuccess,
+      SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(requestType),
+      /*error_message=*/nullptr, session_id.data(), session_id.size(),
+      message_str.data(), message_str.size(), kNoUrl);
+}
+
+void DrmSystem::OnMediaDrmKeyStatusChange(
+    JNIEnv* env,
+    const JavaParamRef<jbyteArray>& sessionId,
+    const JavaParamRef<jobjectArray>& keyInformation) {
+  std::string session_id = JByteArrayToString(env, sessionId);
+
+  // NULL array indicates key status isn't supported (i.e. Android API < 23)
+  jsize length =
+      (keyInformation == NULL) ? 0 : env->GetArrayLength(keyInformation);
+  std::vector<SbDrmKeyId> drm_key_ids(length);
+  std::vector<SbDrmKeyStatus> drm_key_statuses(length);
+
+  for (jsize i = 0; i < length; ++i) {
+    jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
+    jclass mediaDrmKeyStatusClass =
+        env->FindClass("android/media/MediaDrm$KeyStatus");
+    jmethodID getKeyIdMethod =
+        env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
+
+    std::string key_id =
+        JByteArrayToString(env, static_cast<jbyteArray>(env->CallObjectMethod(
+                                    j_key_status, getKeyIdMethod)));
+
+    SB_DCHECK(key_id.size() <= sizeof(drm_key_ids[i].identifier));
+    memcpy(drm_key_ids[i].identifier, key_id.data(), key_id.size());
+    drm_key_ids[i].identifier_size = key_id.size();
+
+    jmethodID getStatusCodeMethod =
+        env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
+    jint j_status_code = env->CallIntMethod(j_key_status, getStatusCodeMethod);
+    if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
+      drm_key_statuses[i] = kSbDrmKeyStatusExpired;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
+      drm_key_statuses[i] = kSbDrmKeyStatusError;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED) {
+      drm_key_statuses[i] = kSbDrmKeyStatusRestricted;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_PENDING) {
+      drm_key_statuses[i] = kSbDrmKeyStatusPending;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
+      drm_key_statuses[i] = kSbDrmKeyStatusUsable;
+    } else {
+      SB_NOTREACHED();
+      drm_key_statuses[i] = kSbDrmKeyStatusError;
+    }
+  }
+
+  CallDrmSessionKeyStatusesChangedCallback(session_id.data(), session_id.size(),
+                                           drm_key_ids, drm_key_statuses);
+}
+}  // namespace starboard::android::shared
 
 // Declare the function as static instead of putting it in the above anonymous
 // namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
@@ -240,18 +352,6 @@ const void* DrmSystem::GetMetrics(int* size) {
 
   *size = static_cast<int>(metrics_.size());
   return metrics_.data();
-}
-
-void DrmSystem::CallUpdateRequestCallback(int ticket,
-                                          SbDrmSessionRequestType request_type,
-                                          const void* session_id,
-                                          int session_id_size,
-                                          const void* content,
-                                          int content_size,
-                                          const char* url) {
-  update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           request_type, NULL, session_id, session_id_size,
-                           content, content_size, url);
 }
 
 void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(

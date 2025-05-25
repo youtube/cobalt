@@ -70,18 +70,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   const void* GetMetrics(int* size) override;
 
   jobject GetMediaCrypto() const { return j_media_crypto_.obj(); }
-  void CallUpdateRequestCallback(int ticket,
-                                 SbDrmSessionRequestType request_type,
-                                 const void* session_id,
-                                 int session_id_size,
-                                 const void* content,
-                                 int content_size,
-                                 const char* url);
-  void CallDrmSessionKeyStatusesChangedCallback(
-      const void* session_id,
-      int session_id_size,
-      const std::vector<SbDrmKeyId>& drm_key_ids,
-      const std::vector<SbDrmKeyStatus>& drm_key_statuses);
+
   void OnInsufficientOutputProtection();
 
   bool is_valid() const {
@@ -93,6 +82,17 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
 
   // Return true when the drm system is ready for secure input buffers.
   bool IsReady() { return created_media_crypto_session_.load(); }
+
+  void OnMediaDrmSessionMessage(
+      JNIEnv* env,
+      jint ticket,
+      const base::android::JavaParamRef<jbyteArray>& sessionId,
+      jint requestType,
+      const base::android::JavaParamRef<jbyteArray>& message);
+  void OnMediaDrmKeyStatusChange(
+      JNIEnv* env,
+      const base::android::JavaParamRef<jbyteArray>& sessionId,
+      const base::android::JavaParamRef<jobjectArray>& keyInformation);
 
  private:
   class SessionUpdateRequest {
@@ -111,6 +111,11 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
     ScopedJavaGlobalRef<jstring> j_mime_;
   };
 
+  void CallDrmSessionKeyStatusesChangedCallback(
+      const void* session_id,
+      int session_id_size,
+      const std::vector<SbDrmKeyId>& drm_key_ids,
+      const std::vector<SbDrmKeyStatus>& drm_key_statuses);
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
 
   // From Thread.
