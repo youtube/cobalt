@@ -27,6 +27,9 @@
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
+
 namespace {
 
 using base::android::AttachCurrentThread;
@@ -74,9 +77,8 @@ DrmSystem::DrmSystem(
 
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef j_key_system(ConvertUTF8ToJavaString(env, key_system));
-  j_media_drm_bridge_ =
-      ScopedJavaGlobalRef(MediaDrmBridge::CreateJavaMediaDrmBridge(
-          env, j_key_system, reinterpret_cast<jlong>(this)));
+  j_media_drm_bridge_ = ScopedJavaGlobalRef(Java_MediaDrmBridge_create(
+      env, j_key_system, reinterpret_cast<jlong>(this)));
 
   if (j_media_drm_bridge_.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaDrmBridge.";
@@ -84,7 +86,7 @@ DrmSystem::DrmSystem(
   }
 
   j_media_crypto_ = ScopedJavaGlobalRef(
-      MediaDrmBridge::GetMediaCrypto(env, j_media_drm_bridge_));
+      Java_MediaDrmBridge_getMediaCrypto(env, j_media_drm_bridge_));
 
   if (j_media_crypto_.is_null()) {
     SB_LOG(ERROR) << "Failed to create MediaCrypto.";
@@ -97,7 +99,7 @@ DrmSystem::DrmSystem(
 void DrmSystem::Run() {
   JNIEnv* env = AttachCurrentThread();
   bool result =
-      MediaDrmBridge::CreateMediaCryptoSession(env, j_media_drm_bridge_);
+      Java_MediaDrmBridge_createMediaCryptoSession(env, j_media_drm_bridge_);
   if (result) {
     created_media_crypto_session_.store(true);
   }
@@ -121,7 +123,7 @@ DrmSystem::~DrmSystem() {
 
   if (!j_media_drm_bridge_.is_null()) {
     JNIEnv* env = AttachCurrentThread();
-    MediaDrmBridge::Destroy(env, j_media_drm_bridge_);
+    Java_MediaDrmBridge_destroy(env, j_media_drm_bridge_);
   }
 }
 
@@ -141,8 +143,8 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
 void DrmSystem::SessionUpdateRequest::Generate(
     ScopedJavaGlobalRef<jobject> j_media_drm_bridge) const {
   JNIEnv* env = AttachCurrentThread();
-  MediaDrmBridge::CreateSession(env, j_media_drm_bridge, j_ticket_,
-                                j_init_data_, j_mime_);
+  Java_MediaDrmBridge_createSession(env, j_media_drm_bridge, j_ticket_,
+                                    j_init_data_, j_mime_);
 }
 
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
@@ -176,11 +178,12 @@ void DrmSystem::UpdateSession(int ticket,
       ToJavaByteArray(env, static_cast<const uint8_t*>(key), key_size));
 
   JniIntWrapper j_ticket = JniIntWrapper(ticket);
-  ScopedJavaLocalRef<jobject> update_result(MediaDrmBridge::UpdateSession(
+  ScopedJavaLocalRef<jobject> update_result(Java_MediaDrmBridge_updateSession(
       env, j_media_drm_bridge_, j_ticket, j_session_id, j_response));
-  jboolean update_success = MediaDrmBridge::IsSuccess(env, update_result);
+  jboolean update_success =
+      Java_UpdateSessionResult_isSuccess(env, update_result);
   ScopedJavaLocalRef<jstring> error_msg_java(
-      MediaDrmBridge::GetErrorMessage(env, update_result));
+      Java_UpdateSessionResult_getErrorMessage(env, update_result));
   std::string error_msg = ConvertJavaStringToUTF8(env, error_msg_java);
   session_updated_callback_(this, context_, ticket,
                             update_success == JNI_TRUE
@@ -204,7 +207,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
       cached_drm_key_ids_.erase(iter);
     }
   }
-  MediaDrmBridge::CloseSession(env, j_media_drm_bridge_, j_session_id);
+  Java_MediaDrmBridge_closeSession(env, j_media_drm_bridge_, j_session_id);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -222,7 +225,7 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
 const void* DrmSystem::GetMetrics(int* size) {
   JNIEnv* env = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> j_metrics =
-      MediaDrmBridge::GetMetricsInBase64(env, j_media_drm_bridge_);
+      Java_MediaDrmBridge_getMetricsInBase64(env, j_media_drm_bridge_);
 
   if (j_metrics.is_null()) {
     *size = 0;
@@ -303,6 +306,16 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+bool DrmSystem::IsWidevineSupported() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaDrmBridge_isWidevineCryptoSchemeSupported(env) == JNI_TRUE;
+}
+
+bool DrmSystem::IsCbcsSupported() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
 }
 
 }  // namespace shared

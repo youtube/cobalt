@@ -19,9 +19,9 @@
 #include <utility>
 
 #include "base/android/jni_android.h"
+#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
@@ -180,13 +180,11 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return MediaDrmBridge::IsWidevineSupported(env);
+  return DrmSystem::IsWidevineSupported();
 }
 
 bool GetIsCbcsSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return MediaDrmBridge::IsCbcsSupported(env);
+  return DrmSystem::IsCbcsSupported();
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {

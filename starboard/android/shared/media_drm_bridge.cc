@@ -22,7 +22,7 @@
 #include "starboard/android/shared/drm_system.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
+// #include "cobalt/android/jni_headers/MediaDrmBridge_jni.h"
 
 namespace starboard {
 namespace android {
@@ -149,93 +149,6 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
       session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
 
   env->ReleaseByteArrayElements(sessionId, session_id_elements, JNI_ABORT);
-}
-
-// static
-jboolean MediaDrmBridge::IsSuccess(JNIEnv* env,
-                                   const base::android::JavaRef<jobject>& obj) {
-  return Java_UpdateSessionResult_isSuccess(env, obj);
-}
-
-// static
-ScopedJavaLocalRef<jstring> MediaDrmBridge::GetErrorMessage(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj) {
-  return Java_UpdateSessionResult_getErrorMessage(env, obj);
-}
-
-// static
-ScopedJavaLocalRef<jobject> MediaDrmBridge::CreateJavaMediaDrmBridge(
-    JNIEnv* env,
-    const JavaRef<jstring>& keySystem,
-    jlong nativeMediaDrmBridge) {
-  return Java_MediaDrmBridge_create(env, keySystem, nativeMediaDrmBridge);
-}
-
-// static
-bool MediaDrmBridge::IsWidevineSupported(JNIEnv* env) {
-  return Java_MediaDrmBridge_isWidevineCryptoSchemeSupported(env) == JNI_TRUE;
-}
-
-// static
-bool MediaDrmBridge::IsCbcsSupported(JNIEnv* env) {
-  return Java_MediaDrmBridge_isCbcsSchemeSupported(env) == JNI_TRUE;
-}
-
-// static
-void MediaDrmBridge::Destroy(JNIEnv* env,
-                             const base::android::JavaRef<jobject>& obj) {
-  Java_MediaDrmBridge_destroy(env, obj);
-}
-
-// static
-void MediaDrmBridge::CreateSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj,
-    JniIntWrapper ticket,
-    const base::android::JavaRef<jbyteArray>& initData,
-    const base::android::JavaRef<jstring>& mime) {
-  Java_MediaDrmBridge_createSession(env, obj, ticket, initData, mime);
-}
-
-// static
-ScopedJavaLocalRef<jobject> MediaDrmBridge::UpdateSession(
-    JNIEnv* env,
-    const JavaRef<jobject>& obj,
-    JniIntWrapper ticket,
-    const JavaRef<jbyteArray>& sessionId,
-    const JavaRef<jbyteArray>& response) {
-  return Java_MediaDrmBridge_updateSession(env, obj, ticket, sessionId,
-                                           response);
-}
-
-// static
-void MediaDrmBridge::CloseSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj,
-    const base::android::JavaRef<jbyteArray>& sessionId) {
-  Java_MediaDrmBridge_closeSession(env, obj, sessionId);
-}
-
-// static
-base::android::ScopedJavaLocalRef<jbyteArray>
-MediaDrmBridge::GetMetricsInBase64(JNIEnv* env,
-                                   const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_getMetricsInBase64(env, obj);
-}
-
-// static
-base::android::ScopedJavaLocalRef<jobject> MediaDrmBridge::GetMediaCrypto(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_getMediaCrypto(env, obj);
-}
-
-// static
-bool MediaDrmBridge::CreateMediaCryptoSession(
-    JNIEnv* env,
-    const base::android::JavaRef<jobject>& obj) {
-  return Java_MediaDrmBridge_createMediaCryptoSession(env, obj);
 }
 
 }  // namespace shared

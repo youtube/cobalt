@@ -41,6 +41,9 @@ using base::android::ScopedJavaGlobalRef;
 
 class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
  public:
+  static bool IsWidevineSupported();
+  static bool IsCbcsSupported();
+
   DrmSystem(const char* key_system,
             void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
