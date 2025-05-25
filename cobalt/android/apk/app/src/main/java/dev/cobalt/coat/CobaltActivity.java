@@ -125,11 +125,11 @@ public abstract class CobaltActivity extends Activity {
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
             // Trades a little V8 performance for significant memory savings.
-            "--js-flags=--optimize_for_size=true",
+            "--js-flags=--optimize_for_size",
             // Use SurfaceTexture for decode-to-texture mode.
             "--disable-features=AImageReader",
             // Disable concurrent-marking due to b/415843979
-            "--js-flags=--concurrent_marking=false",
+            "--js-flags=--no-concurrent_marking",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
