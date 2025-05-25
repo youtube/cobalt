@@ -329,8 +329,8 @@ void DrmSystem::UpdateSession(int ticket,
   auto env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> update_result(env->CallObjectMethodOrAbort(
       j_media_drm_bridge_, "updateSession",
-      "(I[B[B)Ldev/cobalt/media/MediaDrmBridge$UpdateSessionResult;",
-      static_cast<jint>(ticket), j_session_id.Get(), j_response.Get()));
+      "([B[B)Ldev/cobalt/media/MediaDrmBridge$UpdateSessionResult;",
+      j_session_id.Get(), j_response.Get()));
   jboolean update_success =
       env->CallBooleanMethodOrAbort(update_result.Get(), "isSuccess", "()Z");
   ScopedLocalJavaRef<jstring> error_msg_java(env->CallObjectMethodOrAbort(

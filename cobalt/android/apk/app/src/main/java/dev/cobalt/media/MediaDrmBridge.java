@@ -87,7 +87,6 @@ public class MediaDrmBridge {
 
   private MediaDrm mMediaDrm;
   private long mNativeMediaDrmBridge;
-  private UUID mSchemeUUID;
 
   // A session only for the purpose of creating a MediaCrypto object. Created
   // after construction, or after the provisioning process is successfully
@@ -160,15 +159,12 @@ public class MediaDrmBridge {
     } catch (UnsupportedSchemeException e) {
       Log.e(TAG, "Unsupported DRM scheme", e);
       return null;
-    } catch (IllegalArgumentException e) {
-      Log.e(TAG, "Failed to create MediaDrmBridge", e);
-      return null;
-    } catch (IllegalStateException e) {
+    } catch (IllegalArgumentException|IllegalStateException e) {
       Log.e(TAG, "Failed to create MediaDrmBridge", e);
       return null;
     }
 
-    if (!mediaDrmBridge.createMediaCrypto()) {
+    if (!mediaDrmBridge.createMediaCrypto(cryptoScheme)) {
       return null;
     }
 
@@ -257,7 +253,7 @@ public class MediaDrmBridge {
    * @param response Response data from the server.
    */
   @UsedByNative
-  UpdateSessionResult updateSession(int ticket, byte[] sessionId, byte[] response) {
+  UpdateSessionResult updateSession(byte[] sessionId, byte[] response) {
     Log.d(TAG, "updateSession()");
     if (mMediaDrm == null) {
       Log.e(TAG, "updateSession() called when MediaDrm is null.");
@@ -354,7 +350,6 @@ public class MediaDrmBridge {
 
   private MediaDrmBridge(String keySystem, UUID schemeUUID, long nativeMediaDrmBridge)
       throws android.media.UnsupportedSchemeException {
-    mSchemeUUID = schemeUUID;
     mMediaDrm = new MediaDrm(schemeUUID);
 
     // Get info of hdcp connection
@@ -529,20 +524,16 @@ public class MediaDrmBridge {
    *     <p>When false is returned, the caller should call release(), which will notify the native
    *     code with a null MediaCrypto, if needed.
    */
-  private boolean createMediaCrypto() {
+  private boolean createMediaCrypto(UUID cryptoScheme) {
     if (mMediaDrm == null) {
       throw new IllegalStateException("Cannot create media crypto with null mMediaDrm.");
     }
     // Create MediaCrypto object.
     try {
-      if (MediaCrypto.isCryptoSchemeSupported(mSchemeUUID)) {
-        MediaCrypto mediaCrypto = new MediaCrypto(mSchemeUUID, new byte[0]);
-        Log.d(TAG, "MediaCrypto successfully created!");
-        mMediaCrypto = mediaCrypto;
-        return true;
-      } else {
-        Log.e(TAG, "Cannot create MediaCrypto for unsupported scheme.");
-      }
+      MediaCrypto mediaCrypto = new MediaCrypto(cryptoScheme, new byte[0]);
+      Log.d(TAG, "MediaCrypto successfully created!");
+      mMediaCrypto = mediaCrypto;
+      return true;
     } catch (MediaCryptoException e) {
       Log.e(TAG, "Cannot create MediaCrypto", e);
     }
