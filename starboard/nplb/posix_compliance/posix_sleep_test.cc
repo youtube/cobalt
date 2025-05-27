@@ -93,8 +93,7 @@ class PosixSleepTests : public ::testing::Test {
     struct sigaction sa;
     sa.sa_handler = InterruptSignalHandler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags =
-        0;  // No SA_RESTART, to ensure EINTR for syscalls like sleep()
+    sa.sa_flags = 0;
     ASSERT_EQ(0, sigaction(SIGUSR1, &sa, nullptr))
         << "Failed to set SIGUSR1 handler. Errno: " << errno << " ("
         << strerror(errno) << ")";
@@ -112,12 +111,6 @@ long timeval_diff_us(const struct timeval* start, const struct timeval* end) {
   long useconds_diff = end->tv_usec - start->tv_usec;
   return (seconds_diff * 1000000L) + useconds_diff;
 }
-
-// Note on error conditions not tested:
-// - EINTR: Not tested here because Starboard (as per the original example's
-//   context) does not implement full signal handling that would typically lead
-//   to EINTR for sleep functions. If EINTR were to occur, sleep() would
-//   return the number of unslept seconds.
 
 // Test suite for POSIX sleep() function.
 // The tests are named using the TEST macro, with PosixSleepTests
@@ -178,7 +171,7 @@ TEST_F(PosixSleepTests, ZeroDurationSleep) {
 }
 
 // Test EINTR behavior for sleep() using a pthread to send SIGUSR1
-TEST_F(PosixSleepTests, ErrorEintrCheckReturnValue) {
+TEST_F(PosixSleepTests, ErrorEintrCheckErrnoValue) {
 #if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   GTEST_SKIP() << "Non-hermetic builds fail this test.";
 #endif
@@ -194,10 +187,39 @@ TEST_F(PosixSleepTests, ErrorEintrCheckReturnValue) {
   ASSERT_EQ(0, create_ret) << "Failed to create signal sender thread. Error: "
                            << strerror(create_ret);
 
-  errno =
-      0;  // Clear errno, though sleep() itself shouldn't set it on interrupt.
-  unsigned int time_slept_for =
-      kLongSleepSecs;  // Initialize with original duration
+  errno = 0;
+  unsigned int time_slept_for = kLongSleepSecs;
+  unsigned int ret = sleep(time_slept_for);
+  int saved_errno = errno;
+
+  // Wait for the signal-sending thread to complete its work
+  int join_ret = pthread_join(signal_thread_id, nullptr);
+  ASSERT_EQ(0, join_ret) << "Failed to join signal sender thread. Error: "
+                         << strerror(join_ret);
+
+  // Verify that errno is not set to EINTR (or any other error by sleep()
+  // itself)
+  EXPECT_EQ(0, saved_errno)
+      << "sleep() should not set errno on interruption. Current errno: "
+      << saved_errno << " (" << strerror(saved_errno) << ")";
+}
+
+// Test EINTR behavior for sleep() using a pthread to send SIGUSR1
+TEST_F(PosixSleepTests, ErrorEintrCheckReturnValue) {
+  RegisterSigusr1Handler();  // Set up the SIGUSR1 handler
+
+  pthread_t self_thread_id = pthread_self();
+  SignalThreadArgs thread_args = {self_thread_id};
+  pthread_t signal_thread_id;
+
+  // Create the thread that will send SIGUSR1
+  int create_ret = pthread_create(&signal_thread_id, nullptr,
+                                  SendSigusr1Routine, &thread_args);
+  ASSERT_EQ(0, create_ret) << "Failed to create signal sender thread. Error: "
+                           << strerror(create_ret);
+
+  errno = 0;
+  unsigned int time_slept_for = kLongSleepSecs;
   unsigned int ret = sleep(time_slept_for);
 
   // Wait for the signal-sending thread to complete its work
@@ -230,17 +252,6 @@ TEST_F(PosixSleepTests, ErrorEintrCheckReturnValue) {
   EXPECT_TRUE(ret == time_slept_for || ret == time_slept_for - 1)
       << "Expected unslept time to be " << time_slept_for << " or "
       << time_slept_for - 1 << ", but got " << ret;
-
-  // Verify that errno is not set to EINTR (or any other error by sleep()
-  // itself) Note: Other things could potentially set errno between sleep()
-  // returning and this check, but sleep() itself should not set it. This
-  // assertion might be fragile if other operations in the test support
-  // libraries set errno. For a strict test of sleep() behavior, one might save
-  // errno immediately after sleep returns.
-  int saved_errno = errno;
-  EXPECT_EQ(0, saved_errno)
-      << "sleep() should not set errno on interruption. Current errno: "
-      << saved_errno << " (" << strerror(saved_errno) << ")";
 }
 
 }  // namespace
