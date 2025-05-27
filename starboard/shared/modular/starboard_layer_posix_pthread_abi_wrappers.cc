@@ -27,8 +27,10 @@ using starboard::shared::starboard::IsInitialized;
 using starboard::shared::starboard::SetInitialized;
 
 typedef struct PosixMutexPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_mutex_t mutex;
+  InitializedState initialized_state;
 } PosixMutexPrivate;
 
 typedef struct PosixMutexAttrPrivate {
@@ -36,8 +38,10 @@ typedef struct PosixMutexAttrPrivate {
 } PosixMutexAttrPrivate;
 
 typedef struct PosixCondPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_cond_t cond;
+  InitializedState initialized_state;
 } PosixCondPrivate;
 
 typedef struct PosixCondAttrPrivate {
@@ -49,8 +53,10 @@ typedef struct PosixAttrPrivate {
 } PosixAttrPrivate;
 
 typedef struct PosixOncePrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_once_t once;
+  InitializedState initialized_state;
 } PosixOncePrivate;
 
 typedef struct PosixThreadLocalKeyPrivate {
@@ -59,8 +65,10 @@ typedef struct PosixThreadLocalKeyPrivate {
 } PosixThreadLocalKeyPrivate;
 
 typedef struct PosixRwLockPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_rwlock_t rwlock;
+  InitializedState initialized_state;
 } PosixRwLockPrivate;
 
 typedef struct PosixRwLockAttrPrivate {
