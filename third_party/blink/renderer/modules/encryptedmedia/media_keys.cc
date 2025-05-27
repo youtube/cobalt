@@ -448,6 +448,7 @@ WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
         "Calling MediaKeys::getMetrics without a CDM");
+    return WebString();
   }
   std::string metrics;
   if (cdm_->GetMetrics(metrics)) {
