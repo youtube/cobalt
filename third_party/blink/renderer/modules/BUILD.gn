@@ -679,6 +679,10 @@ source_set("unit_tests") {
     ]
   }
 
+  if (is_cobalt) {
+    sources += [ "cobalt/h5vcc_experiments/experiments_utils_test.cc" ]
+  }
+
   if (media_use_openh264) {
     sources += [ "mediarecorder/h264_encoder_unittest.cc" ]
   }
@@ -746,6 +750,12 @@ source_set("unit_tests") {
     "//ui/strings:ax_strings_grit",
     "//v8",
   ]
+
+  if (is_cobalt) {
+    deps += [
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments:experiments_utils"
+    ]
+  }
 
   # This uses target_os rather than current_os (which is what is_android is set
   # from) for the case of generating the v8 context snapshot for android. When

@@ -19,7 +19,7 @@
 #include "base/functional/callback.h"
 #include "base/metrics/field_trial_params.h"
 #include "build/build_config.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
 #include "components/prefs/pref_service.h"
 
