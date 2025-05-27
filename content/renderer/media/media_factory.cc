@@ -452,7 +452,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
       decoder_factory_.get(), client->RemotePlaybackClientWrapper(),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId(), 
-      client->getMaxVideoCapabilities());
+      client->GetMaxVideoCapabilities());
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId());
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
