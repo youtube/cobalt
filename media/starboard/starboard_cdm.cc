@@ -71,7 +71,7 @@ std::string ToString(SbDrmSessionRequestType type) {
     DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRelease)
     DEFINE_NAME(kSbDrmSessionRequestTypeIndividualizationRequest)
   }
-  NOTREACHED() << "Unexpected SbDrmSessionRequestType " << type;
+  return "Unexpected_SbDrmSessionRequestType(" + std::to_string(type) + ")";
 }
 
 std::ostream& operator<<(std::ostream& os, SbDrmSessionRequestType type) {
@@ -107,7 +107,7 @@ std::string ToString(SbDrmStatus status) {
     DEFINE_NAME(kSbDrmStatusQuotaExceededError)
     DEFINE_NAME(kSbDrmStatusUnknownError)
   }
-  NOTREACHED() << "Unexpected SbDrmStatus " << status;
+  return "Unexpected_SbDrmStatus(" + std::to_string(status) + ")";
 }
 
 std::ostream& operator<<(std::ostream& os, SbDrmStatus status) {
