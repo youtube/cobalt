@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_PAGE_LOAD_METRICS_INITIALIZE_H_
-#define COBALT_BROWSER_PAGE_LOAD_METRICS_INITIALIZE_H_
+#ifndef COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_INITIALIZE_H_
+#define COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_INITIALIZE_H_
 
 namespace content {
 class WebContents;
@@ -26,4 +26,4 @@ void InitializePageLoadMetricsForWebContents(
 
 }  // namespace cobalt
 
-#endif  // COBALT_BROWSER_PAGE_LOAD_METRICS_INITIALIZE_H_
+#endif  // COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_INITIALIZE_H_

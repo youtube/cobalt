@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/page_load_metrics_initialize.h"
+#include "cobalt/browser/metrics/page_load_metrics_initialize.h"
 
-#include "cobalt/browser/page_load_metrics_memory_tracker_factory.h"
+#include "cobalt/browser/metrics/page_load_metrics_memory_tracker_factory.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_embedder_base.h"
 #include "components/page_load_metrics/browser/page_load_metrics_memory_tracker.h"
@@ -86,10 +86,6 @@ bool PageLoadMetricsEmbedder::IsSidePanel(content::WebContents* web_contents) {
 page_load_metrics::PageLoadMetricsMemoryTracker*
 PageLoadMetricsEmbedder::GetMemoryTrackerForBrowserContext(
     content::BrowserContext* browser_context) {
-  if (!base::FeatureList::IsEnabled(features::kV8PerFrameMemoryMonitoring)) {
-    return nullptr;
-  }
-
   return page_load_metrics::PageLoadMetricsMemoryTrackerFactory::
       GetForBrowserContext(browser_context);
 }

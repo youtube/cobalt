@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BROWSER_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_
-#define COBALT_BROWSER_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_
+#ifndef COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_
+#define COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_
 
 #include "components/keyed_service/content/browser_context_keyed_service_factory.h"
 
@@ -44,4 +44,4 @@ class PageLoadMetricsMemoryTrackerFactory
 
 }  // namespace page_load_metrics
 
-#endif  // COBALT_BROWSER_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_
+#endif  // COBALT_BROWSER_METRICS_PAGE_LOAD_METRICS_MEMORY_TRACKER_FACTORY_H_

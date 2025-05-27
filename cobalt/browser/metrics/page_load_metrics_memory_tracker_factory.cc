@@ -16,7 +16,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "cobalt/browser/page_load_metrics_memory_tracker_factory.h"
+#include "cobalt/browser/metrics/page_load_metrics_memory_tracker_factory.h"
 
 #include "base/memory/singleton.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
@@ -29,7 +29,7 @@ page_load_metrics::PageLoadMetricsMemoryTracker*
 PageLoadMetricsMemoryTrackerFactory::GetForBrowserContext(
     content::BrowserContext* context) {
   return static_cast<page_load_metrics::PageLoadMetricsMemoryTracker*>(
-      GetInstance()->GetServiceForBrowserContext(context, true));
+      GetInstance()->GetServiceForBrowserContext(context, /*create=*/true));
 }
 
 PageLoadMetricsMemoryTrackerFactory*

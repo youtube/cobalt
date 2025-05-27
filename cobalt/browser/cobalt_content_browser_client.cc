@@ -30,7 +30,7 @@
 #include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/global_features.h"
-#include "cobalt/browser/page_load_metrics_initialize.h"
+#include "cobalt/browser/metrics/page_load_metrics_initialize.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
