@@ -30,7 +30,7 @@ extern "C" {
 #define __NEED_suseconds_t
 #define __NEED_blksize_t
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #define __NEED_pthread_t
 #define __NEED_pthread_attr_t
 #define __NEED_pthread_mutexattr_t
@@ -44,7 +44,7 @@ extern "C" {
 #define __NEED_pthread_spinlock_t
 #define __NEED_pthread_key_t
 #define __NEED_pthread_once_t
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 
 #define __NEED_useconds_t
 

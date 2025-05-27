@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 #include <features.h>
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 #endif
 
@@ -23,7 +23,7 @@ extern "C" {
 #define __NEED_pid_t
 #define __NEED_uid_t
 #define __NEED_struct_timespec
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #define __NEED_pthread_t
 #define __NEED_pthread_attr_t
 #endif

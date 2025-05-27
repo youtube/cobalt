@@ -10,7 +10,7 @@ extern "C" {
 #include <bits/errno.h>
 
 #ifdef __GNUC__
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __attribute__((const))
 #endif
 #endif

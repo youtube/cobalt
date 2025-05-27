@@ -3,7 +3,7 @@
 
 #include "../../include/pthread.h"
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 hidden int __pthread_once(pthread_once_t *, void (*)(void));
 hidden void __pthread_testcancel(void);
 hidden int __pthread_setcancelstate(int, int *);

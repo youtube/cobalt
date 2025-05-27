@@ -1,6 +1,6 @@
 #include <time.h>
 #include <sys/time.h>
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #include "syscall.h"
 #endif
 
