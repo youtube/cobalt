@@ -23,4 +23,22 @@ int __abi_wrap_readdir_r(DIR* dirp,
 int readdir_r(DIR* dirp, struct dirent* entry, struct dirent** result) {
   return __abi_wrap_readdir_r(dirp, entry, result);
 }
+
+DIR* __abi_wrap_opendir(const char* name);
+
+DIR* opendir(const char* name) {
+  return __abi_wrap_opendir(name);
+}
+
+int __abi_wrap_closedir(DIR* directory);
+
+int closedir(DIR* directory) {
+  return __abi_wrap_closedir(directory);
+}
+
+struct dirent* __abi_wrap_readdir(DIR* dirp);
+
+struct dirent* readdir(DIR* dirp) {
+  return __abi_wrap_readdir(dirp);
+}
 }
