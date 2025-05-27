@@ -3379,7 +3379,12 @@ class PrettyUnitTestResultPrinter : public TestEventListener {
  public:
   PrettyUnitTestResultPrinter() {}
   static void PrintTestName(const char* test_suite, const char* test) {
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    posix::PrintF("%s.%s", test_suite, test);
+#else
     printf("%s.%s", test_suite, test);
+#endif
   }
 
   // The following methods override what's in the TestEventListener class.
@@ -3470,13 +3475,33 @@ void PrettyUnitTestResultPrinter::OnTestCaseStart(const TestCase& test_case) {
   const std::string counts =
       FormatCountableNoun(test_case.test_to_run_count(), "test", "tests");
   ColoredPrintf(GTestColor::kGreen, "[----------] ");
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("%s from %s", counts.c_str(), test_case.name());
+#else
   printf("%s from %s", counts.c_str(), test_case.name());
+#endif
   if (test_case.type_param() == nullptr) {
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+   posix::PrintF("\n");
+#else
     printf("\n");
+#endif
   } else {
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    posix::PrintF(", where %s = %s\n", kTypeParamLabel, test_case.type_param());
+#else
     printf(", where %s = %s\n", kTypeParamLabel, test_case.type_param());
+#endif
   }
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::Flush();
+#else
   fflush(stdout);
+#endif
 }
 #else
 void PrettyUnitTestResultPrinter::OnTestSuiteStart(
@@ -3497,8 +3522,14 @@ void PrettyUnitTestResultPrinter::OnTestSuiteStart(
 void PrettyUnitTestResultPrinter::OnTestStart(const TestInfo& test_info) {
   ColoredPrintf(GTestColor::kGreen, "[ RUN      ] ");
   PrintTestName(test_info.test_suite_name(), test_info.name());
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("\n");
+  posix::Flush();
+#else
   printf("\n");
   fflush(stdout);
+#endif
 }
 
 void PrettyUnitTestResultPrinter::OnTestDisabled(const TestInfo& test_info) {
