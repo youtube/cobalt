@@ -443,6 +443,10 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
+  if (!cdm_) {
+    LOG(WARNING) << "Calling MediaKeys::getMetrics without a CDM";
+    return WebString();
+  }
   std::string metrics;
   if (cdm_->GetMetrics(metrics)) {
     return WebString::FromUTF8(metrics);
