@@ -456,6 +456,7 @@ WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
   }
   exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                     "CDM returned empty GetMetrics()");
+  return WebString();
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
