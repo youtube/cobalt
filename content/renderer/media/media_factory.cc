@@ -434,7 +434,7 @@ std::unique_ptr<blink::WebMediaPlayer> MediaFactory::CreateMediaPlayer(
 =======
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId(), 
-      client->getMaxVideoCapabilities());
+      client->GetMaxVideoCapabilities());
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
 >>>>>>> 9beff864642 ([media] Send maxVideoCapabilities to StarboardRenderer (#5756))
       &media_observer, client->GetElementId());

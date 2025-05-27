@@ -31,6 +31,12 @@
 #ifndef THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_PLAYER_CLIENT_H_
 #define THIRD_PARTY_BLINK_PUBLIC_PLATFORM_WEB_MEDIA_PLAYER_CLIENT_H_
 
+<<<<<<< HEAD
+=======
+#include "base/time/time.h"
+#include "build/build_config.h"
+#include "third_party/blink/public/common/media/display_type.h"
+>>>>>>> 785322efd2c ([media] [cleanup] Tidy up maxVideoCapabilities implementation (#5827))
 #include "third_party/blink/public/platform/web_common.h"
 
 namespace media {
@@ -53,7 +59,9 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // Returns the DOMNodeId of the DOM element hosting this media player.
   virtual int GetElementId() = 0;
 
-  virtual std::string getMaxVideoCapabilities() const {return "";}
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::string GetMaxVideoCapabilities() const {return "";}
+#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:
   ~WebMediaPlayerClient() = default;
