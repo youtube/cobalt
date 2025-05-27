@@ -70,6 +70,9 @@ std::string ToString(SbDrmSessionRequestType type) {
     DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRenewal)
     DEFINE_NAME(kSbDrmSessionRequestTypeLicenseRelease)
     DEFINE_NAME(kSbDrmSessionRequestTypeIndividualizationRequest)
+    default:
+      NOTREACHED() << "Unknown SbDrmSessionRequestType: " << static_cast<int>(type);
+      break;
   }
   return "Unexpected_SbDrmSessionRequestType(" + std::to_string(type) + ")";
 }
