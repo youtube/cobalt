@@ -68,7 +68,6 @@ typedef struct PosixRwLockPrivate {
   // The underlying platform variable handle. Should always be the
   // first field to avoid alignment issues.
   pthread_rwlock_t rwlock;
-  InitializedState initialized_state;
 } PosixRwLockPrivate;
 
 typedef struct PosixRwLockAttrPrivate {
@@ -753,19 +752,11 @@ int __abi_wrap_pthread_rwlock_init(
   }
 
   const int ret = pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), tmp);
-  if (ret == 0) {
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
   return errno_to_musl_errno(ret);
 }
 
 int __abi_wrap_pthread_rwlock_destroy(musl_pthread_rwlock_t* rwlock) {
   if (!rwlock) {
-    return MUSL_EINVAL;
-  }
-
-  if (!IsInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If the rwlock is not initialized, there's nothing to destroy.
     return MUSL_EINVAL;
   }
 
@@ -778,15 +769,6 @@ int __abi_wrap_pthread_rwlock_rdlock(musl_pthread_rwlock_t* rwlock) {
     return MUSL_EINVAL;
   }
 
-  // Ensure the rwlock is initialized. If not, lazily initialize it.
-  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
-
   const int ret = pthread_rwlock_rdlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
   return errno_to_musl_errno(ret);
 }
@@ -796,26 +778,12 @@ int __abi_wrap_pthread_rwlock_wrlock(musl_pthread_rwlock_t* rwlock) {
     return MUSL_EINVAL;
   }
 
-  // Ensure the rwlock is initialized. If not, lazily initialize it.
-  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
-
   const int ret = pthread_rwlock_wrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
   return errno_to_musl_errno(ret);
 }
 
 int __abi_wrap_pthread_rwlock_unlock(musl_pthread_rwlock_t* rwlock) {
   if (!rwlock) {
-    return MUSL_EINVAL;
-  }
-
-  // If not initialized, it's an invalid argument to unlock.
-  if (!IsInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
     return MUSL_EINVAL;
   }
 
@@ -828,15 +796,6 @@ int __abi_wrap_pthread_rwlock_tryrdlock(musl_pthread_rwlock_t* rwlock) {
     return MUSL_EINVAL;
   }
 
-  // Ensure the rwlock is initialized. If not, lazily initialize it.
-  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
-
   const int ret = pthread_rwlock_tryrdlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
   return errno_to_musl_errno(ret);
 }
@@ -844,15 +803,6 @@ int __abi_wrap_pthread_rwlock_tryrdlock(musl_pthread_rwlock_t* rwlock) {
 int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
   if (!rwlock) {
     return MUSL_EINVAL;
-  }
-
-  // Ensure the rwlock is initialized. If not, lazily initialize it.
-  if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
   const int ret = pthread_rwlock_trywrlock(PTHREAD_INTERNAL_RWLOCK(rwlock));
