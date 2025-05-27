@@ -445,7 +445,9 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
   if (!cdm_) {
     LOG(WARNING) << "Calling MediaKeys::getMetrics without a CDM";
-    return WebString();
+    exception_state.ThrowDOMException(
+        DOMExceptionCode::kInvalidStateError,
+        "Calling MediaKeys::getMetrics without a CDM");
   }
   std::string metrics;
   if (cdm_->GetMetrics(metrics)) {
