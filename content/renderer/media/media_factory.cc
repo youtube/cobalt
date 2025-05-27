@@ -445,7 +445,7 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
       std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId(), 
-      client->getMaxVideoCapabilities());
+      client->GetMaxVideoCapabilities());
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
       &media_observer, client->GetElementId());
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
