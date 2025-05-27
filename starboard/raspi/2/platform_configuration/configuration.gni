@@ -17,7 +17,7 @@ if (current_toolchain != default_toolchain ||
     !build_with_separate_cobalt_toolchain) {
   arm_float_abi = "hard"
 
-  sb_evergreen_compatible_use_libunwind = false
+  sb_evergreen_compatible_use_libunwind = true
 }
 
 sb_is_evergreen_compatible = true
