@@ -54,9 +54,12 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
   struct timespec remain;
   ts.tv_sec = mts->tv_sec;
   ts.tv_nsec = mts->tv_nsec;
+  if (musl_clock_id == MUSL_CLOCK_PROCESS_CPUTIME_ID ||
+      musl_clock_id == MUSL_CLOCK_THREAD_CPUTIME_ID) {
+    return MUSL_EINVAL;
+  }
   clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
-  if (clock_id == MUSL_CLOCK_INVALID || clock_id == CLOCK_PROCESS_CPUTIME_ID ||
-      clock_id == MUSL_CLOCK_THREAD_CPUTIME_ID) {
+  if (clock_id == MUSL_CLOCK_INVALID) {
     return MUSL_EINVAL;
   }
   int retval =
