@@ -168,7 +168,6 @@ class PlatformConfiguration(object):
     # TODO(b/292007482): Replace static list with gn query.
     return [
         'common_test',
-        'eztime_test',
         'nplb',
         # TODO(b/292138589): Fails on various linux configs.
         # 'nplb_evergreen_compat_tests',
