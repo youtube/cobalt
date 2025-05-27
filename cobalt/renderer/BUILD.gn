@@ -26,6 +26,7 @@ source_set("renderer") {
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
+    "//components/page_load_metrics/renderer",
     "//components/web_cache/renderer",
     "//content/public/common",
     "//content/public/renderer",

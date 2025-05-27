@@ -11,6 +11,7 @@
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
+#include "components/page_load_metrics/renderer/metrics_render_frame_observer.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
 #include "media/base/media_log.h"
@@ -98,6 +99,8 @@ void CobaltContentRendererClient::RenderFrameCreated(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   new js_injection::JsCommunication(render_frame);
   new CobaltRenderFrameObserver(render_frame);
+  // Owned by |render_frame|.
+  new page_load_metrics::MetricsRenderFrameObserver(render_frame);
 }
 
 #if BUILDFLAG(IS_ANDROID)
