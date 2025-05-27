@@ -109,6 +109,9 @@ std::string ToString(SbDrmStatus status) {
     DEFINE_NAME(kSbDrmStatusInvalidStateError)
     DEFINE_NAME(kSbDrmStatusQuotaExceededError)
     DEFINE_NAME(kSbDrmStatusUnknownError)
+    default:
+      NOTREACHED() << "Unknown SbDrmStatus: " << static_cast<int>(status);
+      break;
   }
   return "Unexpected_SbDrmStatus(" + std::to_string(status) + ")";
 }
