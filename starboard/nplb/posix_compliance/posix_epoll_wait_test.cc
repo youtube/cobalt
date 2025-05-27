@@ -83,7 +83,8 @@ TEST_F(PosixEpollWaitTests, EventReportedSuccessfully) {
   AddToEpoll(pipe_fds_[0], EPOLLIN);  // Watch read end for input
 
   char buffer = 'x';
-  ASSERT_EQ(write(pipe_fds_[1], &buffer, 1), 1)
+  const size_t buffer_length = sizeof(buffer);
+  ASSERT_EQ(write(pipe_fds_[1], &buffer, buffer_length), buffer_length)
       << "Write to pipe failed: " << strerror(errno);
 
   int nfds = epoll_wait(epfd_, events_, kMaxEvents, kModerateTimeoutMs);
