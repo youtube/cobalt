@@ -21,8 +21,23 @@ blink_modules_sources("h5vcc_experiments") {
   ]
 
   deps = [
+    ":experiments_utils",
     "//base",
-    "//cobalt/browser:cobalt_experiment_names",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/h5vcc_experiments/public/mojom:mojom_blink",
+  ]
+}
+
+static_library("experiments_utils") {
+  sources = [
+    "experiments_utils.cc",
+    "experiments_utils.h",
+  ]
+
+  deps = [
+    "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
+    "//cobalt/browser/h5vcc_experiments/public/mojom:mojom_blink",
+    "//third_party/blink/renderer/bindings:generate_bindings_all",
   ]
 }
