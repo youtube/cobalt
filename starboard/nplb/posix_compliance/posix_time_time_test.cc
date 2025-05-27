@@ -35,13 +35,9 @@ const time_t kReasonableMinTime = 1704067200;  // 2024-01-01 00:00:00 UTC
 // checks.
 const time_t kReasonableMaxTime = 2335219200;  // 2044-01-01 00:00:00 UTC
 
-// Test fixture for POSIX time() function.
-// Adhering to user's existing naming, though typically might be PosixTimeTests.
-class PosixTimeTimeTests : public ::testing::Test {};
-
 // Tests that time(nullptr) returns the current time and it's a reasonable
 // value.
-TEST_F(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
+TEST(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
   time_t current_time = time(nullptr);
 
   // Check that time() did not return an error.
@@ -59,7 +55,7 @@ TEST_F(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
 
 // Tests that time(&tloc) stores the current time in tloc and returns the same
 // value.
-TEST_F(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
+TEST(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
   time_t time_val_from_arg = 0;  // Initialize to a known value.
   time_t time_val_returned = time(&time_val_from_arg);
 
@@ -88,7 +84,7 @@ TEST_F(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
 // a segmentation fault or similar memory access violation.
 
 // Tests that the time returned by time() is within a sane, expected range.
-TEST_F(PosixTimeTimeTests, TimeIsReasonable) {
+TEST(PosixTimeTimeTests, TimeIsReasonable) {
   time_t now_s = time(nullptr);
   ASSERT_NE(now_s, static_cast<time_t>(-1))
       << "time() returned an error. errno: " << errno;
@@ -109,8 +105,8 @@ TEST_F(PosixTimeTimeTests, TimeIsReasonable) {
 // Test to verify that time() returns the current time and correctly stores it
 // in the provided non-nullptr argument, and the time is within a reasonable
 // range.
-TEST_F(PosixTimeTimeTests,
-       ReturnsCurrentTimeAndStoresInArgumentIfNotNullAndIsReasonable) {
+TEST(PosixTimeTimeTests,
+     ReturnsCurrentTimeAndStoresInArgumentIfNotNullAndIsReasonable) {
   time_t time_val_from_arg = 0;  // Variable to store time via argument
   // Call time() with a non-nullptr argument.
   time_t time_val_from_return = time(&time_val_from_arg);
@@ -137,7 +133,7 @@ TEST_F(PosixTimeTimeTests,
 }
 
 // Test to verify consistency of time(&tloc) with gettimeofday().
-TEST_F(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
+TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
   time_t time_val_from_arg = 0;  // Variable to store time via argument
   struct timeval current_timeval;
 
@@ -171,7 +167,7 @@ TEST_F(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
 }
 
 // Test to verify consistency of time(nullptr) with gettimeofday().
-TEST_F(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
+TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
   struct timeval current_timeval;
 
   // Call gettimeofday() to get a reference timestamp.
@@ -202,7 +198,7 @@ TEST_F(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
 }
 
 // Tests that successive calls to time() yield non-decreasing time values.
-TEST_F(PosixTimeTimeTests, TimeProgressesMonotonically) {
+TEST(PosixTimeTimeTests, TimeProgressesMonotonically) {
   const int kNumIterations = 1000;
   for (int i = 0; i < kNumIterations; ++i) {
     // Get the first time measurement.
