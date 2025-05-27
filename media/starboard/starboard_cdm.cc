@@ -111,9 +111,7 @@ std::string ToString(SbDrmStatus status) {
     DEFINE_NAME(kSbDrmStatusUnknownError)
     default:
       NOTREACHED() << "Unknown SbDrmStatus: " << static_cast<int>(status);
-      break;
-  }
-  return "Unexpected_SbDrmStatus(" + std::to_string(status) + ")";
+      return "Unexpected_SbDrmStatus(" + std::to_string(static_cast<int>(status)) + ")";
 }
 
 std::ostream& operator<<(std::ostream& os, SbDrmStatus status) {
