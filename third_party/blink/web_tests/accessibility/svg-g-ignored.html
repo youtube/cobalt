@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+
+<script>
+  if (window.internals)
+    internals.settings.setAccessibilityIncludeSvgGElement(false);
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g id="g1">
+    <text>Group 1 Text 1</text>
+    <text>Group 1 Text 2</text>
+  </g>
+  <g id="g2">
+    <text>Group 2 Text 1</text>
+  </g>
+</svg>
+
+<script>
+
+test(function(t) {
+  var axGroup1 = accessibilityController.accessibleElementById('g1');
+  assert_true(!axGroup1);
+
+  var axGroup2 = accessibilityController.accessibleElementById('g2');
+  assert_true(!axGroup2);
+}, 'When AccessibilityIncludeSvgGElement disabled, SVG groups are ignored');
+
+</script>

@@ -1,0 +1,4 @@
+mixins: "//chrome/browser/web_applications/COMMON_METADATA"
+buganizer: {
+  component_id: 1389907
+}

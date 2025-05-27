@@ -1,0 +1,3 @@
+AXExpandedChanged on AXPopUpButton AXDescription="Fruit" AXValue="Apple"
+AXFocusedUIElementChanged on AXWebArea
+AXSelectedChildrenChanged on AXMenu

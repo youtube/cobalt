@@ -1,0 +1,8 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++genericContainer
+++++++++textField name='input 1'
+++++++++++genericContainer
+++++++++textField name='input 2'
+++++++++++genericContainer

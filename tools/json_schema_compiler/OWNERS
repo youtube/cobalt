@@ -1,0 +1,4 @@
+rdevlin.cronin@chromium.org
+tjudkins@chromium.org
+
+per-file ts_definition_generator*.py=file://ui/webui/PLATFORM_OWNERS

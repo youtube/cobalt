@@ -1,0 +1,24 @@
+// Copyright 2020 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+[
+    SecureContext,
+    Exposed=Window,
+    RuntimeEnabled=WebXR
+] interface XRDepthInformation {
+  readonly attribute unsigned long width;
+  readonly attribute unsigned long height;
+
+  [SameObject, SaveSameObject]
+  readonly attribute XRRigidTransform normDepthBufferFromNormView;
+  readonly attribute float rawValueToMeters;
+
+  // These properties should be taken from XRViewGeometry
+  [RuntimeEnabled=WebXRDepthPerformance] readonly attribute Float32Array projectionMatrix;
+  [SameObject, RuntimeEnabled=WebXRDepthPerformance, ImplementedAs=viewGeometryTransform] readonly attribute XRRigidTransform transform;
+};
+
+// Enable use of the mixin once WebXRDepthPerformance is enabled/cleaned up.
+// We cannot use it at the present time, as otherwise it will be stable-exposed.
+// XRDepthInformation includes XRViewGeometry;

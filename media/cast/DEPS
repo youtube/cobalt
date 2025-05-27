@@ -1,0 +1,21 @@
+include_rules = [
+  "+crypto",
+  "+media",
+  "+mojo/public/cpp/bindings",
+  "+net",
+  "+third_party/libyuv",
+  "+third_party/libaom",
+  "+third_party/openscreen/src/cast/streaming",
+  "+third_party/openscreen/src/platform/api",
+  "+third_party/openscreen/src/platform/base",
+  "+third_party/zlib",
+  "+ui/base",
+  "+ui/gfx",
+]
+
+specific_include_rules = {
+  # Open Screen platform usage should be restrict to the test helper.
+  "openscreen_test_helpers\.[cc|h]": [
+    "+components/openscreen_platform",
+  ],
+}

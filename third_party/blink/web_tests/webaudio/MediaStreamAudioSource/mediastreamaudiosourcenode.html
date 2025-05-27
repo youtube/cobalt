@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MediaStreamAudioSourceNode: Test For API Functionality</title>
+    <script src="../../resources/testharness.js"></script>
+    <script src="../../resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <script>
+      'use strict';
+
+      async function testMediaStreamAudioSourceNode() {
+        let stream;
+        try {
+          stream =
+              await navigator.mediaDevices.getUserMedia({ audio: true });
+        } catch (error) {
+          throw new TestAbortedError(
+              `getUserMedia failed: ${error.name} - ${error.message}. ` +
+              'Test did not run as expected'
+          );
+        }
+
+        const context = new AudioContext();
+        const mediaStreamSource =
+            new MediaStreamAudioSourceNode(context, { mediaStream: stream });
+
+        assert_equals(
+            mediaStreamSource.numberOfInputs,
+            0,
+            'mediaStreamSource.numberOfInputs should be 0');
+
+        assert_equals(
+            mediaStreamSource.numberOfOutputs,
+            1,
+            'mediaStreamSource.numberOfOutputs should be 1');
+
+        const mediaStream = mediaStreamSource.mediaStream;
+        assert_true(
+            mediaStream instanceof MediaStream,
+            'mediaStreamSource.mediaStream should be a MediaStream');
+
+        assert_true(
+            mediaStreamSource.mediaStream === mediaStream,
+            'mediaStreamSource.mediaStream should be the same object');
+
+        assert_throws_js(
+            TypeError,
+            () => mediaStreamSource.connect(0, 0, 0),
+            'connect with non-AudioNode throws TypeError');
+
+        assert_throws_dom(
+            'IndexSizeError',
+            () => mediaStreamSource.connect(context.destination, 5, 0),
+            'connect with invalid output index throws IndexSizeError');
+
+        assert_throws_dom(
+            'IndexSizeError',
+            () => mediaStreamSource.connect(context.destination, 0, 5),
+            'connect with invalid input index throws IndexSizeError');
+
+        mediaStreamSource.connect(context.destination, 0, 0);
+      }
+
+      promise_test(
+        () => testMediaStreamAudioSourceNode(),
+        'Basic API tests for MediaStreamAudioSourceNode');
+    </script>
+  </body>
+</html>

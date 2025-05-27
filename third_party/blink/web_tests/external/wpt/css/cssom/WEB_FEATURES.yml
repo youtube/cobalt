@@ -1,0 +1,11 @@
+features:
+- name: constructed-stylesheets
+  files:
+  - adoptedstylesheets-observablearray.html
+  - CSSStyleSheet-constructable-*
+  - CSSStyleSheet-constructable.html
+  - CSSStyleSheet-template-adoption.html
+- name: document-caretpositionfrompoint
+  files:
+  - caretPositionFromPoint-with-transformation.html
+  - caretPositionFromPoint.html

@@ -1,0 +1,59 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//media/gpu/args.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+
+# TODO(crbug.com/347331029): native_pixmap_handle.mojom is used by
+# ash/components/arc/mojom/protected_buffer_manager.mojom. Consider moving
+# the native_pixmap_handle.mojom file and its traits closer to the code
+# that uses them.
+mojom("native_pixmap_handle") {
+  generate_java = true
+
+  sources = [ "native_pixmap_handle.mojom" ]
+
+  if (is_linux || is_chromeos) {
+    cpp_typemaps = [
+      {
+        types = [
+          {
+            mojom = "media.stable.mojom.NativePixmapHandle"
+            cpp = "::gfx::NativePixmapHandle"
+            move_only = true
+          },
+          {
+            mojom = "media.stable.mojom.NativePixmapPlane"
+            cpp = "::gfx::NativePixmapPlane"
+            move_only = true
+          },
+        ]
+        traits_headers = [
+          "native_pixmap_handle_mojom_traits.h",
+          "//ui/gfx/native_pixmap_handle.h",
+        ]
+        traits_sources = [ "native_pixmap_handle_mojom_traits.cc" ]
+        traits_public_deps = [ "//ui/gfx:memory_buffer" ]
+      },
+    ]
+  }
+}
+
+if (is_linux || is_chromeos) {
+  source_set("unit_tests") {
+    testonly = true
+    sources = [ "native_pixmap_handle_mojom_traits_unittest.cc" ]
+    deps = [
+      ":native_pixmap_handle",
+      "//base/test:test_support",
+      "//media/mojo/mojom:test_support",
+      "//testing/gtest",
+    ]
+    if (use_vaapi) {
+      deps += [ "//media/gpu/vaapi:vaapi_status" ]
+    } else if (use_v4l2_codec) {
+      deps += [ "//media/gpu/v4l2:v4l2_status" ]
+    }
+  }
+}

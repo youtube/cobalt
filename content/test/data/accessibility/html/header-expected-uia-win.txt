@@ -1,0 +1,3 @@
+Document
+++Group LocalizedControlType='header'
+++++Text Name='Chromium Browser'

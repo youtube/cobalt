@@ -1,0 +1,6 @@
+include_rules = [
+  "+components/crash/core/common",
+  "+dbus",
+  "+net/base/mime_util.h",
+  "+ui/base/linux",
+]

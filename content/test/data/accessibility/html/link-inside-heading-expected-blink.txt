@@ -1,0 +1,7 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++heading name='Link In Heading' hierarchicalLevel=1
+++++++++link name='Link In Heading'
+++++++++++staticText name='Link In Heading'
+++++++++++++inlineTextBox name='Link In Heading'

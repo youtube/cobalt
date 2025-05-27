@@ -1,0 +1,22 @@
+; Copyright 2018 The Chromium Authors
+; Use of this source code is governed by a BSD-style license that can be
+; found in the LICENSE file.
+;
+; This is the sandbox configuration file used for safeguarding the print
+; compositor service which is used for compositing web contents printed from
+; different renderer processes.
+;
+; This configuration locks everything down, except font accesses.
+;
+
+; *** The contents of common.sb are implicitly included here. ***
+
+; Needed for Fonts.
+(allow-font-access)
+
+; Reads from /System.
+(allow file-read-data
+  (subpath "/System/Library/ColorSync/Profiles")  ; https://crbug.com/822218
+  ; https://crbug.com/1237384
+  (subpath "/System/Library/CoreServices/SystemAppearance.bundle")
+)

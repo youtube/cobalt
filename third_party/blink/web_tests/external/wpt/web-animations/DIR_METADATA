@@ -1,0 +1,10 @@
+monorail: {
+  component: "Blink>Animation"
+}
+team_email: "animations-dev@chromium.org"
+wpt: {
+  notify: YES
+}
+buganizer_public: {
+  component_id: 1456613
+}

@@ -1,0 +1,11 @@
+set noparent
+# For high-level changes, e.g. adding new services
+blundell@chromium.org
+
+# For trivial cleanup/code health reviews
+dcheng@chromium.org
+
+# For adding or removing languages.
+
+# Translation artifacts:
+per-file ....xtb=file://tools/translation/TRANSLATION_OWNERS

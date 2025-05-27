@@ -1,0 +1,33 @@
+// Copyright 2017 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+// The durability policy to apply to a single StorageBucket. The values are
+// persisted to the quota DB and must not be changed.
+enum BucketDurability {
+  kRelaxed = 0,
+  kStrict = 1,
+};
+
+// These values need to match core/dom/exception_code.h given how they are used in
+// DeprecatedStorageQuota. In newer code, i.e. StorageManager, a generic TypeError is returned
+// instead which matches the spec.
+enum QuotaStatusCode {
+  kOk = 0,
+  kErrorNotSupported = 9,          // NOT_SUPPORTED_ERR
+  kErrorInvalidModification = 13,  // INVALID_MODIFICATION_ERR
+  kErrorInvalidAccess = 15,        // INVALID_ACCESS_ERR
+  kErrorAbort = 20,                // ABORT_ERR
+  kUnknown = -1,
+};
+
+struct UsageBreakdown {
+  int64 fileSystem = 0;
+  int64 webSql = 0;
+  int64 indexedDatabase = 0;
+  int64 serviceWorkerCache = 0;
+  int64 serviceWorker = 0;
+  int64 backgroundFetch = 0;
+};

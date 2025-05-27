@@ -1,0 +1,154 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+import "mojo/public/mojom/base/string16.mojom";
+import "ui/gfx/geometry/mojom/geometry.mojom";
+import "third_party/blink/public/mojom/link_to_text/link_to_text.mojom";
+
+
+struct SelectorCreationResult {
+  // `host_receiver`: The receiver for the AnnotationAgentHost in the browser
+  // that the agent will send messages to, or NullReceiver if a selector
+  // could not be created.
+  pending_receiver<blink.mojom.AnnotationAgentHost> host_receiver;
+
+  // `agent_remote`: The remote that can be used from the browser to interact
+  // with the agent, or NullRemote if a selector could not be created.
+  pending_remote<blink.mojom.AnnotationAgent> agent_remote;
+
+  // `serialized_selector`: A string representing a selector that can be used
+  //  in the future (via `CreateAgent`) to target the same content. Empty
+  //  string if a selector could not be created (e.g. because no text
+  //  selection exists, or the selection is too ambiguous).
+  string serialized_selector;
+
+  // `selected_text`: The text that's selected by the returned selector. Empty
+  //  string if a selector could not be created. This is in UTF-16 since
+  //  it'll be displayed in UI which requires UTF-16 encoding.
+  mojo_base.mojom.String16 selected_text;
+};
+
+enum AnnotationType {
+  // Shared highlights are content-less highlights of a document. They are
+  // produced using the :~:text= directive in a URL. See also,
+  // text_fragment_anchor.cc in Blink and //components/shared_highlighting
+  kSharedHighlight,
+
+  // User notes are private notes that a user can make and save on pages they
+  // browse. See //components/user_notes
+  kUserNote,
+
+  // Finds text in the document. See //chrome/browser/companion/text_finder.
+  // The Chrome Companion uses this type of annotation agent to check if a
+  // given text exists in the document, and immediately disconnects the agent
+  // upon finishing searching to remove the visual highlight effect.
+  kTextFinder,
+
+  // Finds and highlights text for Glic. Has different scrolling and
+  // highlighting properties from kSharedHighlight.
+  kGlic,
+};
+
+// RAII wrapper for managing a single annotation in the renderer from the
+// browser process. Closing the message pipe removes the corresponding
+// annotation (and host in the browser) from the document.
+interface AnnotationAgent {
+  // Ensures the content that the agent is attached to is visible and centered
+  // in the viewport. If `applies_focus` is true, then the first node of the
+  // match is focused. If that node is unfocusable, then the focus on the
+  // document is cleared to allow the next "tab" focus navigation to be the
+  // element after the first node in the content.
+  ScrollIntoView(bool applies_focus);
+};
+
+enum AttachmentResult {
+  // Annotation was successfully attached.
+  kSuccess,
+  // Annotation fails to be attached, because the selector is not found in the
+  // range.
+  kSelectorNotMatched,
+  // The given search range is not valid, the start node is not in the document.
+  kRangeInvalid,
+};
+
+union Selector {
+  // A text fragment selector (that uses the syntax defined in
+  // https://wicg.github.io/scroll-to-text-fragment/#syntax).
+  string serialized_selector;
+  // DOMNodeId corresponding to a node (which will be converted to a Range
+  // encompassing its subtree).
+  int32 node_id;
+};
+
+// Allows the browser process to receive events for a single annotation in the
+// renderer.
+interface AnnotationAgentHost {
+  // Called when the agent finishes an attachment attempt. If the agent was
+  // able to find a Range of DOM matching the specified selector,
+  // `document_relative_rect` will contain its bounding box, in the document
+  // coordinate space. If attachment fails, the rect will be empty.
+  // `attachment_result` means whether the attachment succeeded or the failure reason.
+  DidFinishAttachment(gfx.mojom.Rect document_relative_rect,
+                      AttachmentResult attachment_result);
+};
+
+// Allows the browser process to request creation of an annotation in the
+// renderer.
+interface AnnotationAgentContainer {
+  // Instantiates a new agent in the renderer. The new agent will immediately
+  // attempt attachment. Currently, an AnnotationAgent can only perform
+  // attachment on creation and if it fails it cannot retry.
+  //
+  // `host_remote`: A binding to an object in the caller which will receive
+  //    events for the agent.
+  // `agent_receiver`: A binding that the caller will use to send messages to
+  //    and control the life time of the agent.
+  // `type`: The use case the annotation agent is being used for.
+  // `selector`: A selector that will be used to attach the agent to a Range of
+ //     DOM in the Document.
+  // `search_range_start_node_id`: The DOMNodeId of the start node for the
+  //    search range to the end of the document. If DOMNodeId is not given, the
+  //    search range will be the whole document.
+  CreateAgent(pending_remote<blink.mojom.AnnotationAgentHost> host_remote,
+              pending_receiver<blink.mojom.AnnotationAgent> agent_receiver,
+              AnnotationType type,
+              Selector selector,
+              int32? search_range_start_node_id);
+
+  // Creates an agent from the document's current text selection and returns
+  // the bindings as well as a selector which can be used in the future to
+  // target the same content. Performs attachment immediately after returning.
+  // If successful, clears the current text selection.
+  //
+  // Selector creation may fail for a few reasons:
+  //    * If there is no text selection in the renderer
+  //    * If the selection is degenerate (contains no text).
+  //    * The selected text cannot be uniquely identified using a text
+  //      selector.
+  //    * Generating the selector took too long and timed out.
+  //
+  // `type`: The use case the annotation agent is being used for.
+  //
+  // Returns:
+  // `result`: The optional creation result struct that includes host_receiver,
+  //    agent_remote, serialized_selector, and selected_text,
+  //    that will be used by the browser.
+  // `error`: The error type that occurred during link generation or kNone on success.
+  //    See SharedHighlighting::LinkGenerationError.
+  // `ready_status`: The type of generation status. The status indicates
+  //    whether the link generated was ready before the request
+  //    (preemptive link generation) or after the request.
+  //    See SharedHighlighting::LinkGenerationReadyStatus.
+  CreateAgentFromSelection(AnnotationType type) => (
+      SelectorCreationResult? result,
+      LinkGenerationError error,
+      LinkGenerationReadyStatus ready_status);
+
+  // Removes all annotations of a particular type from the container's document.
+  //
+  // `type`:  The particular type (use case) of annotation to remove
+  RemoveAgentsOfType(AnnotationType type);
+};

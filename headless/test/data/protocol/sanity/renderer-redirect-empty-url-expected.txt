@@ -1,0 +1,3 @@
+Tests renderer: redirect empty url.
+requested url: http://www.example.com/
+<p>Pass</p>

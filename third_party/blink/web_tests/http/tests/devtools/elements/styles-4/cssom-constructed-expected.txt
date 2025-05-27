@@ -1,0 +1,16 @@
+Tests that constructed stylesheets appear properly.
+
+[expanded] 
+element.style { ()
+
+[expanded] 
+div { (constructed stylesheet)
+    color: red;
+
+[expanded] 
+div { (user agent stylesheet)
+    display: block;
+    unicode-bidi: isolate;
+
+StyleSheetChanged triggered
+

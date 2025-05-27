@@ -1,0 +1,6 @@
+include_rules = [
+  "+components/metrics",
+  "+crypto",
+  "+jni",
+  "+third_party/protobuf",
+]

@@ -1,0 +1,4 @@
+file://build/fuchsia/OWNERS
+
+per-file *.cml=set noparent
+per-file *.cml=file://build/fuchsia/SECURITY_OWNERS

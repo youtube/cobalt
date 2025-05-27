@@ -1,0 +1,10 @@
+monorail: {
+  component: "Blink>BatteryStatus"
+}
+team_email: "device-dev@chromium.org"
+wpt: {
+  notify: YES
+}
+buganizer_public: {
+  component_id: 1456717
+}

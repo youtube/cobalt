@@ -1,0 +1,10 @@
+ᚁᚂᚃᚄᚅᚆᚇᚈᚉᚊᚋᚌᚍᚎᚏᚐᚑᚒᚓᚔᚕᚖᚗᚘᚙᚚ᚛᚜
+#oghammonofont:
+"Apple Symbols" : 29
+
+ᚁᚂᚃᚄᚅᚆᚇᚈᚉᚊᚋᚌᚍᚎᚏᚐᚑᚒᚓᚔᚕᚖᚗᚘᚙᚚ᚛᚜
+#oghamdefaultfont:
+"Apple Symbols" : 29
+
+There should be two lines of Ogham above.
+

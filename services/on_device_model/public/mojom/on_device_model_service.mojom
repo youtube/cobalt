@@ -1,0 +1,195 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module on_device_model.mojom;
+
+import "mojo/public/mojom/base/file.mojom";
+import "mojo/public/mojom/base/file_path.mojom";
+import "mojo/public/mojom/base/uuid.mojom";
+import "sandbox/policy/mojom/context.mojom";
+import "sandbox/policy/mojom/sandbox.mojom";
+import "services/on_device_model/public/mojom/on_device_model.mojom";
+
+// Model weights could be passed as an opened file or a file path.
+union ModelFile {
+  // This should be used with the GPU backend.
+  //
+  // TODO(crbug.com/313919363): This should be a ReadOnlyFile.
+  mojo_base.mojom.File file;
+
+  // This should be used with the APU backend.
+  mojo_base.mojom.FilePath path;
+};
+
+// Opened file resources needed to define the model.
+struct ModelAssets {
+  // Model weights. The backend may prefer these to be passed a certain way.
+  ModelFile weights;
+
+  // Currently the only usage of sp model will be passed by file path.
+  mojo_base.mojom.FilePath? sp_model_path;
+
+  // File which may be used to store a backend-specific cache of the model
+  // weights or to load previously-cached model weights from. This file must be
+  // writable to allow the backend to write out its custom data.
+  mojo_base.mojom.File? cache;
+};
+
+// Type of the backend to run the model.
+enum ModelBackendType {
+  // The default WebGPU backend.
+  kGpu,
+  // The APU accelerator backend. Only available on devices with APU, and need
+  // special APU model files.
+  kApu,
+  // The CPU backend.
+  kCpu,
+};
+
+// Options for specifying the performance characteristics of the model to load.
+enum ModelPerformanceHint {
+  kHighestQuality,
+  kFastestInference,
+};
+
+// Params to describe the model to load.
+struct LoadModelParams {
+  // Backend type of the model.
+  ModelBackendType backend_type;
+
+  // Assets for the model.
+  ModelAssets assets;
+
+  // The maximum number of input+output tokens the model can handle. This is
+  // needed when initializing the model.
+  uint32 max_tokens;
+
+  // List of adaptation ranks the model should support.
+  array<uint32> adaptation_ranks;
+
+  // Chooses the performance characteristics of the model loaded. If only a
+  // single model is available, this field will do nothing.
+  ModelPerformanceHint performance_hint = kHighestQuality;
+};
+
+struct TextSafetyModelAssets {
+  mojo_base.mojom.ReadOnlyFile data;
+  mojo_base.mojom.ReadOnlyFile sp_model;
+};
+
+struct LanguageModelAssets {
+  mojo_base.mojom.ReadOnlyFile model;
+};
+
+struct TextSafetyModelParams {
+  TextSafetyModelAssets? ts_assets;
+  LanguageModelAssets? language_assets;
+};
+
+// An observer to report the current platform model loading progress.
+[Stable]
+interface PlatformModelProgressObserver {
+  // The progress value is between 0.0 and 1.0.
+  Progress@0(double progress);
+};
+
+[Stable, Extensible]
+enum PlatformModelState {
+  [Default] kUnknownState,
+  kInstalledOnDisk,
+  kInvalidUuid,
+  kInvalidDlcClient,
+  kInvalidDlcPackage,
+  kInvalidDlcVerifiedState,
+  kInvalidDlcInstall,
+  kInvalidModelFormat,
+  kInvalidModelDescriptor,
+  kInvalidBaseModelDescriptor,
+};
+
+[Stable, Extensible]
+enum FormatFeature {
+  [Default] kNone = 0,
+  kPrompt = 1,
+  kAudioSummary = 2,
+  kAudioTitle = 3,
+};
+
+[Stable, Extensible]
+enum SafetyFeature {
+  [Default] kGeneral = 0,
+  kAudioSummaryRequest = 1,
+  kAudioTitleRequest = 2,
+  kAudioSummaryResponse = 3,
+  kAudioTitleResponse = 4,
+  [MinVersion=1] kAudioSummaryResponseV2 = 5,
+  [MinVersion=1] kAudioTitleResponseV2 = 6,
+};
+
+// A service which allows loading trusted models which are stored on-device and
+// which may process untrustworthy data.
+[ServiceSandbox=sandbox.mojom.Sandbox.kOnDeviceModelExecution,
+    RequireContext=sandbox.mojom.Context.kBrowser]
+interface OnDeviceModelService {
+  // Initializes a new model instance given `params`. If the model can not be
+  // created the model pipe will be reset.
+  LoadModel(LoadModelParams params, pending_receiver<OnDeviceModel> model)
+      => (LoadModelResult result);
+
+  // Returns the capabilities for a model specified by `weights`. Note that this
+  // will not load the model, so is much cheaper than calling LoadModel().
+  GetCapabilities(ModelFile weights) => (Capabilities capabilities);
+
+  // Initializes a new TextSafetyModel with the provided params.
+  // The model is disconnected on any errors with it.
+  LoadTextSafetyModel(
+      TextSafetyModelParams params, pending_receiver<TextSafetyModel> model);
+
+  // Returns the performance class based on benchmarks run on the device.
+  GetEstimatedPerformanceClass() => (PerformanceClass performance_class);
+};
+
+// A service which allows loading platform trusted models which are stored
+// on-device and which may process untrustworthy data.
+// This is a ChromeOS specific interface. And the service will be implemented
+// in the ChromeOS platform side instead of the Chrome browser side.
+[Stable]
+interface OnDeviceModelPlatformService {
+  // Initializes a new model instance given platform model `uuid`, this can be
+  // used on some specific platforms(e.g. ChromeOS). The model can be either
+  // a base model or a base model with an adaptation layer. If the model can
+  // not be created the model pipe will be reset.
+  LoadPlatformModel@0(
+      mojo_base.mojom.Uuid uuid,
+      pending_receiver<OnDeviceModel> model,
+      pending_remote<PlatformModelProgressObserver>?
+          progress_observer) => (LoadModelResult result);
+
+  // Gets the platform model state given platform model `uuid`.
+  GetPlatformModelState@1(mojo_base.mojom.Uuid uuid)
+      => (PlatformModelState result);
+
+  // Returns the performance class based on benchmarks run on the device.
+  GetEstimatedPerformanceClass@2() => (PerformanceClass performance_class);
+
+  // Formats the input fields with the model uuid and feature combination.
+  // The `fields` will represent the corresponding input key value pairs for
+  // different model uuid and feature combinations.
+  // The `result` can be nullopt if the model uuid and feature combination is
+  // invalid or not supported.
+  //
+  // For example, a feature may need "name" & "something" & "action" to complete
+  // the following string: "I'm {name}, I have {something}, please {action} for
+  // me.". And different feature may require different sets of key value pairs.
+  FormatInput@3(mojo_base.mojom.Uuid uuid,
+                FormatFeature feature,
+                map<string, string> fields) => (string? result);
+
+  // Validates the `text` is safe or not with the given `safety_feature` and
+  // `safety_info`. The `safety_info` should be the result returned by
+  // `ClassifyTextSafety()`. Returns true if the `text` is safe.
+  ValidateSafetyResult@4(
+      SafetyFeature safety_feature, string text, SafetyInfo safety_info)
+      => (bool result);
+};

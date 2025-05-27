@@ -1,0 +1,17 @@
+Name: Ink Stroke Modeler
+URL: https://github.com/google/ink-stroke-modeler
+Version: N/A
+Revision: 03db1ed37b8b10b47d62ed0fa142d198a3861689
+License: Apache-2.0
+License File: LICENSE
+Shipped: yes
+Security Critical: yes
+
+Description:
+
+C++ library for beautifully smoothing freehand (touch/stylus/pointer) input.
+Used in the PDF Viewer.
+
+Local Modifications:
+
+None.

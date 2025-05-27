@@ -1,0 +1,4 @@
+# Extension/Toolbar Actions
+per-file browser_action*=rdevlin.cronin@chromium.org
+per-file *toolbar_action*=rdevlin.cronin@chromium.org
+per-file *toolbar_action*=emiliapaz@chromium.org
