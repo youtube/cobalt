@@ -14,127 +14,125 @@
 
 #include <errno.h>
 #include <signal.h>
-#include <sys/time.h>  // For gettimeofday()
+#include <sys/time.h>
 #include <time.h>
-#include <cstring>  // For strerror
+#include <cstring>
 
-#include "starboard/configuration_constants.h"  // Included for consistency
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
-namespace {  // Anonymous namespace for test-local definitions
+namespace {
 
 // Small duration for sleeps that should be short or return immediately.
-const long kShortSleepNs = 1'000'000L;  // 1 millisecond
+const long kShortSleepNs = 1'000'000L;  // 1 millisecond.
 // A slightly longer duration for testing actual sleep.
-const long kTestSleepNs = 50'000'000L;  // 50 milliseconds
+const long kTestSleepNs = 50'000'000L;  // 50 milliseconds.
 const long kTestSleepUs = kTestSleepNs / 1'000;
 // A very long duration for testing interruption.
-const long kLongSleepSec = 10;  // 10 seconds
-// Duration for alarm to trigger, should be less than kLongSleepSec
+const long kLongSleepSec = 10;  // 10 seconds.
+// Duration for alarm to trigger, should be less than kLongSleepSec.
 const unsigned int kAlarmSec = 1;
+// Duration threshold for sleeps that should return immediately.
+const long kShortDurationThresholdUs = 100000;  // 100 milliseconds.
 
-// Signal handler for EINTR tests (can be used for SIGALRM)
 void InterruptSignalHandler(int signum) {
-  // Do nothing, just here to interrupt sleep
-  (void)signum;  // Suppress unused parameter warning
+  (void)signum;  // Suppress unused parameter warning.
 }
 
 class PosixNanosleepTests : public ::testing::Test {
  protected:
-  struct sigaction old_sa_sigalrm;  // To store original SIGALRM handler
+  struct sigaction old_sa_sigalrm;
 
   void SetUp() override {
-    // Ensure no stale errno
     errno = 0;
-    // Clear any pending alarm from a previous failed test or other source
     alarm(0);
 
-    // Store current SIGALRM handler
     struct sigaction current_sa;
     if (sigaction(SIGALRM, nullptr, &old_sa_sigalrm) != 0) {
-      // This should ideally not happen in a test setup.
-      // If it does, we might not be able to restore it properly.
       perror("Warning: Could not get old SIGALRM handler in SetUp");
     }
   }
 
   void TearDown() override {
-    // Restore default/original signal handler for SIGALRM
     if (sigaction(SIGALRM, &old_sa_sigalrm, nullptr) != 0) {
       perror("Warning: Could not restore old SIGALRM handler in TearDown");
     }
-    // Clear any pending alarm
     alarm(0);
   }
 };
 
-// Helper function to calculate the difference between two timeval structs in
-// microseconds.
-long timeval_diff_us(const struct timeval* start, const struct timeval* end) {
+long TimevalDiffToMicroseconds(const struct timeval* start,
+                               const struct timeval* end) {
   if (!start || !end) {
     return 0;
   }
   long seconds_diff = end->tv_sec - start->tv_sec;
   long useconds_diff = end->tv_usec - start->tv_usec;
-  return (seconds_diff * 1000000L) + useconds_diff;
+  return (seconds_diff * 1'000'000L) + useconds_diff;
 }
 
-// Test suite for POSIX nanosleep() function.
-// The tests are named using the TEST macro, with PosixNanosleepTests
-// as the test suite name.
 TEST_F(PosixNanosleepTests, SuccessfulSleep) {
   struct timeval start_time;
   ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
       << "gettimeofday failed for start_time";
 
-  struct timespec req = {0,
-                         kTestSleepNs};  // Request: 0 seconds, 50 milliseconds
-  struct timespec rem;  // To store remaining time, if any (unused on success)
-  errno = 0;            // Clear errno before the call
+  struct timespec req = {0, kTestSleepNs};
+  struct timespec rem;
+  errno = 0;
   int ret = nanosleep(&req, &rem);
   EXPECT_EQ(0, ret) << "Expected successful sleep. Return: " << ret
                     << ", errno: " << errno << " (" << strerror(errno) << ")";
-  // POSIX states that if nanosleep returns 0, the contents of 'rem' are
-  // unspecified.
 
   struct timeval end_time;
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  long elapsed_us = timeval_diff_us(&start_time, &end_time);
-  // Check that the elapsed time is at least the requested sleep time.
-  // Due to system scheduling, it might sleep slightly longer.
+  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
   EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
 
 TEST_F(PosixNanosleepTests, SuccessfulSleepNullRemain) {
-  struct timespec req = {0,
-                         kShortSleepNs};  // Request: 0 seconds, 1 millisecond
-  errno = 0;                              // Clear errno before the call
-  int ret = nanosleep(&req, nullptr);     // 'rem' argument is NULL
+  struct timespec req = {0, kShortSleepNs};
+  errno = 0;
+  int ret = nanosleep(&req, nullptr);
   EXPECT_EQ(0, ret) << "Expected successful sleep with NULL remain. Return: "
                     << ret << ", errno: " << errno << " (" << strerror(errno)
                     << ")";
 }
 
 TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
-  struct timespec req = {0, 0L};  // Request: 0 seconds, 0 nanoseconds
+  struct timespec req = {0, 0L};
   struct timespec rem;
-  errno = 0;  // Clear errno before the call
+  errno = 0;
+
+  struct timeval start_time, end_time;
+  ASSERT_EQ(0, gettimeofday(&start_time, nullptr))
+      << "gettimeofday failed for start_time";
+
   int ret = nanosleep(&req, &rem);
+
+  ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
+      << "gettimeofday failed for end_time";
+
   EXPECT_EQ(0, ret)
       << "Expected immediate return for zero duration sleep. Return: " << ret
       << ", errno: " << errno << " (" << strerror(errno) << ")";
+
+  if (ret == 0) {
+    long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+    EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
+        << "Zero duration sleep took too long. Elapsed: " << elapsed_us
+        << "us. Threshold: " << kShortDurationThresholdUs << "us.";
+  }
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
-  struct timespec req = {0, -1L};  // Invalid: nanoseconds part is negative
+  struct timespec req = {0, -1L};
   struct timespec rem;
-  errno = 0;  // Clear errno before the call
+  errno = 0;
   int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for negative ns. errno: "
@@ -142,10 +140,9 @@ TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsTooLarge) {
-  // Invalid: nanoseconds part is >= 1,000,000,000
   struct timespec req = {0, 1'000'000'000L};
   struct timespec rem;
-  errno = 0;  // Clear errno before the call
+  errno = 0;
   int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for ns >= 10^9. errno: " << errno
@@ -153,9 +150,9 @@ TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsTooLarge) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestSecondsNegative) {
-  struct timespec req = {-1, 0L};  // Invalid: seconds part is negative
+  struct timespec req = {-1, 0L};
   struct timespec rem;
-  errno = 0;  // Clear errno before the call
+  errno = 0;
   int ret = nanosleep(&req, &rem);
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for invalid input.";
   EXPECT_EQ(EINVAL, errno) << "Expected EINVAL for negative tv_sec. errno: "
@@ -163,8 +160,8 @@ TEST_F(PosixNanosleepTests, ErrorEinvalRequestSecondsNegative) {
 }
 
 TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
-  struct timespec rem;  // 'rem' can be valid or NULL for this specific test.
-  errno = 0;            // Clear errno before the call
+  struct timespec rem;
+  errno = 0;
 
   timespec* req = nullptr;
   int ret = nanosleep(req, &rem);
@@ -175,34 +172,30 @@ TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
       << strerror(errno) << ")";
 }
 
-// Test EINTR for relative sleep using SIGALRM
 TEST_F(PosixNanosleepTests, ErrorEintrRelativeSleep) {
-  struct timespec req = {kLongSleepSec, 0};  // Sleep longer than alarm
+  struct timespec req = {kLongSleepSec, 0};
   struct timespec rem;
 
   struct sigaction sa;
   sa.sa_handler = InterruptSignalHandler;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;  // No SA_RESTART, to ensure EINTR
+  sa.sa_flags = 0;
   ASSERT_EQ(0, sigaction(SIGALRM, &sa, nullptr));
 
-  alarm(kAlarmSec);  // Send SIGALRM after kAlarmSec seconds
+  alarm(kAlarmSec);
 
   errno = 0;
   int ret = nanosleep(&req, &rem);
-  alarm(0);  // Cancel any pending alarm immediately after sleep returns
+  alarm(0);
 
   EXPECT_EQ(-1, ret) << "nanosleep should return -1 for NULL request pointer.";
   EXPECT_EQ(EINTR, errno) << "Expected EINTR for interrupted sleep. errno: "
                           << errno << " (" << strerror(errno) << ")";
   if (ret == -1 && errno == EINTR) {
-    // Check if 'rem' contains a plausible remaining time
-    EXPECT_TRUE(
-        rem.tv_sec < req.tv_sec ||
-        (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
-         rem.tv_nsec >= 0) ||
-        (rem.tv_sec == 0 && rem.tv_nsec == 0)  // Interrupted very quickly
-        )
+    EXPECT_TRUE(rem.tv_sec < req.tv_sec ||
+                (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
+                 rem.tv_nsec >= 0) ||
+                (rem.tv_sec == 0 && rem.tv_nsec == 0))
         << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
         << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
     EXPECT_GE(rem.tv_sec, 0);
