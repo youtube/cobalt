@@ -22,6 +22,8 @@ class CobaltHttpsOnlyNavigationThrottle : public content::NavigationThrottle {
   content::NavigationThrottle::ThrottleCheckResult WillStartRequest() override;
   content::NavigationThrottle::ThrottleCheckResult WillRedirectRequest()
       override;
+  content::NavigationThrottle::ThrottleCheckResult WillProcessResponse()
+      override;
 
   const char* GetNameForLogging() override;
 };
