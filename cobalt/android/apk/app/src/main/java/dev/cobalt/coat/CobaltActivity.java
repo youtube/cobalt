@@ -129,11 +129,8 @@ public abstract class CobaltActivity extends Activity {
             "--js-flags=--optimize_for_size",
             // Use SurfaceTexture for decode-to-texture mode.
             "--disable-features=AImageReader",
-<<<<<<< HEAD
-=======
             // Disable concurrent-marking due to b/415843979
             "--js-flags=--no-concurrent_marking",
->>>>>>> 8f4cf195426 (Correct Java format to set V8 flags (#5875))
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
