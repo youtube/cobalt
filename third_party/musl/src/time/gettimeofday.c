@@ -1,10 +1,9 @@
-#include <sys/time.h>
-#include <time.h>
 #if defined(STARBOARD)
 #include <errno.h>
-#else
-#include "syscall.h"
 #endif
+#include <sys/time.h>
+#include <time.h>
+#include "syscall.h"
 
 int gettimeofday(struct timeval* restrict tv, void* restrict tz) {
   struct timespec ts;
