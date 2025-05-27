@@ -43,10 +43,12 @@ class PageLoadMetricsEmbedder
   ~PageLoadMetricsEmbedder() override;
 
   // page_load_metrics::PageLoadMetricsEmbedderBase:
-  bool IsNewTabPageUrl(const GURL& url) override;
-  bool IsNoStatePrefetch(content::WebContents* web_contents) override;
-  bool IsExtensionUrl(const GURL& url) override;
-  bool IsSidePanel(content::WebContents* web_contents) override;
+  bool IsNewTabPageUrl(const GURL& url) override { return false; }
+  bool IsNoStatePrefetch(content::WebContents* web_contents) override {
+    return false;
+  }
+  bool IsExtensionUrl(const GURL& url) override { return false; }
+  bool IsSidePanel(content::WebContents* web_contents) { return false; }
   page_load_metrics::PageLoadMetricsMemoryTracker*
   GetMemoryTrackerForBrowserContext(
       content::BrowserContext* browser_context) override;
@@ -68,24 +70,6 @@ void PageLoadMetricsEmbedder::RegisterEmbedderObservers(
   // Intentionally not implemented, since useful observers are already
   // registered in the parent class.
   NOTIMPLEMENTED();
-}
-
-bool PageLoadMetricsEmbedder::IsNewTabPageUrl(const GURL& url) {
-  return false;
-}
-
-bool PageLoadMetricsEmbedder::IsNoStatePrefetch(
-    content::WebContents* web_contents) {
-  return false;
-}
-
-bool PageLoadMetricsEmbedder::IsExtensionUrl(const GURL& url) {
-  return false;
-}
-
-bool PageLoadMetricsEmbedder::IsSidePanel(content::WebContents* web_contents) {
-  // The side panel is not supported on Android so this always returns false.
-  return false;
 }
 
 page_load_metrics::PageLoadMetricsMemoryTracker*
