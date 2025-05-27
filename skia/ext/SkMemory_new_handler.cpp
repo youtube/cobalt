@@ -63,8 +63,13 @@ void* sk_realloc_throw(void* addr, size_t size) {
 
 void sk_free(void* p) {
     if (p) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
         free(p);
+#else
+        base::UncheckedFree(p);
+#endif
     }
+
 }
 
 // We get lots of bugs filed on us that amount to overcommiting bitmap memory,
@@ -86,7 +91,8 @@ static void* malloc_nothrow(size_t size) {
   // TODO(b.kelemen): we should always use UncheckedMalloc but currently it
   // doesn't work as intended everywhere.
   void* result;
-#if BUILDFLAG(IS_IOS)
+// TODO: Try to switch to base::UncheckedMalloc.
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   result = malloc(size);
 #else
   // It's the responsibility of the caller to check the return value.
@@ -106,7 +112,7 @@ static void* calloc_nothrow(size_t size) {
   // TODO(b.kelemen): we should always use UncheckedCalloc but currently it
   // doesn't work as intended everywhere.
   void* result;
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   result = calloc(1, size);
 #else
   // It's the responsibility of the caller to check the return value.
