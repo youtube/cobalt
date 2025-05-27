@@ -97,6 +97,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'connect',
     'dup',
     'dup2',
+    'epoll_create',
+    'epoll_create1',
+    'epoll_ctl',
+    'epoll_wait'
     'fcntl',
     'free',
     'freeaddrinfo',
