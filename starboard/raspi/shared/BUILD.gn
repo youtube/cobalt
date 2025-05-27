@@ -22,8 +22,6 @@ group("starboard_platform") {
 static_library("starboard_platform_sources") {
   check_includes = false
 
-  # has_pedantic_warnings = true
-
   sources = [
     "//starboard/linux/shared/configuration_constants.cc",
     "//starboard/linux/shared/configuration_public.h",
@@ -237,5 +235,4 @@ static_library("starboard_platform_sources") {
     "//third_party/libevent",
     "//third_party/opus",
   ]
-
 }
