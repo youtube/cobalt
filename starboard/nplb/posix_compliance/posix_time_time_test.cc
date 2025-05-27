@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <errno.h>  // For errno
+#include <errno.h>
 #include <sys/time.h>
 #include <time.h>
 #include "testing/gtest/include/gtest/gtest.h"
@@ -21,30 +21,22 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// kMicrosecondsPerSecond defines the number of microseconds in one second.
-// This constant is used for converting time values to a common unit
-// (microseconds) for comparison in tests involving gettimeofday.
 const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
-// kReasonableMinTime represents a time (2024-01-01 00:00:00 UTC) after which
-// the current time is expected to fall. This is used for basic sanity checks.
-const time_t kReasonableMinTime = 1704067200;  // 2024-01-01 00:00:00 UTC
+// kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
+// the current time is expected to fall.
+const time_t kReasonableMinTime = 1735689600;  // 2025-01-01 00:00:00 UTC
 
-// kReasonableMaxTime represents a time (2044-01-01 00:00:00 UTC) before which
-// the current time is expected to fall. This is used for extended sanity
-// checks.
-const time_t kReasonableMaxTime = 2335219200;  // 2044-01-01 00:00:00 UTC
+// kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
+// the current time is expected to fall.
+const time_t kReasonableMaxTime = 2366841600;  // 2045-01-01 00:00:00 UTC
 
-// Tests that time(nullptr) returns the current time and it's a reasonable
-// value.
 TEST(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
   time_t current_time = time(nullptr);
 
-  // Check that time() did not return an error.
   EXPECT_NE(current_time, static_cast<time_t>(-1))
       << "time(nullptr) returned an error: (time_t)-1. errno: " << errno;
 
-  // Check that the time is somewhat reasonable (e.g., after January 1, 2024).
   if (current_time != static_cast<time_t>(-1)) {
     EXPECT_GT(current_time, kReasonableMinTime)
         << "Current time (" << current_time
@@ -53,21 +45,16 @@ TEST(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
   }
 }
 
-// Tests that time(&tloc) stores the current time in tloc and returns the same
-// value.
 TEST(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
-  time_t time_val_from_arg = 0;  // Initialize to a known value.
+  time_t time_val_from_arg = 0;
   time_t time_val_returned = time(&time_val_from_arg);
 
-  // Check for error.
   EXPECT_NE(time_val_returned, static_cast<time_t>(-1))
       << "time(&tloc) returned an error: (time_t)-1. errno: " << errno;
 
-  // The returned value should be the same as the value stored in the argument.
   EXPECT_EQ(time_val_returned, time_val_from_arg)
       << "Returned time and argument time mismatch.";
 
-  // Check that the time is somewhat reasonable (e.g., after January 1, 2024).
   if (time_val_returned != static_cast<time_t>(-1)) {
     EXPECT_GT(time_val_returned, kReasonableMinTime)
         << "Current time (" << time_val_returned
@@ -83,45 +70,34 @@ TEST(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
 // without potentially crashing the test runner, as it involves causing
 // a segmentation fault or similar memory access violation.
 
-// Tests that the time returned by time() is within a sane, expected range.
 TEST(PosixTimeTimeTests, TimeIsReasonable) {
   time_t now_s = time(nullptr);
   ASSERT_NE(now_s, static_cast<time_t>(-1))
       << "time() returned an error. errno: " << errno;
 
-  // Now should be after kReasonableMinTime.
   EXPECT_GT(now_s, kReasonableMinTime)
       << "Current time (" << now_s
       << ") is before the expected past threshold (" << kReasonableMinTime
       << ").";
 
-  // Now should be before kReasonableMaxTime.
   EXPECT_LT(now_s, kReasonableMaxTime)
       << "Current time (" << now_s
       << ") is after the expected future threshold (" << kReasonableMaxTime
       << ").";
 }
 
-// Test to verify that time() returns the current time and correctly stores it
-// in the provided non-nullptr argument, and the time is within a reasonable
-// range.
 TEST(PosixTimeTimeTests,
      ReturnsCurrentTimeAndStoresInArgumentIfNotNullAndIsReasonable) {
-  time_t time_val_from_arg = 0;  // Variable to store time via argument
-  // Call time() with a non-nullptr argument.
+  time_t time_val_from_arg = 0;
   time_t time_val_from_return = time(&time_val_from_arg);
 
-  // Check if time() returned an error. ((time_t)-1) is the error indicator.
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
       << "time() failed with errno: " << errno;
 
-  // Verify that the return value is the same as the value stored in the
-  // argument.
   EXPECT_EQ(time_val_from_return, time_val_from_arg)
       << "Return value from time() should be identical to the value stored via "
          "non-nullptr argument.";
 
-  // Check if the time is within the reasonable range.
   EXPECT_GT(time_val_from_return, kReasonableMinTime)
       << "Return value from time() (" << time_val_from_return
       << ") is unexpectedly before kReasonableMinTime (" << kReasonableMinTime
@@ -132,24 +108,18 @@ TEST(PosixTimeTimeTests,
       << ").";
 }
 
-// Test to verify consistency of time(&tloc) with gettimeofday().
 TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
-  time_t time_val_from_arg = 0;  // Variable to store time via argument
+  time_t time_val_from_arg = 0;
   struct timeval current_timeval;
 
-  // Call gettimeofday() to get a reference timestamp.
-  // Called close to time() to ensure their values are comparable.
   ASSERT_NE(-1, gettimeofday(&current_timeval, nullptr))
       << "gettimeofday() failed with errno: " << errno;
 
-  // Call time() with a non-nullptr argument.
   time_t time_val_from_return = time(&time_val_from_arg);
 
-  // Check if time() returned an error.
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
       << "time() failed with errno: " << errno;
 
-  // Convert both timestamps to microseconds for comparison.
   int64_t time_func_us =
       static_cast<int64_t>(time_val_from_return) * kMicrosecondsPerSecond;
   int64_t gettimeofday_func_us =
@@ -166,30 +136,23 @@ TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
       << "differ by more than the allowed threshold of one second.";
 }
 
-// Test to verify consistency of time(nullptr) with gettimeofday().
 TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
   struct timeval current_timeval;
 
-  // Call gettimeofday() to get a reference timestamp.
   ASSERT_NE(-1, gettimeofday(&current_timeval, nullptr))
       << "gettimeofday() failed with errno: " << errno;
 
-  // Call time() with a nullptr argument.
   time_t time_val_from_return = time(nullptr);
 
-  // Check if time() returned an error.
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
       << "time() failed with errno: " << errno;
 
-  // Convert both timestamps to microseconds for comparison.
   int64_t time_func_us =
       static_cast<int64_t>(time_val_from_return) * kMicrosecondsPerSecond;
   int64_t gettimeofday_func_us =
       (static_cast<int64_t>(current_timeval.tv_sec) * kMicrosecondsPerSecond) +
       current_timeval.tv_usec;
 
-  // Verify consistency with gettimeofday().
-  // Tolerance of one second accounts for potential rollover between calls.
   EXPECT_NEAR(time_func_us, gettimeofday_func_us, kMicrosecondsPerSecond)
       << "time(nullptr) result (" << time_val_from_return << "s) "
       << "and gettimeofday() result (" << current_timeval.tv_sec << "s "
@@ -197,25 +160,17 @@ TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
       << "differ by more than the allowed threshold of one second.";
 }
 
-// Tests that successive calls to time() yield non-decreasing time values.
 TEST(PosixTimeTimeTests, TimeProgressesMonotonically) {
   const int kNumIterations = 1000;
   for (int i = 0; i < kNumIterations; ++i) {
-    // Get the first time measurement.
     time_t time1 = time(nullptr);
     ASSERT_NE(time1, static_cast<time_t>(-1))
         << "First call to time(nullptr) failed. errno: " << errno;
 
-    // Get the second time measurement immediately after.
-    // No sleep is introduced as time() has second resolution, and we are
-    // checking for non-decreasing time (t2 >= t1).
     time_t time2 = time(nullptr);
     ASSERT_NE(time2, static_cast<time_t>(-1))
         << "Second call to time(nullptr) failed. errno: " << errno;
 
-    // The second time should be greater than or equal to the first time.
-    // This checks that time does not go backwards during successive calls in a
-    // stable environment.
     EXPECT_GE(time2, time1)
         << "Time is expected to be monotonically non-decreasing. Time 1: "
         << time1 << ", Time 2: " << time2;
