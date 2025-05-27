@@ -26,7 +26,11 @@
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
+<<<<<<< HEAD
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
+=======
+#include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
+>>>>>>> 7eb13916678 (Add tests for h_5_vcc_experiments. (#5773))
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
