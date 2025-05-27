@@ -54,7 +54,6 @@ class PosixClockNanosleepTest : public ::testing::Test {
     alarm(0);
 
     // Store current SIGALRM handler
-    struct sigaction current_sa;
     if (sigaction(SIGALRM, nullptr, &old_sa_sigalrm) != 0) {
       // This should ideally not happen in a test setup.
       // If it does, we might not be able to restore it properly.
