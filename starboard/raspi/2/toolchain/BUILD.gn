@@ -20,10 +20,9 @@ gcc_toolchain("starboard") {
   cc = gcc_toolchain_cc
   cxx = gcc_toolchain_cxx
   ld = cxx
+
   # We use whatever 'ar' resolves to.
   ar = gcc_toolchain_ar
-
-  # tail_lib_dependencies = "-l:libpthread.so.0 -l:libdl.so.2"
 
   toolchain_args = {
     is_clang = false
@@ -42,8 +41,6 @@ gcc_toolchain("native_target") {
 
   # We use whatever 'ar' resolves to.
   ar = gcc_toolchain_ar
-
-  # tail_lib_dependencies = "-l:libpthread.so.0 -l:libdl.so.2"
 
   toolchain_args = {
     is_starboard = false
