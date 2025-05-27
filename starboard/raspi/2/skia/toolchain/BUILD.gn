@@ -27,6 +27,7 @@ gcc_toolchain("target") {
   tail_lib_dependencies = "-l:libpthread.so.0 -l:libdl.so.2"
 
   toolchain_args = {
+    is_clang = false
   }
 }
 

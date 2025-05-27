@@ -15,3 +15,4 @@
 target_platform = "raspi-2-skia"
 target_os = "linux"
 target_cpu = "arm"
+is_clang = false
