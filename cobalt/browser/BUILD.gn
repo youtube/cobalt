@@ -147,8 +147,6 @@ source_set("metrics") {
     "metrics/cobalt_metrics_services_manager_client.h",
     "metrics/page_load_metrics_initialize.cc",
     "metrics/page_load_metrics_initialize.h",
-    "metrics/page_load_metrics_memory_tracker_factory.cc",
-    "metrics/page_load_metrics_memory_tracker_factory.h",
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
