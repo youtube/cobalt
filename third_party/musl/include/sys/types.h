@@ -1,5 +1,8 @@
 #ifndef	_SYS_TYPES_H
 #define	_SYS_TYPES_H
+
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

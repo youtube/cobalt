@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <stddef.h>
 #include <string.h>
+#include "build/build_config.h"
 #include "locale_impl.h"
 
 /* mips has one error code outside of the 8-bit range due to a

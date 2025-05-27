@@ -1,5 +1,8 @@
 #ifndef _SYS_TIME_H
 #define _SYS_TIME_H
+
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

@@ -1,6 +1,7 @@
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
 
+#include "build/build_config.h"
 
 #ifdef __cplusplus
 extern "C" {

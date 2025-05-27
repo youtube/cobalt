@@ -1,6 +1,8 @@
 #ifndef	_ERRNO_H
 #define _ERRNO_H
 
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

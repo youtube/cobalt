@@ -1,5 +1,6 @@
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include "build/build_config.h"
 #include "libc.h"
 
 #if BUILDFLAG(IS_STARBOARD)

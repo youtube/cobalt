@@ -2,6 +2,7 @@
 #define PTHREAD_H
 
 #include "../../include/pthread.h"
+#include "build/build_config.h"
 
 #if !BUILDFLAG(IS_STARBOARD)
 hidden int __pthread_once(pthread_once_t *, void (*)(void));
