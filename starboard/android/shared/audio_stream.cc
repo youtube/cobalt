@@ -254,8 +254,7 @@ std::unique_ptr<AudioStream> AudioStream::Create(
       builder);
 
   AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
-  AAudioStreamBuilder_setPerformanceMode(builder,
-                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
   AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
   AAudioStreamBuilder_setSampleRate(builder, sample_rate);
   AAudioStreamBuilder_setChannelCount(builder, channel_count);
