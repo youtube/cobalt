@@ -22,6 +22,7 @@
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -216,6 +217,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
+  REGISTER_SYMBOL(epoll_create);
+  REGISTER_SYMBOL(epoll_create1);
+  REGISTER_SYMBOL(epoll_ctl);
+  REGISTER_SYMBOL(epoll_wait);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -239,6 +244,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
+  REGISTER_SYMBOL(rand);
+  REGISTER_SYMBOL(rand_r);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
@@ -251,6 +258,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
+  REGISTER_SYMBOL(srand);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
