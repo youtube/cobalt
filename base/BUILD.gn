@@ -1105,6 +1105,11 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_internals.h",
     ]
 
+    sources += [
+      "allocator/partition_allocator/shim/allocator_dumper.cc",
+      "allocator/partition_allocator/shim/allocator_dumper.h",
+    ]
+
     if (use_partition_alloc) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
@@ -5044,7 +5049,7 @@ source_set("partition_alloc_test_support") {
 }
 
 if (enable_cobalt_hermetic_hacks) {
-  # TODO: b/413130400 - Cobalt: Remove this config 
+  # TODO: b/413130400 - Cobalt: Remove this config
   # after removing base/starboard/linker_stub.h
   config("base_starboard_linker_stub") {
     cflags = ["-Wno-unreachable-code-break"]
