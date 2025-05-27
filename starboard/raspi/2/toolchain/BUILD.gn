@@ -28,7 +28,6 @@ gcc_toolchain("starboard") {
     is_clang = false
     current_cpu = "arm"
     current_os = "linux"
-    use_custom_libcxx = false
     is_starboard = true
   }
   propagates_configs = true
