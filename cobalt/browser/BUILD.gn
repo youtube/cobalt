@@ -42,11 +42,11 @@ source_set("browser") {
   }
 
   deps = [
-    ":cobalt_experiment_names",
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
@@ -121,9 +121,9 @@ source_set("global_features") {
     "global_features.h",
   ]
   deps = [
-    ":cobalt_experiment_names",
     ":metrics",
     "//base",
+    "//cobalt/browser/constants:cobalt_experiment_names",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
@@ -157,8 +157,4 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
-}
-
-source_set("cobalt_experiment_names") {
-  sources = [ "cobalt_experiment_names.h" ]
 }
