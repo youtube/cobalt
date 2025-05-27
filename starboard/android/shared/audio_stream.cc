@@ -371,9 +371,8 @@ int32_t AudioStream::WriteFrames(const void* buffer, int frames_to_write) {
   while (remaining_frames > 0) {
     const int available_space_bytes = buffer_bytes_ - filled_bytes_;
     if (available_space_bytes == 0) {
-      SB_LOG(WARNING) << __func__
-                      << ": No space to write: frames_in_ndk=" << frames_in_ndk_
-                      << ", frames_to_write=" << frames_to_write
+      SB_LOG(WARNING) << __func__ << ": No space to write: frames_to_write="
+                      << frames_to_write
                       << ", buffer_frames=" << (buffer_bytes_ / frame_bytes_);
       break;
     }
@@ -521,10 +520,6 @@ std ::optional<int64_t> AudioStream::GetTimestamp(
                  << ", written_at(msec)=" << (last_written_at_us_ / 1000)
                  << ", frames_written=" << frames_written_;
   }
-  SB_CHECK(frame_position <= frames_written_)
-      << ": frames_position=" << frame_position
-      << ", frames_written=" << frames_written_;
-  frames_in_ndk_ = frames_written_ - frame_position;
 
   *frames_consumed_at_us = consumed_at_us;
   return frame_position;
