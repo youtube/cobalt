@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/metrics/page_load_metrics_initialize.h"
 
+#include "base/notreached.h"
 #include "cobalt/browser/metrics/page_load_metrics_memory_tracker_factory.h"
 #include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/page_load_metrics/browser/page_load_metrics_embedder_base.h"
@@ -63,7 +64,11 @@ PageLoadMetricsEmbedder::PageLoadMetricsEmbedder(
 PageLoadMetricsEmbedder::~PageLoadMetricsEmbedder() = default;
 
 void PageLoadMetricsEmbedder::RegisterEmbedderObservers(
-    page_load_metrics::PageLoadTracker* tracker) {}
+    page_load_metrics::PageLoadTracker* tracker) {
+  // Intentionally not implemented, since useful observers are already
+  // registered in the parent class.
+  NOTIMPLEMENTED();
+}
 
 bool PageLoadMetricsEmbedder::IsNewTabPageUrl(const GURL& url) {
   return false;
