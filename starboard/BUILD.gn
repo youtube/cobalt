@@ -247,6 +247,7 @@ config("hacky_wnos") {
     "-Wno-user-defined-warnings",
   ]
 
+  # Some platforms like raspi-2 using gcc won't recognize this flag.
   if (is_clang) {
     cflags += [
       # Disable errors for the warning till the Android NDK r19 is fixed.
