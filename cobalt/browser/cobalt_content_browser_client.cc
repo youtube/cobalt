@@ -133,6 +133,7 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
 std::vector<std::unique_ptr<content::NavigationThrottle>>
 CobaltContentBrowserClient::CreateThrottlesForNavigation(
     content::NavigationHandle* handle) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
   throttles.push_back(
       std::make_unique<content::CobaltHttpsOnlyNavigationThrottle>(handle));

@@ -11,7 +11,7 @@
 namespace content {
 class CobaltHttpsOnlyNavigationThrottle : public content::NavigationThrottle {
  public:
-  CobaltHttpsOnlyNavigationThrottle(content::NavigationHandle* handle);
+  explicit CobaltHttpsOnlyNavigationThrottle(content::NavigationHandle* handle);
   ~CobaltHttpsOnlyNavigationThrottle() override;
 
   CobaltHttpsOnlyNavigationThrottle(const CobaltHttpsOnlyNavigationThrottle&) =
