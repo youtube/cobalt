@@ -34,6 +34,7 @@ import android.view.InputDevice;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.media.ExoPlayerBridge;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -65,6 +66,7 @@ public class StarboardBridge {
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager audioOutputManager;
+  private ExoPlayerBridge exoPlayerBridge;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
@@ -122,6 +124,7 @@ public class StarboardBridge {
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
+    this.exoPlayerBridge = new ExoPlayerBridge(appContext);
     this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
@@ -558,6 +561,12 @@ public class StarboardBridge {
       throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
     }
     return audioOutputManager;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  ExoPlayerBridge getExoPlayerBridge() {
+    return exoPlayerBridge;
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
