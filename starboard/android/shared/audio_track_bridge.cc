@@ -16,8 +16,10 @@
 
 #include <algorithm>
 
+#include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -57,17 +59,14 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
     // explicit.
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
-      j_audio_output_manager.Get(), "createAudioTrackBridge",
-      "(IIIIIZ)Ldev/cobalt/media/AudioTrackBridge;",
-      GetAudioFormatSampleType(coding_type, sample_type), sampling_frequency_hz,
-      channels, preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
-      is_web_audio);
-  if (!j_audio_track_bridge) {
+  JNIEnv* env = AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_audio_track_bridge =
+      AudioOutputManager::GetInstance()->CreateAudioTrackBridge(
+          env, GetAudioFormatSampleType(coding_type, sample_type),
+          sampling_frequency_hz, channels, preferred_buffer_size_in_bytes,
+          tunnel_mode_audio_session_id, is_web_audio);
+
+  if (j_audio_track_bridge.is_null()) {
     // One of the cases that this may hit is when output happened to be switched
     // to a device that doesn't support tunnel mode.
     // TODO: Find a way to exclude the device from tunnel mode playback, to
@@ -78,72 +77,49 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
     SB_LOG(WARNING) << "Failed to create |j_audio_track_bridge|.";
     return;
   }
-  j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
+
+  j_audio_track_bridge_.Reset(j_audio_track_bridge);
+
   if (coding_type != kSbMediaAudioCodingTypePcm) {
     // This must be passthrough.
     SB_DCHECK(!sample_type);
     max_samples_per_write_ = kMaxFramesPerRequest;
-    j_audio_data_ = env->NewByteArray(max_samples_per_write_);
+    j_audio_data_.Reset(env, env->NewByteArray(max_samples_per_write_));
   } else if (sample_type == kSbMediaAudioSampleTypeFloat32) {
     max_samples_per_write_ = channels * kMaxFramesPerRequest;
-    j_audio_data_ = env->NewFloatArray(channels * kMaxFramesPerRequest);
+    j_audio_data_.Reset(env,
+                        env->NewFloatArray(channels * kMaxFramesPerRequest));
   } else if (sample_type == kSbMediaAudioSampleTypeInt16Deprecated) {
     max_samples_per_write_ = channels * kMaxFramesPerRequest;
-    j_audio_data_ =
+    j_audio_data_.Reset(
+        env,
         env->NewByteArray(channels * GetBytesPerSample(sample_type.value()) *
-                          kMaxFramesPerRequest);
+                          kMaxFramesPerRequest));
   } else {
     SB_NOTREACHED();
   }
-  SB_DCHECK(j_audio_data_) << "Failed to allocate |j_audio_data_|";
 
-  j_audio_data_ = env->ConvertLocalRefToGlobalRef(j_audio_data_);
+  SB_DCHECK(j_audio_data_) << "Failed to allocate |j_audio_data_|";
 }
 
 AudioTrackBridge::~AudioTrackBridge() {
-  JniEnvExt* env = JniEnvExt::Get();
-  if (j_audio_track_bridge_) {
-    ScopedLocalJavaRef<jobject> j_audio_output_manager(
-        env->CallStarboardObjectMethodOrAbort(
-            "getAudioOutputManager",
-            "()Ldev/cobalt/media/AudioOutputManager;"));
-    env->CallVoidMethodOrAbort(
-        j_audio_output_manager.Get(), "destroyAudioTrackBridge",
-        "(Ldev/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge_);
-    env->DeleteGlobalRef(j_audio_track_bridge_);
-    j_audio_track_bridge_ = nullptr;
+  if (!j_audio_track_bridge_.is_null()) {
+    // Both the global and local references refer to the exact same Java object
+    // in the JVM.
+    JNIEnv* env = AttachCurrentThread();
+    jobject audio_track_bridge_ref =
+        env->NewLocalRef(j_audio_track_bridge_.obj());
+    ScopedJavaLocalRef<jobject> audio_track_bridge(env, audio_track_bridge_ref);
+    AudioOutputManager::GetInstance()->DestroyAudioTrackBridge(
+        env, audio_track_bridge);
   }
-
-  if (j_audio_data_) {
-    env->DeleteGlobalRef(j_audio_data_);
-    j_audio_data_ = nullptr;
-  }
-}
-
-// static
-int AudioTrackBridge::GetMinBufferSizeInFrames(
-    SbMediaAudioSampleType sample_type,
-    int channels,
-    int sampling_frequency_hz,
-    JniEnvExt* env /*= JniEnvExt::Get()*/) {
-  SB_DCHECK(env);
-
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-  int audio_track_min_buffer_size = static_cast<int>(env->CallIntMethodOrAbort(
-      j_audio_output_manager.Get(), "getMinBufferSize", "(III)I",
-      GetAudioFormatSampleType(kSbMediaAudioCodingTypePcm, sample_type),
-      sampling_frequency_hz, channels));
-  return audio_track_min_buffer_size / channels /
-         GetBytesPerSample(sample_type);
 }
 
 void AudioTrackBridge::Play(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "play", "()V");
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_.obj(), "play", "()V");
   SB_LOG(INFO) << "AudioTrackBridge playing.";
 }
 
@@ -151,7 +127,7 @@ void AudioTrackBridge::Pause(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "pause", "()V");
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_.obj(), "pause", "()V");
   SB_LOG(INFO) << "AudioTrackBridge paused.";
 }
 
@@ -159,7 +135,7 @@ void AudioTrackBridge::Stop(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "stop", "()V");
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_.obj(), "stop", "()V");
   SB_LOG(INFO) << "AudioTrackBridge stopped.";
 }
 
@@ -169,10 +145,10 @@ void AudioTrackBridge::PauseAndFlush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 
   // For an immediate stop, use pause(), followed by flush() to discard audio
   // data that hasn't been played back yet.
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "pause", "()V");
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_.obj(), "pause", "()V");
   // Flushes the audio data currently queued for playback. Any data that has
   // been written but not yet presented will be discarded.
-  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "flush", "()V");
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_.obj(), "flush", "()V");
 }
 
 int AudioTrackBridge::WriteSample(const float* samples,
@@ -183,10 +159,11 @@ int AudioTrackBridge::WriteSample(const float* samples,
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
-  env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_), kNoOffset,
-                           num_of_samples, samples);
-  return env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([FI)I",
-                                   j_audio_data_, num_of_samples);
+  env->SetFloatArrayRegion(static_cast<jfloatArray>(j_audio_data_.obj()),
+                           kNoOffset, num_of_samples, samples);
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(), "write",
+                                   "([FI)I", j_audio_data_.obj(),
+                                   num_of_samples);
 }
 
 int AudioTrackBridge::WriteSample(const uint16_t* samples,
@@ -198,12 +175,12 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
-  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
-                          num_of_samples * sizeof(uint16_t),
+  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
+                          kNoOffset, num_of_samples * sizeof(uint16_t),
                           reinterpret_cast<const jbyte*>(samples));
 
   int bytes_written = env->CallIntMethodOrAbort(
-      j_audio_track_bridge_, "write", "([BIJ)I", j_audio_data_,
+      j_audio_track_bridge_.obj(), "write", "([BIJ)I", j_audio_data_.obj(),
       num_of_samples * sizeof(uint16_t), sync_time);
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
@@ -223,13 +200,13 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
 
   num_of_samples = std::min(num_of_samples, max_samples_per_write_);
 
-  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_), kNoOffset,
-                          num_of_samples,
+  env->SetByteArrayRegion(static_cast<jbyteArray>(j_audio_data_.obj()),
+                          kNoOffset, num_of_samples,
                           reinterpret_cast<const jbyte*>(samples));
 
   int bytes_written =
-      env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([BIJ)I",
-                                j_audio_data_, num_of_samples, sync_time);
+      env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(), "write", "([BIJ)I",
+                                j_audio_data_.obj(), num_of_samples, sync_time);
   if (bytes_written < 0) {
     // Error code returned as negative value, like AudioTrack.ERROR_DEAD_OBJECT.
     return bytes_written;
@@ -242,8 +219,9 @@ void AudioTrackBridge::SetVolume(double volume,
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  jint status = env->CallIntMethodOrAbort(j_audio_track_bridge_, "setVolume",
-                                          "(F)I", static_cast<float>(volume));
+  jint status =
+      env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(), "setVolume",
+                                "(F)I", static_cast<float>(volume));
   if (status != 0) {
     SB_LOG(ERROR) << "Failed to set volume to " << volume;
   }
@@ -255,9 +233,9 @@ int64_t AudioTrackBridge::GetAudioTimestamp(
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  ScopedLocalJavaRef<jobject> j_audio_timestamp(
-      env->CallObjectMethodOrAbort(j_audio_track_bridge_, "getAudioTimestamp",
-                                   "()Landroid/media/AudioTimestamp;"));
+  ScopedLocalJavaRef<jobject> j_audio_timestamp(env->CallObjectMethodOrAbort(
+      j_audio_track_bridge_.obj(), "getAudioTimestamp",
+      "()Landroid/media/AudioTimestamp;"));
   if (updated_at) {
     *updated_at =
         env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
@@ -268,24 +246,20 @@ int64_t AudioTrackBridge::GetAudioTimestamp(
 }
 
 bool AudioTrackBridge::GetAndResetHasAudioDeviceChanged(
-    JniEnvExt* env /*= JniEnvExt::Get()*/) {
+    JNIEnv* env /*= AttachCurrentThread()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallStarboardObjectMethodOrAbort(
-          "getAudioOutputManager", "()Ldev/cobalt/media/AudioOutputManager;"));
-
-  return env->CallBooleanMethodOrAbort(
-      j_audio_output_manager.Get(), "getAndResetHasAudioDeviceChanged", "()Z");
+  return AudioOutputManager::GetInstance()->GetAndResetHasAudioDeviceChanged(
+      env);
 }
 
 int AudioTrackBridge::GetUnderrunCount(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  return env->CallIntMethodOrAbort(j_audio_track_bridge_, "getUnderrunCount",
-                                   "()I");
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(),
+                                   "getUnderrunCount", "()I");
 }
 
 int AudioTrackBridge::GetStartThresholdInFrames(
@@ -293,7 +267,7 @@ int AudioTrackBridge::GetStartThresholdInFrames(
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
-  return env->CallIntMethodOrAbort(j_audio_track_bridge_,
+  return env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(),
                                    "getStartThresholdInFrames", "()I");
 }
 

@@ -551,10 +551,8 @@ public class StarboardBridge {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/audio_track_bridge.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioOutputManager getAudioOutputManager() {
     if (audioOutputManager == null) {
       throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
