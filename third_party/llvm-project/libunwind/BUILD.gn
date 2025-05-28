@@ -65,6 +65,7 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
     cflags = [
       "-nostdinc",
       "-Wno-unused-command-line-argument",
+      "-Wno-unreachable-code",
     ]
 
     cflags_cc = [
@@ -103,7 +104,6 @@ if (sb_is_evergreen || (sb_is_modular && host_os == "win")) {
       "//starboard/common",
       "//third_party/musl:c",
     ]
-    configs -= [ "//starboard/build/config:default_cpp_standard" ]
   }
 }
 
