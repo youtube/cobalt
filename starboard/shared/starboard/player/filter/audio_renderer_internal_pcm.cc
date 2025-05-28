@@ -693,8 +693,14 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   int frames_in_buffer = static_cast<int>(total_frames_sent_to_sink_ -
                                           total_frames_consumed_by_sink_);
 
+  static int count = 0;
   if (max_cached_frames_ - frames_in_buffer < min_frames_per_append_) {
     *is_frame_buffer_full = true;
+    if (count++ % 10 == 0) {
+      SB_LOG(INFO) << __func__
+                   << ": buffer is full: frames_in_buffer=" << frames_in_buffer
+                   << ", max_cached_frames=" << max_cached_frames_;
+    }
     return false;
   }
 

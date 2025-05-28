@@ -89,8 +89,8 @@ class ContinuousAudioTrackSink
   std::optional<AudioStream::Timestamp> last_timestamp_ =
       AudioStream::Timestamp{0, 0};
 
-  int frame_offset_ = 0;
-  std::vector<std::pair<int, int>> silence_frames_;
+  int silence_frames_ = 0;
+
   bool is_playing_ = false;
   int64_t last_playback_start_us_ = 0;
 };

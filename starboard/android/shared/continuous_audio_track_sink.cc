@@ -127,38 +127,6 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
   }
 }
 
-int GetPlayedSilenceFrames(std::vector<std::pair<int, int>>& silence_frames,
-                           int played_frame_offset) {
-  int played_silence_frames_sum = 0;
-
-  int index = 0;
-  while (!silence_frames.empty()) {
-    auto& [offset, length] = silence_frames.front();
-#if 0
-    SB_LOG(INFO) << "index=" << index++
-                 << ", played_frame_offset=" << played_frame_offset
-                 << ", offset=" << offset << ", length=" << length;
-#endif
-    if (played_frame_offset < offset) {
-      return played_silence_frames_sum;
-    }
-    if (played_frame_offset < offset + length) {
-      const int played_silence_frames = played_frame_offset - offset;
-      SB_DCHECK(played_silence_frames >= 0)
-          << "played_silence_frames=" << played_silence_frames;
-      played_silence_frames_sum += played_silence_frames;
-
-      offset += played_silence_frames;
-      length -= played_silence_frames;
-      return played_silence_frames_sum;
-    }
-
-    played_silence_frames_sum += length;
-    silence_frames.erase(silence_frames.begin());
-  }
-  return played_silence_frames_sum;
-}
-
 AudioStream::Timestamp GetEstimatedNowTimestamp(
     AudioStream::Timestamp timestamp,
     int sample_rate) {
@@ -200,8 +168,8 @@ void ContinuousAudioTrackSink::ReportPlayedFrames() {
                                   << ", last_timestamp: " << *last_timestamp_;
   last_timestamp_ = timestamp;
 
-  const int played_silence_frames =
-      GetPlayedSilenceFrames(silence_frames_, timestamp.frame_position);
+  const int played_silence_frames = std::min(silence_frames_, frames_consumed);
+  silence_frames_ -= played_silence_frames;
 
   SB_DCHECK(frames_consumed >= played_silence_frames)
       << "frames_consumed=" << frames_consumed
@@ -249,8 +217,7 @@ bool ContinuousAudioTrackSink::ReadMoreFrames(void* data,
                  << ", pending_frames_in_platform_buffer="
                  << pending_frames_in_platform_buffer_;
 
-    silence_frames_.push_back({frame_offset_, num_frames_to_read});
-    frame_offset_ += num_frames_to_read;
+    silence_frames_ += num_frames_to_read;
 
     return is_eos_reached ? false : true;
   }
@@ -284,7 +251,8 @@ bool ContinuousAudioTrackSink::ReadMoreFrames(void* data,
     memset(static_cast<uint8_t*>(data) + frames_read * frame_bytes_, 0,
            underrun_frames * frame_bytes_);
 
-    silence_frames_.push_back({frame_offset_ + frames_read, underrun_frames});
+    silence_frames_ += underrun_frames;
+
     SB_LOG(INFO) << "Underrun: underrun frames=" << underrun_frames
                  << ", frames_read=" << frames_read
                  << ", num_frames_to_read=" << num_frames_to_read
@@ -293,7 +261,6 @@ bool ContinuousAudioTrackSink::ReadMoreFrames(void* data,
                  << ", pending_frames_in_platform_buffer_="
                  << pending_frames_in_platform_buffer_;
   }
-  frame_offset_ += num_frames_to_read;
 
   return true;
 }
