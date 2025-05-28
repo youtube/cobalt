@@ -33,7 +33,6 @@ import java.util.Locale;
  * A wrapper of the android AudioTrack class. Android AudioTrack would not start playing until the
  * buffer is fully filled once.
  */
-@UsedByNative
 public class AudioTrackBridge {
   // Also used by AudioOutputManager.
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
@@ -279,7 +278,7 @@ public class AudioTrackBridge {
       return;
     }
     audioTrack.flush();
-    // Reset the states to allow reuse of |audioTrack| after flush() is called.  This can reduce
+    // Reset the states to allow reuse of |audioTrack| after flush() is called. This can reduce
     // switch latency for passthrough playbacks.
     avSyncHeader = null;
     avSyncPacketBytesRemaining = 0;
