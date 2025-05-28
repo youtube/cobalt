@@ -155,6 +155,20 @@ TEST(PosixAlignedAllocTests, AllocatesSuccessfullyWithLargeAlignmentAndSize) {
   }
 }
 
+TEST(PosixAlignedAllocTests, ReturnsNullIfSizeIsNotMultipleOfAlignment) {
+  const size_t kValidAlignment = 64;  // Power of two
+  const size_t kInvalidSizeNotMultiple = 100;
+  ASSERT_TRUE((kValidAlignment > 0) &&
+              ((kValidAlignment & (kValidAlignment - 1)) == 0));
+
+  errno = 0;
+  void* ptr = aligned_alloc(kValidAlignment, kInvalidSizeNotMultiple);
+
+  EXPECT_EQ(nullptr, ptr);
+  // We do not test for what error code, if any, is set as the only specific
+  // defined behavior for this scenario is a nullptr return value.
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
