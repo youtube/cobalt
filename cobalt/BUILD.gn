@@ -49,9 +49,19 @@ if (!is_android) {
   target(cobalt_target_type, "cobalt") {
     testonly = true
 
+    sources = [ "app/cobalt.cc" ]
+
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
-    deps = [ ":common" ]
+    deps = [
+      ":common" ,
+      "//base",
+      "//content/public/app",
+      "//content/shell:content_shell_app",
+      "//content/shell:content_shell_lib",
+      "//starboard:starboard_headers_only",
+      "//ui/ozone/platform/starboard:starboard",
+    ]
 
     data_deps = [
       "//components/crash/core/app:chrome_crashpad_handler",
@@ -73,7 +83,6 @@ source_set("common") {
   testonly = true
 
   sources = [
-    "app/cobalt.cc",
     "app/cobalt_main_delegate.cc",
     "app/cobalt_main_delegate.h",
     "app/cobalt_switch_defaults.cc",
