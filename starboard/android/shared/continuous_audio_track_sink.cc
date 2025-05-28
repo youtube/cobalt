@@ -144,10 +144,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  JNIEnv* env_jni = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    JNIEnv* env_jni = AttachCurrentThread();
     if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
