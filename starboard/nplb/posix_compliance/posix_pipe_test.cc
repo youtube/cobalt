@@ -21,7 +21,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "starboard/common/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -73,7 +72,7 @@ TEST(PosixPipeTest, PipeLeavesClosedOnForkClearOnBothEndsOfPipe) {
   close(pipe_fds[0]);
   close(pipe_fds[1]);
 #else
-  SB_DLOG(INFO) << "FD_CLOFORK is not defined on this platform";
+  GTEST_SKIP() << "FD_CLOFORK is not defined on this platform";
 #endif
 }
 
