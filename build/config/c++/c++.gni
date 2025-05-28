@@ -46,8 +46,9 @@ use_custom_libcxx =
 # avoid linking with chromium's C++ libraries.
 use_custom_libcxx =
     use_custom_libcxx && !is_nacl &&
-    !(is_starboard && !(current_toolchain == default_toolchain ||
-                        current_toolchain == host_toolchain))
+    !(is_starboard && (current_toolchain == starboard_toolchain ||
+                        current_toolchain == native_target))
+
 
 declare_args() {
   # WARNING: Setting this to a non-default value is highly discouraged.
