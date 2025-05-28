@@ -1,9 +1,9 @@
 {
   "docker_service": "linux",
   "platforms": [
-    "linux-x64x11-evergreen"
+    "evergreen-x64"
   ],
-  "test_on_host": true,
+  "test_on_host": false,
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 1,
   "targets": [
@@ -29,7 +29,7 @@
   "includes": [
     {
       "name": "x64",
-      "platform": "linux-x64x11-evergreen"
+      "platform": "evergreen-x64"
     }
   ]
 }
