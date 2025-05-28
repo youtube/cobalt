@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include <math.h>
+#include "starboard/android/shared/audio_stream.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -44,6 +46,15 @@ static_assert(kSilenceFramesPerAppend <= kMaxFramesPerRequest);
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
+
+#define LOG_ELAPSED(op)                                                 \
+  do {                                                                  \
+    int64_t start = CurrentMonotonicTime();                             \
+    op;                                                                 \
+    int64_t end = CurrentMonotonicTime();                               \
+    SB_LOG(INFO) << #op << ": elapsed(msec)=" << (end - start) / 1'000; \
+  } while (0)
+
 }  // namespace
 
 ContinuousAudioTrackSink::ContinuousAudioTrackSink(
@@ -71,29 +82,21 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
       error_func_(error_func),
       start_time_(start_time),
       context_(context),
-      bridge_(kSbMediaAudioCodingTypePcm,
-              sample_type,
-              channels,
-              sampling_frequency_hz,
-              preferred_buffer_size_in_bytes,
-              /*tunnel_mode_audio_session_id=*/-1,
-              is_web_audio) {
+      stream_(AudioStream::Create(sample_type,
+                                  channels,
+                                  sampling_frequency_hz,
+                                  frames_per_channel)) {
+  SB_DCHECK(stream_ != nullptr);
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_;
-
-  if (!bridge_.is_valid()) {
-    // One of the cases that this may hit is when output happened to be switched
-    // to a device that doesn't support tunnel mode.
-    // TODO: Find a way to exclude the device from tunnel mode playback, to
-    //       avoid infinite loop in creating the audio sink on a device
-    //       claims to support tunnel mode but fails to create the audio sink.
-    // TODO: Currently this will be reported as a general decode error,
-    //       investigate if this can be reported as a capability changed error.
-    return;
-  }
+  SB_LOG(INFO) << "Creating continuous audio sink: start_time=" << start_time_
+               << ", frames_per_channel=" << frames_per_channel_
+               << ", preferred_buffer_size_in_bytes="
+               << preferred_buffer_size_in_bytes << ", preferred_frames="
+               << (preferred_buffer_size_in_bytes /
+                   GetBytesPerSample(sample_type_) / channels_);
 
   pthread_create(&audio_out_thread_, nullptr,
                  &ContinuousAudioTrackSink::ThreadEntryPoint, this);
@@ -143,20 +146,18 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  int count = 0;
   while (!quit_) {
+    count++;
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
-      SB_LOG(INFO) << "Audio device changed, raising a capability changed "
-                      "error to restart playback.";
-      ReportError(true, "Audio device capability changed");
-      break;
-    }
 
-    if (was_playing) {
-      playback_head_position =
-          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position);
+    if (auto head_us = stream_->GetTimestamp(&frames_consumed_at);
+        head_us.has_value() && was_playing) {
+      playback_head_position = *head_us;
+      SB_DCHECK(playback_head_position >= last_playback_head_position)
+          << ": playback_head_position=" << playback_head_position
+          << ", last_playback_head_position=" << last_playback_head_position;
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -203,11 +204,12 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      bridge_.Pause();
+      stream_->Pause();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      bridge_.Play();
+
+      LOG_ELAPSED(stream_->Play());
     }
 
     if (!is_playing || frames_in_buffer == 0) {
@@ -295,30 +297,13 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     }
   }
 
-  bridge_.PauseAndFlush();
+  stream_->PauseAndFlush();
 }
 
 int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
                                         const void* buffer,
                                         int expected_written_frames) {
-  const int samples_to_write = expected_written_frames * channels_;
-  int samples_written = 0;
-  if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-    samples_written = bridge_.WriteSample(static_cast<const float*>(buffer),
-                                          samples_to_write, env);
-  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    samples_written =
-        bridge_.WriteSample(static_cast<const uint16_t*>(buffer),
-                            samples_to_write, /*sync_time=*/0, env);
-  } else {
-    SB_NOTREACHED();
-  }
-  if (samples_written < 0) {
-    // Error code returned as negative value, like kAudioTrackErrorDeadObject.
-    return samples_written;
-  }
-  SB_DCHECK(samples_written % channels_ == 0);
-  return samples_written / channels_;
+  return stream_->WriteFrames(buffer, expected_written_frames);
 }
 
 void ContinuousAudioTrackSink::ReportError(bool capability_changed,
@@ -334,15 +319,15 @@ int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int frames) const {
 }
 
 void ContinuousAudioTrackSink::SetVolume(double volume) {
-  bridge_.SetVolume(volume);
+  SB_LOG(WARNING) << __func__ << ": not implemented: volume=" << volume;
 }
 
 int ContinuousAudioTrackSink::GetUnderrunCount() {
-  return bridge_.GetUnderrunCount();
+  return stream_->GetUnderrunCount();
 }
 
 int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
-  return bridge_.GetStartThresholdInFrames();
+  return stream_->GetFramesPerBurst();
 }
 
 }  // namespace shared
