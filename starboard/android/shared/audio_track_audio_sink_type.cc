@@ -42,7 +42,7 @@ using ::starboard::shared::starboard::media::GetBytesPerSample;
 // into AudioTrack. Instead of callnig pause/play, it switches between silence
 // data and actual data.
 // TODO: b/186660620: Replace this constant with feature flag.
-constexpr bool kUseContinuousAudioTrackSink = false;
+constexpr bool kUseContinuousAudioTrackSink = true;
 
 // The maximum number of frames that can be written to android audio track per
 // write request. If we don't set this cap for writing frames to audio track,

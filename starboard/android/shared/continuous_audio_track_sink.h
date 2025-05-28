@@ -15,15 +15,11 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
 #define STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
 
-#include <pthread.h>
-
 #include <atomic>
 #include <functional>
 #include <string>
 
-#include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/audio_stream.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -52,7 +48,7 @@ class ContinuousAudioTrackSink
       void* context);
   ~ContinuousAudioTrackSink() override;
 
-  bool IsAudioTrackValid() const { return bridge_.is_valid(); }
+  bool IsAudioTrackValid() const { return stream_ != nullptr; }
   bool IsType(Type* type) override { return type_ == type; }
   void SetPlaybackRate(double playback_rate) override;
 
@@ -61,20 +57,20 @@ class ContinuousAudioTrackSink
   int GetStartThresholdInFrames();
 
  private:
-  static void* ThreadEntryPoint(void* context);
-  void AudioThreadFunc();
-
-  int WriteData(JniEnvExt* env, const void* buffer, int size);
+  bool OnReadData(void* buffer, int num_frames_to_read);
 
   void ReportError(bool capability_changed, const std::string& error_message);
+  void ReportPlayedFrames();
+  bool ReadMoreFrames(void* data, int num_frames_to_read);
 
   int64_t GetFramesDurationUs(int frames) const;
 
   Type* const type_;
+
   const int channels_;
   const int sampling_frequency_hz_;
-  const SbMediaAudioSampleType sample_type_;
-  void* frame_buffer_;
+  const int frame_bytes_;
+  uint8_t* frame_buffer_;
   const int frames_per_channel_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   const ConsumeFramesFunc consume_frames_func_;
@@ -82,13 +78,19 @@ class ContinuousAudioTrackSink
   const int64_t start_time_;  // microseconds
   void* const context_;
 
-  AudioTrackBridge bridge_;
+  std::unique_ptr<AudioStream> stream_;
 
   volatile bool quit_ = false;
-  pthread_t audio_out_thread_ = 0;
 
   Mutex mutex_;
   double playback_rate_ = 1.0;
+
+  int pending_frames_in_platform_buffer_ = 0;
+  std::optional<AudioStream::Timestamp> last_timestamp_ =
+      AudioStream::Timestamp{0, 0};
+
+  int frame_offset_ = 0;
+  std::vector<std::pair<int, int>> silence_frames_;
 };
 
 }  // namespace starboard::android::shared
