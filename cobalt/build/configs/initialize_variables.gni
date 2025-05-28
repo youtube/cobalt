@@ -72,11 +72,13 @@ if (default_toolchain != "") {
 import("//starboard/build/platform_path.gni")
 declare_args() {
   starboard_toolchain = ""
+  native_target = ""
 }
 
 if (starboard_toolchain == "") {
   if (build_with_separate_cobalt_toolchain) {
     starboard_toolchain = "//$starboard_path/toolchain:starboard"
+    native_target = "//$starboard_path/toolchain:native_target"
   } else {
     starboard_toolchain = cobalt_toolchain
   }
