@@ -239,6 +239,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
