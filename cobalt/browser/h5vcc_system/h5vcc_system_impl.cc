@@ -26,7 +26,7 @@ using starboard::android::shared::StarboardBridge;
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "cobalt/configuration/configuration.h"
+#include "cobalt/browser/h5vcc_system/configuration.h"
 #include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #endif
