@@ -16,7 +16,7 @@ import("../../build/crashpad_buildconfig.gni")
 
 group("base") {
   if (crashpad_is_in_chromium) {
-    public_deps = [ "//base($cobalt_toolchain)" ]
+    public_deps = [ "//base" ]
   } else if (crashpad_is_standalone) {
     public_deps = [ "mini_chromium/base" ]
   } else if (crashpad_is_in_fuchsia) {

@@ -145,7 +145,7 @@ source_set("gtest") {
       "custom/gtest/internal/custom/stack_trace_getter.h",
     ]
   } else {
-    deps += [ "//base($cobalt_toolchain)" ]
+    deps += [ "//base" ]
   }
 
   if (is_fuchsia) {
