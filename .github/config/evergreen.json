@@ -1,11 +1,15 @@
 {
   "docker_service": "linux",
   "platforms": [
-    "linux-x64x11-evergreen"
+    "evergreen-x64"
   ],
+<<<<<<< HEAD:.github/config/linux-evergreen.json
 <<<<<<< HEAD
 =======
   "test_on_host": true,
+=======
+  "test_on_host": false,
+>>>>>>> 021926dc7d9 (Add evergreen platform (#5822)):.github/config/evergreen.json
   "test_root_target": "//cobalt:gn_all",
   "num_gtest_shards": 1,
 >>>>>>> c35a7661e27 (Enable base_unittests on the CI. (#5159))
@@ -40,7 +44,7 @@
   "includes": [
     {
       "name": "x64",
-      "platform": "linux-x64x11-evergreen"
+      "platform": "evergreen-x64"
     }
   ]
 }

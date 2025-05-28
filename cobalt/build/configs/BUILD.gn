@@ -24,11 +24,25 @@ config("cobalt_config") {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
+<<<<<<< HEAD
     configs += [
       # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
       "//starboard/build/config/modular/x64",
       "//starboard/build/config:starboard",
     ]
+=======
+    assert(current_cpu == "x64",
+           "TODO: b/390500840 - $current_cpu not yet supported.")
+    configs += [ "//starboard/build/config:starboard" ]
+    if (sb_is_evergreen) {
+      configs += [ "//starboard/evergreen/x64/platform_configuration" ]
+    } else {
+      configs += [
+        # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
+        "//starboard/build/config/modular/x64",
+      ]
+    }
+>>>>>>> 021926dc7d9 (Add evergreen platform (#5822))
   } else {
     # No configs to add for any other toolchain
   }
@@ -63,7 +77,7 @@ config("buildflag_defines") {
 
   # TODO: b/390675141 - Replace IS_COBALT_HERMETIC_BUILD with IS_STARBOARD.
   # is_cobalt_hermetic_build and BUILDFLAG(IS_COBALT_HERMETIC_BUILD) should be
-  # for changes specific to the linux-x64x11-evergreen build (hermetic builds).
+  # for changes specific to the linux-x64x11-modular build (hermetic builds).
   # These are linux changes that would break the non-hermetic linux builder.
   # Note these are supposed to be long-term, permanent changes. For short term,
   # hacky changes, use enable_cobalt_hermetic_hacks instead.
