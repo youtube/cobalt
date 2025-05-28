@@ -51,7 +51,7 @@ public class AudioOutputManager {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioTrackBridge createAudioTrackBridge(
       int sampleType,
       int sampleRate,
@@ -130,7 +130,7 @@ public class AudioOutputManager {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
     audioTrackBridgeList.remove(audioTrackBridge);
@@ -314,7 +314,7 @@ public class AudioOutputManager {
 
   /** Returns the minimum buffer size of AudioTrack. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
     int channelConfig;
     switch (channelCount) {
@@ -524,7 +524,7 @@ public class AudioOutputManager {
         .build();
   }
 
-  @UsedByNative
+  @CalledByNative
   private boolean getAndResetHasAudioDeviceChanged() {
     return hasAudioDeviceChanged.getAndSet(false);
   }
