@@ -88,6 +88,8 @@ class StarboardBridge {
 
   void ReportFullyDrawn(JNIEnv* env);
 
+  ScopedJavaLocalRef<jobject> GetAudioOutputManager(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
