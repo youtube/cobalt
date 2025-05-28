@@ -113,7 +113,9 @@ const SbEglInterface g_sb_egl_interface = {
 #if BUILDFLAG(IS_ANDROID)
     nullptr,  // eglGetPlatformDisplay
 #else
-// &SbEglGetPlatformDisplay,
+#if defined EGL_VERSION_1_5
+    &SbEglGetPlatformDisplay,
+#endif        // EGL_VERSION_1_5
 #endif        // BUILDFLAG(IS_ANDROID)
     nullptr,  // eglCreatePlatformWindowSurface
     nullptr,  // eglCreatePlatformPixmapSurface
