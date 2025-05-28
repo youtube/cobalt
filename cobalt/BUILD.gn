@@ -48,9 +48,9 @@ if (!is_android) {
   target(cobalt_target_type, "cobalt") {
     testonly = true
 
-    deps = [ ":common" ]
-
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+
+    deps = [ ":common" ]
 
     data_deps = [
       "//components/crash/core/app:chrome_crashpad_handler",
