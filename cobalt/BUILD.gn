@@ -98,8 +98,11 @@ source_set("common") {
     "//third_party/blink/public/common",
     "//ui/gl",
     "//ui/ozone:ozone_switches",
-    "//ui/ozone/platform/starboard:starboard",
   ]
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
+  }
 }
 
 action("cobalt_build_info") {
