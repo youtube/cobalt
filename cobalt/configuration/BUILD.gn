@@ -14,8 +14,8 @@
 
 static_library("configuration") {
   sources = [
-    "configuration.cc",
-    "configuration.h",
+    "h5vcc_system/configuration.cc",
+    "h5vcc_system/configuration.h",
   ]
   deps = [
     "//base",
