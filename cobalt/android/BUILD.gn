@@ -279,6 +279,7 @@ shared_library("libchrobalt") {
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
+    "//content/shell/android:content_shell_jni_headers",
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
@@ -296,8 +297,19 @@ shared_library("libchrobalt") {
   sources = [
     "//cobalt/cobalt_main_delegate.cc",
     "//cobalt/cobalt_main_delegate.h",
+    "//cobalt/cobalt_shell.cc",
+    "//cobalt/cobalt_shell.h",
     "cobalt_library_loader.cc",
   ]
+
+  # Content shell Android parts
+  sources += [
+    "//cobalt/android/shell_manager.cc",
+    "//cobalt/android/shell_manager.h",
+    "//cobalt/android/shell_platform_delegate_android.cc",
+    "//cobalt/android/shell_web_contents_view_delegate_android.cc",
+  ]
+
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
   if (is_official_build) {
