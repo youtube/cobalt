@@ -27,7 +27,7 @@ declare_args() {
 if (is_cobalt_hermetic_build) {
   # We want to avoid adding the sysroot and bringing in unneeded
   # dependencies in cobalt.
-  use_sysroot = use_sysroot && current_toolchain != default_toolchain
+  use_sysroot = use_sysroot && current_toolchain != default_toolchain && current_toolchain != starboard_toolchain
 }
 
 if (sysroot == "") {
