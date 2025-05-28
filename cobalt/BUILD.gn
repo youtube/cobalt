@@ -48,16 +48,15 @@ if (!is_android) {
   target(cobalt_target_type, "cobalt") {
     testonly = true
 
-    defines = []
-
     deps = [ ":common" ]
 
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+
     data_deps = [
+      "//components/crash/core/app:chrome_crashpad_handler",
       "//content/shell:pak",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
-
-    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
 
   if (!is_cobalt_hermetic_build) {
@@ -99,12 +98,8 @@ source_set("common") {
     "//third_party/blink/public/common",
     "//ui/gl",
     "//ui/ozone:ozone_switches",
-    "//ui/ozone/platform/starboard",
+    "//ui/ozone/platform/starboard:starboard",
   ]
-
-  if (is_starboard) {
-    deps += [ "//ui/ozone/platform/starboard:starboard" ]
-  }
 }
 
 action("cobalt_build_info") {
