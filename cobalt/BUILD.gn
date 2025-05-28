@@ -48,45 +48,14 @@ if (!is_android) {
   target(cobalt_target_type, "cobalt") {
     testonly = true
 
-    sources = [
-      "app/cobalt.cc",
-      "app/cobalt_main_delegate.cc",
-      "app/cobalt_main_delegate.h",
-      "app/cobalt_switch_defaults.cc",
-      "app/cobalt_switch_defaults.h",
-    ]
-
     defines = []
 
-    deps = [
-      "//chrome/common:non_code_constants",
-      "//cobalt/browser",
-      "//cobalt/browser:switches",
-      "//cobalt/gpu",
-      "//cobalt/renderer",
-      "//components/memory_system:memory_system",
-      "//components/prefs",
-      "//content/public/app",
-      "//content/shell:content_shell_app",
-      "//content/shell:content_shell_lib",
-      "//content/shell:pak",
-      "//gpu/command_buffer/service",
-      "//sandbox",
-      "//starboard:starboard_group",
-      "//third_party/blink/public/common",
-      "//ui/ozone:ozone_switches",
-    ]
-
-    if (is_starboard) {
-      deps += [ "//ui/ozone/platform/starboard:starboard" ]
-    }
+    deps = [ ":common" ]
 
     data_deps = [
       "//content/shell:pak",
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
-
-    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
@@ -97,6 +66,44 @@ if (!is_android) {
       deps = [ ":cobalt" ]
       testonly = true
     }
+  }
+}
+
+source_set("common") {
+  testonly = true
+
+  sources = [
+    "app/cobalt.cc",
+    "app/cobalt_main_delegate.cc",
+    "app/cobalt_main_delegate.h",
+    "app/cobalt_switch_defaults.cc",
+    "app/cobalt_switch_defaults.h",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/common:non_code_constants",
+    "//cobalt/browser",
+    "//cobalt/browser:switches",
+    "//cobalt/gpu",
+    "//cobalt/renderer",
+    "//components/memory_system:memory_system",
+    "//content/public/app",
+    "//content/shell:content_shell_app",
+    "//content/shell:content_shell_lib",
+    "//content/shell:pak",
+    "//gpu/command_buffer/service",
+    "//media",
+    "//sandbox/policy",
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public/common",
+    "//ui/gl",
+    "//ui/ozone:ozone_switches",
+    "//ui/ozone/platform/starboard",
+  ]
+
+  if (is_starboard) {
+    deps += [ "//ui/ozone/platform/starboard:starboard" ]
   }
 }
 
@@ -133,7 +140,7 @@ test("cobalt_unittests") {
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
-    ":cobalt",
+    ":common",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",
