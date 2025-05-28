@@ -92,69 +92,78 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
 
+  private List<String> getDefaultOverridesList() {
+      List<String> paramOverrides = new ArrayList<>();
+      // Disable first run experience.
+      paramOverrides.add("--disable-fre");
+      paramOverrides.add("--no-first-run");
+      // Run Cobalt as a single process.
+      paramOverrides.add("--single-process");
+      // Enable Blink to work in overlay video mode.
+      paramOverrides.add("--force-video-overlays");
+      // Autoplay video with url.
+      paramOverrides.add("--autoplay-policy=no-user-gesture-required");
+      // Remove below if Cobalt rebase to m120+.
+      paramOverrides.add("--user-level-memory-pressure-signal-params");
+      // Disable rescaling Webpage.
+      paramOverrides.add("--force-device-scale-factor=1");
+      // Enable low end device mode.
+      paramOverrides.add("--enable-low-end-device-mode");
+      // Disables RGBA_4444 textures which
+      // causes rendering artifacts when
+      // low-end-device-mode is enabled.
+      paramOverrides.add("--disable-rgba-4444-textures");
+      // Trades a little V8 performance for significant memory savings.
+      paramOverrides.add("--js-flags=--optimize_for_size=true");
+      // Disable concurrent-marking due to b/415843979
+      paramOverrides.add("--js-flags=--concurrent_marking=false");
+
+      return paramOverrides;
+  }
+
+  private String[] getFlagOverrides() {
+      List<String> paramOverrides = getDefaultOverridesList();
+      if (shouldSetJNIPrefix) {
+        // Helps Kimono build avoid package name conflict with cronet.
+        paramOverrides.add("--cobalt-jni-prefix");
+      }
+      if (!VersionInfo.isOfficialBuild()) {
+        paramOverrides.add(
+          "--remote-allow-origins="
+          + "https://chrome-devtools-frontend.appspot.com");
+      }
+
+      // TODO: Parse enable-features, disable-features,
+      // blink-enable-features, and blink-disable-features
+
+      // Align with MSE spec for MediaSource.duration.
+      paramOverrides.add(
+        "--enable-blink-features="
+        + "MediaSourceNewAbortAndDuration");
+      // Use SurfaceTexture for decode-to-texture mode.
+      paramOverrides.add("--disable-features=AImageReader");
+      String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
+      // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
+      paramOverrides.add(
+        "--enable-features=LogJsConsoleMessages,"
+        + "LimitImageDecodeCacheSize:mb/32");
+      if (commandLineParams != null) {
+        for (String param: commandLineParams) {
+          paramOverrides.add(param);
+        }
+      }
+
+      return paramOverrides.toArray(new String[0]);
+  }
+
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
-
-      String[] cobaltCommandLineParams =
-          new String[] {
-            // Disable first run experience.
-            "--disable-fre",
-            // Disable user prompts in the first run.
-            "--no-first-run",
-            // Run Cobalt as a single process.
-            "--single-process",
-            // Enable Blink to work in overlay video mode.
-            "--force-video-overlays",
-            // Autoplay video with url.
-            "--autoplay-policy=no-user-gesture-required",
-            // Remove below if Cobalt rebase to m120+.
-            "--user-level-memory-pressure-signal-params",
-            // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
-            "--enable-features=LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32",
-            // Disable rescaling Webpage.
-            "--force-device-scale-factor=1",
-            // Enable low end device mode.
-            "--enable-low-end-device-mode",
-            // Disables RGBA_4444 textures which
-            // causes rendering artifacts when
-            // low-end-device-mode is enabled.
-            "--disable-rgba-4444-textures",
-            // Align with MSE spec for MediaSource.duration.
-            "--enable-blink-features=MediaSourceNewAbortAndDuration",
-            // Trades a little V8 performance for significant memory savings.
-            "--js-flags=--optimize_for_size",
-            // Use SurfaceTexture for decode-to-texture mode.
-            "--disable-features=AImageReader",
-            // Disable concurrent-marking due to b/415843979
-            "--js-flags=--no-concurrent_marking",
-            // Use passthrough command decoder.
-            "--use-cmd-decoder=passthrough",
-          };
-      CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
-      if (shouldSetJNIPrefix) {
-        CommandLine.getInstance()
-            .appendSwitchesAndArguments(
-                new String[] {
-                  // Helps Kimono build avoid package name conflict with cronet.
-                  "--cobalt-jni-prefix",
-                });
-      }
-
-      if (!VersionInfo.isOfficialBuild()) {
-        String[] debugCommandLineParams =
-            new String[] {
-              "--remote-allow-origins=https://chrome-devtools-frontend.appspot.com",
-            };
-        CommandLine.getInstance().appendSwitchesAndArguments(debugCommandLineParams);
-      }
-
-      String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
-      if (commandLineParams != null) {
-        CommandLine.getInstance().appendSwitchesAndArguments(commandLineParams);
-      }
+      String[] overrides = getFlagOverrides();
+      Log.e(TAG, "avvall - " + Arrays.toString(overrides));
+      CommandLine.getInstance().appendSwitchesAndArguments(getFlagOverrides());
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
