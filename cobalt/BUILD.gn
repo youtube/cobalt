@@ -54,7 +54,7 @@ if (!is_android) {
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
 
     deps = [
-      ":common" ,
+      ":common",
       "//base",
       "//content/public/app",
       "//content/shell:content_shell_app",
