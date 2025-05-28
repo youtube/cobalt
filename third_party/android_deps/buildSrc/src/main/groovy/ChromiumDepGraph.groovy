@@ -24,6 +24,27 @@ class ChromiumDepGraph {
     // Some libraries don't properly fill their POM with the appropriate licensing information. It is provided here from
     // manual lookups. Note that licenseUrl must provide textual content rather than be an html page.
     static final Map<String, PropertyOverride> PROPERTY_OVERRIDES = [
+        androidx_media3_media3_exoplayer: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_common: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_database: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_datasource: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_decoder: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_extractor: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
+        androidx_media3_media3_session: new PropertyOverride(
+            licenseUrl: 'https://www.apache.org/licenses/LICENSE-2.0.txt',
+            licenseName: 'Apache 2.0', overrideLatest: true),
         androidx_multidex_multidex: new PropertyOverride(
             url: 'https://maven.google.com/androidx/multidex/multidex/2.0.0/multidex-2.0.0.aar'),
         com_github_kevinstern_software_and_algorithms: new PropertyOverride(
@@ -173,7 +194,7 @@ class ChromiumDepGraph {
             licenseUrl: 'https://raw.githubusercontent.com/google/conscrypt/master/LICENSE',
             licenseName: 'Apache 2.0'),
         org_hamcrest_hamcrest: new PropertyOverride(
-            licenseUrl: 'https://raw.githubusercontent.com/hamcrest/JavaHamcrest/master/LICENSE.txt',
+            licenseUrl: 'https://raw.githubusercontent.com/hamcrest/JavaHamcrest/master/LICENSE',
             licenseName: 'BSD'),
         org_jsoup_jsoup: new PropertyOverride(
             cpePrefix: 'cpe:/a:jsoup:jsoup:1.14.3',
