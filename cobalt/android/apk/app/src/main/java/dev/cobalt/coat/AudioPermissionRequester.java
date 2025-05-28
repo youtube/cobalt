@@ -23,8 +23,8 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import dev.cobalt.util.Holder;
-import dev.cobalt.util.UsedByNative;
 import dev.cobalt.util.Log;
+import org.chromium.base.annotations.CalledByNative;
 
 /** Helper class that requests the record audio permission. */
 public class AudioPermissionRequester {
@@ -43,7 +43,7 @@ public class AudioPermissionRequester {
    * if the permission is not granted yet and starts to request the RECORD_AUDIO permission.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public synchronized boolean requestRecordAudioPermission() {
     Activity activity = activityHolder.get();
     if (activity == null) {
