@@ -322,9 +322,16 @@ bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_isNetworkConnected(env, j_starboard_bridge_);
 }
+
 void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
 }
 }  // namespace shared
 }  // namespace android

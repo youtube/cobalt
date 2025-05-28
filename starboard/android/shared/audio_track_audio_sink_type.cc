@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/audio_output_manager.h"
 #include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
@@ -203,6 +204,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
 
 // TODO: Break down the function into manageable pieces.
 void AudioTrackAudioSink::AudioThreadFunc() {
+  // TODO(cobalt, b/418059619): consolidate JniEnvExt and JNIEnv
   JniEnvExt* env = JniEnvExt::Get();
   bool was_playing = false;
   int frames_in_audio_track = 0;
@@ -214,10 +216,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   int last_playback_head_position = 0;
 
+  JNIEnv* env_jni = AttachCurrentThread();
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
-    if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
+    if (bridge_.GetAndResetHasAudioDeviceChanged(env_jni)) {
       SB_LOG(INFO) << "Audio device changed, raising a capability changed "
                       "error to restart playback.";
       ReportError(true, "Audio device capability changed");
@@ -431,10 +434,10 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
   SB_DCHECK(audio_track_audio_sink_type_);
-
+  JNIEnv* env = AttachCurrentThread();
   return std::max(
-      AudioTrackBridge::GetMinBufferSizeInFrames(sample_type, channels,
-                                                 sampling_frequency_hz),
+      AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+          env, sample_type, channels, sampling_frequency_hz),
       audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
           channels, sample_type, sampling_frequency_hz));
 }
@@ -541,16 +544,19 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
     sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
   }
+  JNIEnv* env = AttachCurrentThread();
   min_required_frames_tester_.AddTest(
       2, sample_type, kSampleFrequency48000,
       onMinRequiredFramesForWebAudioReceived,
-      std::max(8 * 1024, AudioTrackBridge::GetMinBufferSizeInFrames(
-                             sample_type, 2, kSampleFrequency48000)));
+      std::max(8 * 1024,
+               AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+                   env, sample_type, 2, kSampleFrequency48000)));
   min_required_frames_tester_.AddTest(
       2, sample_type, kSampleFrequency22050,
       onMinRequiredFramesForWebAudioReceived,
-      std::max(4 * 1024, AudioTrackBridge::GetMinBufferSizeInFrames(
-                             sample_type, 2, kSampleFrequency22050)));
+      std::max(4 * 1024,
+               AudioOutputManager::GetInstance()->GetMinBufferSizeInFrames(
+                   env, sample_type, 2, kSampleFrequency22050)));
   min_required_frames_tester_.Start();
 }
 
