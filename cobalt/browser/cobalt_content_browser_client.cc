@@ -30,12 +30,14 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/page_load_metrics_initialize.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/page_load_metrics/browser/metrics_web_contents_observer.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -271,6 +273,7 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
         shell->web_contents()->SetDelegate(delegate);
       },
       web_contents_delegate_.get()));
+  InitializePageLoadMetricsForWebContents(web_contents);
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
@@ -339,6 +342,21 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 
   return true;
+}
+
+void CobaltContentBrowserClient::
+    RegisterAssociatedInterfaceBindersForRenderFrameHost(
+        content::RenderFrameHost& render_frame_host,
+        blink::AssociatedInterfaceRegistry& associated_registry) {
+  associated_registry.AddInterface<page_load_metrics::mojom::PageLoadMetrics>(
+      base::BindRepeating(
+          [](content::RenderFrameHost* render_frame_host,
+             mojo::PendingAssociatedReceiver<
+                 page_load_metrics::mojom::PageLoadMetrics> receiver) {
+            page_load_metrics::MetricsWebContentsObserver::BindPageLoadMetrics(
+                std::move(receiver), render_frame_host);
+          },
+          &render_frame_host));
 }
 
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
