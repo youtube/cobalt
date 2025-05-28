@@ -43,6 +43,13 @@ use_custom_libcxx =
     use_custom_libcxx || (use_custom_libcxx_for_host && !is_a_target_toolchain)
 use_custom_libcxx = use_custom_libcxx && !is_nacl
 
+# Cobalt comment: Override the use_custom_libcxx variable for partner toolchains to
+# avoid linking with chromium's C++ libraries.
+if (is_cobalt_hermetic_build && (current_toolchain == starboard_toolchain ||
+                                 current_toolchain == native_target)) {
+  use_custom_libcxx = false
+}
+
 declare_args() {
   # WARNING: Setting this to a non-default value is highly discouraged.
   # If true, libc++ will be built as a shared library; otherwise libc++ will be
