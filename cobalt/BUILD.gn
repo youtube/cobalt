@@ -49,11 +49,11 @@ if (!is_android) {
     testonly = true
 
     sources = [
-      "cobalt.cc",
-      "cobalt_main_delegate.cc",
-      "cobalt_main_delegate.h",
-      "cobalt_switch_defaults.cc",
-      "cobalt_switch_defaults.h",
+      "app/cobalt.cc",
+      "app/cobalt_main_delegate.cc",
+      "app/cobalt_main_delegate.h",
+      "app/cobalt_switch_defaults.cc",
+      "app/cobalt_switch_defaults.h",
     ]
 
     defines = []
@@ -127,14 +127,13 @@ test("cobalt_unittests") {
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_services_manager_client_test.cc",
     "//cobalt/browser/user_agent/user_agent_platform_info_test.cc",
-    "//cobalt/cobalt_switch_defaults.cc",
-    "//cobalt/cobalt_switch_defaults.h",
-    "//cobalt/cobalt_switch_defaults_test.cc",
+    "//cobalt/app/cobalt_switch_defaults_test.cc",
   ]
 
   public_deps = [ "//third_party/zlib/google:compression_utils" ]
 
   deps = [
+    ":cobalt",
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",

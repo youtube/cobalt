@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_switch_defaults.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
