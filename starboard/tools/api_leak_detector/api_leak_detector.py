@@ -131,6 +131,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'pipe',
     'posix_memalign',
     'pread',
     'pthread_attr_destroy',
