@@ -42,6 +42,7 @@ import java.util.Optional;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import androidx.media3.exoplayer.ExoPlayer;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard::android::shared")
@@ -53,7 +54,7 @@ class MediaCodecBridge {
   // after a flush. And we set the presentation timestamp from dequeueOutputBuffer() to be
   // non-decreasing for the remaining frames.
   private static final long MAX_PRESENTATION_TIMESTAMP_SHIFT_US = 100000;
-
+  private ExoPlayer player;
   // We use only one output audio format (PCM16) that has 2 bytes per sample
   private static final int PCM16_BYTES_PER_SAMPLE = 2;
 

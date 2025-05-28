@@ -363,6 +363,30 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  sources -= [
+    "//starboard/shared/starboard/player/player_get_audio_configuration.cc",
+    "//starboard/shared/starboard/player/player_get_current_frame.cc",
+    "//starboard/shared/starboard/player/player_get_info.cc",
+    "//starboard/shared/starboard/player/player_seek.cc",
+    "//starboard/shared/starboard/player/player_set_volume.cc",
+    "//starboard/shared/starboard/player/player_write_end_of_stream.cc",
+    "//starboard/shared/starboard/player/player_write_samples.cc",
+    "player_create.cc",
+    "player_destroy.cc",
+    "player_get_maximum_number_of_samples_per_write.cc",
+    "player_get_preferred_output_mode.cc",
+    "player_set_bounds.cc",
+    "player_set_playback_rate.cc",
+  ]
+
+  sources += [
+    "exoplayer/exoplayer.cc",
+    "exoplayer/exoplayer.h",
+    "exoplayer/exoplayer_bridge.cc",
+    "exoplayer/exoplayer_bridge.h",
+    "exoplayer/player_impl.cc",
+  ]
 }
 
 config("symbolize_config") {
