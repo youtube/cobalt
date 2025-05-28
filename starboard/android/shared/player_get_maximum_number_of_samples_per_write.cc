@@ -16,5 +16,5 @@
 
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                               SbMediaType sample_type) {
-  return 256;
+  return 1;
 }

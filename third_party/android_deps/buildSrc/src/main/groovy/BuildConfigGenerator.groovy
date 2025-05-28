@@ -102,6 +102,18 @@ class BuildConfigGenerator extends DefaultTask {
       'androidx_documentfile',
       'androidx_legacy',
       'androidx_localbroadcastmanager_localbroadcastmanager',
+      'androidx_annotation_annotation',
+      'androidx_collection_collection',
+      'androidx_core_core',
+      'androidx_exifinterface_exifinterface',
+      'androidx_media3_media3_common',
+      'androidx_media3_media3_container',
+      'androidx_media3_media3_database',
+      'androidx_media3_media3_datasource',
+      'androidx_media3_media3_decoder',
+      'androidx_media3_media3_exoplayer',
+      'androidx_media3_media3_extractor',
+      'androidx_media3_media3_session',
       'androidx_multidex_multidex',
       'androidx_print',
       'androidx_test',
@@ -393,6 +405,7 @@ class BuildConfigGenerator extends DefaultTask {
         List<ChromiumDepGraph.DependencyDescription> mergeLicensesDeps = []
         graph.dependencies.values().each { dependency ->
             if (excludeDependency(dependency) || computeJavaGroupForwardingTargets(dependency)) {
+                logger.debug "Excluding dependency ${dependency.name}"
                 return
             }
 
@@ -572,6 +585,9 @@ class BuildConfigGenerator extends DefaultTask {
     }
 
     boolean isInDifferentRepo(ChromiumDepGraph.DependencyDescription dependency) {
+        if (dependency.id.contains('media3')) {
+            return false
+        }
         boolean isAndroidxRepository = (repositoryPath == 'third_party/androidx')
         boolean isAndroidxDependency = (dependency.id.startsWith('androidx'))
         if (isAndroidxRepository != isAndroidxDependency) {
