@@ -41,6 +41,7 @@ DEFINE_METHOD(AAudioStreamBuilder_setSharingMode);
 
 DEFINE_METHOD(AAudioStream_close);
 DEFINE_METHOD(AAudioStream_getBufferCapacityInFrames);
+DEFINE_METHOD(AAudioStream_getBufferSizeInFrames);
 DEFINE_METHOD(AAudioStream_getChannelCount);
 DEFINE_METHOD(AAudioStream_getFormat);
 DEFINE_METHOD(AAudioStream_getFramesPerBurst);
@@ -100,6 +101,7 @@ void* LoadAAudioSymbols() {
 
   LOAD_AAUDIO_FUNCTION(AAudioStream_close);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getBufferCapacityInFrames);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_getBufferSizeInFrames);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getChannelCount);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFormat);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesPerBurst);
@@ -190,6 +192,18 @@ std::string AudioFormatString(aaudio_format_t format) {
   }
 }
 
+std::string PerformanceModeName(aaudio_performance_mode_t mode) {
+  switch (mode) {
+    case AAUDIO_PERFORMANCE_MODE_NONE:
+      return "AAUDIO_PERFORMANCE_MODE_NONE";
+    case AAUDIO_PERFORMANCE_MODE_LOW_LATENCY:
+      return "AAUDIO_PERFORMANCE_MODE_LOW_LATENCY";
+    case AAUDIO_PERFORMANCE_MODE_POWER_SAVING:
+      return "AAUDIO_PERFORMANCE_MODE_POWER_SAVING";
+  }
+  return "Unknown(" + std::to_string(static_cast<int>(mode)) + ")";
+}
+
 // 20 msec @ 48'000 Hz.
 constexpr int kStartThresholdFrames = 48 * 100;
 
@@ -223,13 +237,13 @@ std::unique_ptr<AudioStream> AudioStream::Create(
       builder);
 
   AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
-  AAudioStreamBuilder_setPerformanceMode(builder,
-                                         AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+  AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
   AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
   AAudioStreamBuilder_setSampleRate(builder, sample_rate);
   AAudioStreamBuilder_setChannelCount(builder, channel_count);
   AAudioStreamBuilder_setFormat(builder, format);
-  // AAudioStreamBuilder_setBufferCapacityInFrames(builder, buffer_frames);
+  // Set buffer size to 20 msec of 48,000 sample rate.
+  AAudioStreamBuilder_setBufferCapacityInFrames(builder, 48 * 20);
 
   AAudioStreamBuilder_setErrorCallback(builder, AudioStream::ErrorCallback,
                                        audio_stream_instance.get());
@@ -248,10 +262,17 @@ std::unique_ptr<AudioStream> AudioStream::Create(
   SB_LOG(INFO) << "AAudio stream opened: sample_rate=" << actual_sample_rate
                << ", channel count=" << AAudioStream_getChannelCount(stream)
                << ", audio format=" << AAudioStream_getFormat(stream)
-               << ", buffer_size(frames)="
+               << ", performance_mode="
+               << PerformanceModeName(AAudioStream_getPerformanceMode(stream))
+               << ", buffer_capacity(frames)="
                << AAudioStream_getBufferCapacityInFrames(stream)
-               << ", buffer_size(msec)="
+               << ", buffer_capacity(msec)="
                << (AAudioStream_getBufferCapacityInFrames(stream) * 1'000 /
+                   actual_sample_rate)
+               << ", buffer_size(frames)="
+               << AAudioStream_getBufferSizeInFrames(stream)
+               << ", buffer_size(msec)="
+               << (AAudioStream_getBufferSizeInFrames(stream) * 1'000 /
                    actual_sample_rate)
                << ", frames_per_burst="
                << AAudioStream_getFramesPerBurst(stream)

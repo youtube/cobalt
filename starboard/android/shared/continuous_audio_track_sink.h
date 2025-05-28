@@ -91,6 +91,8 @@ class ContinuousAudioTrackSink
 
   int frame_offset_ = 0;
   std::vector<std::pair<int, int>> silence_frames_;
+  bool is_playing_ = false;
+  int64_t last_playback_start_us_ = 0;
 };
 
 }  // namespace starboard::android::shared
