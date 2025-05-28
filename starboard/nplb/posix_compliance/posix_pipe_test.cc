@@ -58,7 +58,7 @@ TEST(PosixPipeTest, PipeLeavesClosedOnExecClearOnBothEndsOfPipe) {
 
 // Test that the FD_CLOFORK flag is clear on both ends of the pipe.
 TEST(PosixPipeTest, PipeLeavesClosedOnForkClearOnBothEndsOfPipe) {
-#ifdef FD_CLOFORK // FD_CLOFORK was added in POSIX.1-2017 (Issue 8)
+#ifdef FD_CLOFORK  // FD_CLOFORK was added in POSIX.1-2017 (Issue 8)
   int pipe_fds[2];
   ASSERT_EQ(pipe(pipe_fds), 0);
 
@@ -100,7 +100,7 @@ TEST(PosixPipeTest, DataWrittenToPipeCanBeRead) {
   ASSERT_EQ(pipe(pipe_fds), 0);
 
   const char TEST_DATA[] = "Hello, POSIX Pipe!";
-  const size_t DATA_SIZE = sizeof(TEST_DATA); // Include null terminator
+  const size_t DATA_SIZE = sizeof(TEST_DATA);  // Include null terminator
   char read_buffer[DATA_SIZE];
 
   // Write to the write end
