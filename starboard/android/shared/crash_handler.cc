@@ -17,9 +17,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using starboard::android::shared::JniEnvExt;
 
@@ -48,6 +46,4 @@ const void* GetCrashHandlerApi() {
   return &kCrashHandlerApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

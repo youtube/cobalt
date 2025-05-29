@@ -28,9 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: encapsulate a common Range class.
 struct Range {
@@ -185,8 +183,6 @@ class MediaCapabilitiesCache {
   std::atomic_bool capabilities_is_dirty_{true};
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_CAPABILITIES_CACHE_H_

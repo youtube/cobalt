@@ -41,9 +41,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
@@ -227,8 +225,6 @@ class VideoDecoder
   size_t number_of_preroll_frames_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_

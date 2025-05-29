@@ -23,9 +23,7 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 // Soft limit to ensure that the user of AudioRendererPassthrough won't keep
@@ -627,6 +625,4 @@ void AudioRendererPassthrough::OnDecoderOutput() {
   decoded_audios_.push(decoded_audio);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

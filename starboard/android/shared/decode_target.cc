@@ -28,9 +28,7 @@
 
 using starboard::android::shared::JniEnvExt;
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 jobject CreateSurfaceTexture(int gl_texture_id) {
@@ -133,6 +131,4 @@ void DecodeTarget::CreateOnContextRunner() {
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

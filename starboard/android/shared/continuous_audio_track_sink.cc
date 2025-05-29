@@ -25,9 +25,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 using ::starboard::shared::starboard::media::GetBytesPerSample;
@@ -347,6 +345,4 @@ int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
   return bridge_.GetStartThresholdInFrames();
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
