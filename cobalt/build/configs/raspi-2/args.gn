@@ -4,7 +4,6 @@ use_asan = false
 target_os = "linux"
 target_cpu = "arm"
 target_platform = "raspi-2"
-treat_warnings_as_errors = false
 
 # Avoid using the gold linker on raspi
 # See b/389972301#comment14 for more details
