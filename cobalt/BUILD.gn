@@ -60,8 +60,11 @@ if (!is_android) {
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
       "//starboard:starboard_headers_only",
-      "//ui/ozone/platform/starboard:starboard",
     ]
+
+    if (is_starboard) {
+      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    }
 
     data_deps = [
       "//components/crash/core/app:chrome_crashpad_handler",
