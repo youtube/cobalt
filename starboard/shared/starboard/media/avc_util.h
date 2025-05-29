@@ -48,6 +48,8 @@ class AvcParameterSets {
   static const uint8_t kIdrStartCode = 0x65;
   static const uint8_t kSpsStartCode = 0x67;
   static const uint8_t kPpsStartCode = 0x68;
+  // optional nalu types
+  static const uint8_t kAudStartCode = 0x09;
 
   // Only |format == kAnnexB| is supported, which is checked in the ctor.
   AvcParameterSets(Format format, const uint8_t* data, size_t size);
@@ -83,6 +85,10 @@ class AvcParameterSets {
   }
   size_t combined_size_in_bytes() const { return combined_size_in_bytes_; }
 
+  size_t combined_size_in_bytes_with_optionals() const {
+    return combined_size_in_bytes_ + combined_size_with_optionals_in_bytes_;
+  }
+
   std::vector<uint8_t> GetAllSpses() const;
   std::vector<uint8_t> GetAllPpses() const;
 
@@ -98,6 +104,7 @@ class AvcParameterSets {
   int first_pps_index_ = -1;
   std::vector<std::vector<uint8_t>> parameter_sets_;
   size_t combined_size_in_bytes_ = 0;
+  size_t combined_size_with_optionals_in_bytes_ = 0;
 };
 
 // The function will fail only when the input doesn't start with an Annex B

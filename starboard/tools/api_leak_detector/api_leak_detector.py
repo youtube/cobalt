@@ -97,6 +97,10 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'connect',
     'dup',
     'dup2',
+    'epoll_create',
+    'epoll_create1',
+    'epoll_ctl',
+    'epoll_wait'
     'fcntl',
     'free',
     'freeaddrinfo',
@@ -127,6 +131,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'munmap',
     'open',
     'opendir',
+    'pipe',
     'posix_memalign',
     'pread',
     'pthread_attr_destroy',
@@ -186,6 +191,8 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'pthread_setschedparam',
     'pthread_setspecific',
     'pwrite',
+    'rand',
+    'rand_r',
     'read',
     'readdir_r',
     'realloc',
@@ -199,6 +206,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'setsockopt',
     'shutdown',
     'socket',
+    'srand',
     'stat',
     'strcasecmp',
     'strncasecmp',
@@ -206,6 +214,11 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'unlink',
     'usleep',
     'write',
+    'opendir',
+    'closedir',
+    'readdir_r',
+    'malloc_usable_size',
+    'readdir',
 ]
 
 

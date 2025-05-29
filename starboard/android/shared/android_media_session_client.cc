@@ -22,9 +22,7 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 using ::starboard::android::shared::JniEnvExt;
@@ -287,9 +285,7 @@ const void* GetMediaSessionApi() {
   return &kMediaSessionApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_CobaltMediaSession_nativeInvokeAction(JNIEnv* env,

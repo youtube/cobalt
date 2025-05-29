@@ -28,9 +28,7 @@
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // This class simply creates a DecodedAudio object from the InputBuffer passed
 // in, without actually decoding the input audio.  It can be used in situations
@@ -113,8 +111,6 @@ class AudioDecoderPassthrough
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_DECODER_PASSTHROUGH_H_

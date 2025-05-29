@@ -17,14 +17,19 @@
 
 #include <jni.h>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
+
+// TODO(cobalt, b/372559388): Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
@@ -44,13 +49,8 @@ class AudioTrackBridge {
                    bool is_web_audio);
   ~AudioTrackBridge();
 
-  static int GetMinBufferSizeInFrames(SbMediaAudioSampleType sample_type,
-                                      int channels,
-                                      int sampling_frequency_hz,
-                                      JniEnvExt* env = JniEnvExt::Get());
-
   bool is_valid() const {
-    return j_audio_track_bridge_ != nullptr && j_audio_data_ != nullptr;
+    return !j_audio_track_bridge_.is_null() && !j_audio_data_.is_null();
   }
 
   void Play(JniEnvExt* env = JniEnvExt::Get());
@@ -81,22 +81,20 @@ class AudioTrackBridge {
   // return.  It can be nullptr.
   int64_t GetAudioTimestamp(int64_t* updated_at,
                             JniEnvExt* env = JniEnvExt::Get());
-  bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
+  bool GetAndResetHasAudioDeviceChanged(JNIEnv* env = AttachCurrentThread());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
   int GetStartThresholdInFrames(JniEnvExt* env = JniEnvExt::Get());
 
  private:
   int max_samples_per_write_;
 
-  jobject j_audio_track_bridge_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_audio_track_bridge_;
   // The audio data has to be copied into a Java Array before writing into the
-  // audio track.  Allocating a large array and saves as a member variable
+  // audio track. Allocating a large array and saves as a member variable
   // avoids an array being allocated repeatedly.
-  jobject j_audio_data_ = nullptr;
+  ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_

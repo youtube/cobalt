@@ -33,9 +33,7 @@
 #include "starboard/common/thread.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using base::android::ScopedJavaGlobalRef;
 
@@ -134,8 +132,6 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   std::vector<uint8_t> metrics_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_

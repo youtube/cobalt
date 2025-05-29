@@ -51,9 +51,7 @@ static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   return memcmp(left.identifier, right.identifier, left.identifier_size) == 0;
 }
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 DrmSystem::DrmSystem(
     const char* key_system,
@@ -306,6 +304,4 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

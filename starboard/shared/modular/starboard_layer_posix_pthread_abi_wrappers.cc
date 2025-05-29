@@ -27,45 +27,90 @@ using starboard::shared::starboard::IsInitialized;
 using starboard::shared::starboard::SetInitialized;
 
 typedef struct PosixMutexPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_mutex_t mutex;
+  InitializedState initialized_state;
 } PosixMutexPrivate;
+
+static_assert(sizeof(musl_pthread_mutex_t) >= sizeof(PosixMutexPrivate),
+              "sizeof(musl_pthread_mutex_t) must be larger or equal to "
+              "sizeof(PosixMutexPrivate)");
 
 typedef struct PosixMutexAttrPrivate {
   pthread_mutexattr_t mutex_attr;
 } PosixMutexAttrPrivate;
 
+static_assert(sizeof(musl_pthread_mutexattr_t) >= sizeof(PosixMutexAttrPrivate),
+              "sizeof(musl_pthread_mutexattr_t) must be larger or equal to "
+              "sizeof(PosixMutexAttrPrivate)");
+
 typedef struct PosixCondPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_cond_t cond;
+  InitializedState initialized_state;
 } PosixCondPrivate;
+
+static_assert(sizeof(musl_pthread_cond_t) >= sizeof(PosixCondPrivate),
+              "sizeof(musl_pthread_cond_t) must be larger or equal to "
+              "sizeof(PosixCondPrivate)");
 
 typedef struct PosixCondAttrPrivate {
   pthread_condattr_t cond_attr;
 } PosixCondAttrPrivate;
 
+static_assert(sizeof(musl_pthread_condattr_t) >= sizeof(PosixCondAttrPrivate),
+              "sizeof(musl_pthread_condattr_t) must be larger or equal to "
+              "sizeof(PosixCondAttrPrivate)");
+
 typedef struct PosixAttrPrivate {
   pthread_attr_t attr;
 } PosixAttrPrivate;
 
+static_assert(sizeof(musl_pthread_attr_t) >= sizeof(PosixAttrPrivate),
+              "sizeof(musl_pthread_attr_t) must be larger or equal to "
+              "sizeof(PosixAttrPrivate)");
+
 typedef struct PosixOncePrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_once_t once;
+  InitializedState initialized_state;
 } PosixOncePrivate;
+
+static_assert(sizeof(musl_pthread_once_t) >= sizeof(PosixOncePrivate),
+              "sizeof(musl_pthread_once_t) must be larger or equal to "
+              "sizeof(PosixOncePrivate)");
 
 typedef struct PosixThreadLocalKeyPrivate {
   // The underlying thread-local variable handle.
   pthread_key_t key;
 } PosixThreadLocalKeyPrivate;
 
+static_assert(sizeof(musl_pthread_key_t) >= sizeof(PosixThreadLocalKeyPrivate),
+              "sizeof(musl_pthread_key_t) must be larger or equal to "
+              "sizeof(PosixThreadLocalKeyPrivate)");
+
 typedef struct PosixRwLockPrivate {
-  InitializedState initialized_state;
+  // The underlying platform variable handle. Should always be the
+  // first field to avoid alignment issues.
   pthread_rwlock_t rwlock;
+  InitializedState initialized_state;
 } PosixRwLockPrivate;
+
+static_assert(sizeof(musl_pthread_rwlock_t) >= sizeof(PosixRwLockPrivate),
+              "sizeof(musl_pthread_rwlock_t) must be larger or equal to "
+              "sizeof(PosixRwLockPrivate)");
 
 typedef struct PosixRwLockAttrPrivate {
   pthread_rwlockattr_t rwlock_attr;
 } PosixRwLockAttrPrivate;
+
+static_assert(sizeof(musl_pthread_rwlockattr_t) >=
+                  sizeof(PosixRwLockAttrPrivate),
+              "sizeof(musl_pthread_rwlockattr_t) must be larger or equal to "
+              "sizeof(PosixRwLockAttrPrivate)");
 
 #define INTERNAL_MUTEX(mutex_var) \
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)

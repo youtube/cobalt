@@ -18,9 +18,7 @@
 #include "starboard/common/once.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 bool VideoOutputFormat::operator<(const VideoOutputFormat& key) const {
   if (codec_ != key.codec_) {
@@ -93,6 +91,4 @@ void MaxMediaCodecOutputBuffersLookupTable::UpdateMaxOutputBuffers(
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
