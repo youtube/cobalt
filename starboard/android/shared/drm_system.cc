@@ -65,8 +65,8 @@ DrmSystem::DrmSystem(
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
-      j_media_drm_bridge_(NULL),
-      j_media_crypto_(NULL),
+      j_media_drm_bridge_(nullptr),
+      j_media_crypto_(nullptr),
       hdcp_lost_(false) {
   ON_INSTANCE_CREATED(AndroidDrmSystem);
 
@@ -227,7 +227,7 @@ const void* DrmSystem::GetMetrics(int* size) {
     return nullptr;
   }
 
-  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), NULL);
+  jbyte* metrics_elements = env->GetByteArrayElements(j_metrics.obj(), nullptr);
   jsize metrics_size = base::android::SafeGetArrayLength(env, j_metrics);
   SB_DCHECK(metrics_elements);
 
@@ -246,7 +246,7 @@ void DrmSystem::CallUpdateRequestCallback(int ticket,
                                           int content_size,
                                           const char* url) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
-                           request_type, NULL, session_id, session_id_size,
+                           request_type, nullptr, session_id, session_id_size,
                            content, content_size, url);
 }
 

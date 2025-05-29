@@ -110,6 +110,8 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
       env->FindClass("android/media/MediaDrm$KeyStatus");
   jmethodID getKeyIdMethod =
       env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
+  jmethodID getStatusCodeMethod =
+        env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
     jbyteArray j_key_id = static_cast<jbyteArray>(
@@ -124,8 +126,6 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
     env->ReleaseByteArrayElements(j_key_id, key_id_elements, JNI_ABORT);
     drm_key_ids[i].identifier_size = key_id_size;
 
-    jmethodID getStatusCodeMethod =
-        env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
     jint j_status_code = env->CallIntMethod(j_key_status, getStatusCodeMethod);
     if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
       drm_key_statuses[i] = kSbDrmKeyStatusExpired;
