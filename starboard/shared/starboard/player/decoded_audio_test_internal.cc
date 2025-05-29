@@ -121,7 +121,7 @@ void Verify(const float* data,
 
 // Fill `decoded_audio` with sine wave samples, with phase shift of Pi/2 on each
 // channel.
-void Fill(scoped_refptr<DecodedAudio>* decoded_audio) {
+void Fill(std::unique_ptr<DecodedAudio>* decoded_audio) {
   SB_DCHECK(decoded_audio);
   SB_DCHECK(*decoded_audio);
 
@@ -149,7 +149,7 @@ void Fill(scoped_refptr<DecodedAudio>* decoded_audio) {
 
 // verify `decoded_audio` against sine wave samples, with phase shift of Pi/2 on
 // each channel.
-void Verify(const scoped_refptr<DecodedAudio>& decoded_audio) {
+void Verify(const std::unique_ptr<DecodedAudio>& decoded_audio) {
   SB_DCHECK(decoded_audio);
 
   bool is_int16 =
@@ -179,14 +179,14 @@ void Verify(const scoped_refptr<DecodedAudio>& decoded_audio) {
 }
 
 TEST(DecodedAudioTest, DefaultCtor) {
-  scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio);
+  std::unique_ptr<DecodedAudio> decoded_audio(new DecodedAudio);
   EXPECT_TRUE(decoded_audio->is_end_of_stream());
 }
 
 TEST(DecodedAudioTest, CtorWithSize) {
   for (auto sample_type : kSampleTypes) {
     for (auto storage_type : kStorageTypes) {
-      scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+      std::unique_ptr<DecodedAudio> decoded_audio(new DecodedAudio(
           kChannels, sample_type, storage_type, kTimestampUsec, kSizeInBytes));
 
       EXPECT_FALSE(decoded_audio->is_end_of_stream());
@@ -210,7 +210,7 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
 
   const uint8_t* original_data_pointer = original.data();
 
-  scoped_refptr<DecodedAudio> decoded_audio(
+  std::unique_ptr<DecodedAudio> decoded_audio(
       new DecodedAudio(kChannels, kSampleTypes[0], kStorageTypes[0],
                        kTimestampUsec, 128, std::move(original)));
   ASSERT_EQ(decoded_audio->size_in_bytes(), 128);
@@ -225,12 +225,12 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
 TEST(DecodedAudioTest, AdjustForSeekTime) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      std::unique_ptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
           kTimestampUsec, kSizeInBytes));
       Fill(&original_decoded_audio);
 
-      scoped_refptr<DecodedAudio> adjusted_decoded_audio =
+      std::unique_ptr<DecodedAudio> adjusted_decoded_audio =
           original_decoded_audio->Clone();
 
       // Adjust to the beginning of `adjusted_decoded_audio` should be a no-op.
@@ -280,12 +280,12 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
 TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      std::unique_ptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
           kTimestampUsec, kSizeInBytes));
       Fill(&original_decoded_audio);
 
-      scoped_refptr<DecodedAudio> adjusted_decoded_audio =
+      std::unique_ptr<DecodedAudio> adjusted_decoded_audio =
           original_decoded_audio->Clone();
 
       adjusted_decoded_audio->AdjustForDiscardedDurations(kSampleRate, 0, 0);
@@ -325,7 +325,7 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
 TEST(DecodedAudioTest, SwitchFormatTo) {
   for (auto original_sample_type : kSampleTypes) {
     for (auto original_storage_type : kStorageTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      std::unique_ptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
           kChannels, original_sample_type, original_storage_type,
           kTimestampUsec, kSizeInBytes));
 
@@ -335,7 +335,7 @@ TEST(DecodedAudioTest, SwitchFormatTo) {
         for (auto new_storage_type : kStorageTypes) {
           if (!original_decoded_audio->IsFormat(new_sample_type,
                                                 new_storage_type)) {
-            scoped_refptr<DecodedAudio> new_decoded_audio =
+            std::unique_ptr<DecodedAudio> new_decoded_audio =
                 original_decoded_audio->SwitchFormatTo(new_sample_type,
                                                        new_storage_type);
 
@@ -359,7 +359,7 @@ TEST(DecodedAudioTest, SwitchFormatTo) {
 
 TEST(DecodedAudioTest, Clone) {
   for (auto sample_type : kSampleTypes) {
-    scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+    std::unique_ptr<DecodedAudio> decoded_audio(new DecodedAudio(
         kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
         kTimestampUsec, kSizeInBytes));
     Fill(&decoded_audio);

@@ -54,8 +54,8 @@ using video_dmp::VideoDmpReader;
 
 const int64_t kWaitForNextEventTimeOut = 5'000'000;  // 5 seconds
 
-scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
-    const std::vector<scoped_refptr<DecodedAudio>>& decoded_audios) {
+std::unique_ptr<DecodedAudio> ConsolidateDecodedAudios(
+    const std::vector<std::unique_ptr<DecodedAudio>>& decoded_audios) {
   if (decoded_audios.empty()) {
     return new DecodedAudio(2, kSbMediaAudioSampleTypeFloat32,
                             kSbMediaAudioFrameStorageTypeInterleaved, 0, 0);
@@ -73,7 +73,7 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
     total_size_in_bytes += decoded_audio->size_in_bytes();
   }
 
-  scoped_refptr<DecodedAudio> consolidated = new DecodedAudio(
+  std::unique_ptr<DecodedAudio> consolidated = new DecodedAudio(
       channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
       decoded_audios.front()->timestamp(), total_size_in_bytes);
 
@@ -88,7 +88,7 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
 }
 
 int GetTotalFrames(
-    const std::vector<scoped_refptr<DecodedAudio>>& decoded_audios) {
+    const std::vector<std::unique_ptr<DecodedAudio>>& decoded_audios) {
   int total_frames = 0;
   for (auto decoded_audio : decoded_audios) {
     total_frames += decoded_audio->frames();
@@ -203,11 +203,11 @@ class AudioDecoderTest
   }
 
   // This has to be called when OnOutput() is called.
-  void ReadFromDecoder(scoped_refptr<DecodedAudio>* decoded_audio) {
+  void ReadFromDecoder(std::unique_ptr<DecodedAudio>* decoded_audio) {
     ASSERT_TRUE(decoded_audio);
 
     int decoded_sample_rate;
-    scoped_refptr<DecodedAudio> local_decoded_audio =
+    std::unique_ptr<DecodedAudio> local_decoded_audio =
         audio_decoder_->Read(&decoded_sample_rate);
     ASSERT_TRUE(local_decoded_audio);
     if (!first_output_received_) {
@@ -266,7 +266,7 @@ class AudioDecoderTest
         return;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
@@ -298,7 +298,7 @@ class AudioDecoderTest
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
@@ -325,7 +325,7 @@ class AudioDecoderTest
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       if (decoded_audio->is_end_of_stream()) {
@@ -369,7 +369,7 @@ class AudioDecoderTest
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
@@ -402,7 +402,7 @@ class AudioDecoderTest
         FAIL();
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
@@ -485,7 +485,7 @@ class AudioDecoderTest
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
   std::deque<scoped_refptr<InputBuffer>> written_inputs_;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::vector<std::unique_ptr<DecodedAudio>> decoded_audios_;
 
   bool eos_written_ = false;
 
@@ -736,7 +736,7 @@ TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
         continue;
       }
       ASSERT_EQ(kOutput, event);
-      scoped_refptr<DecodedAudio> decoded_audio;
+      std::unique_ptr<DecodedAudio> decoded_audio;
       ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
       ASSERT_TRUE(decoded_audio);
       ASSERT_FALSE(decoded_audio->is_end_of_stream());
@@ -785,7 +785,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
           break;
         }
         ASSERT_EQ(kOutput, event);
-        scoped_refptr<DecodedAudio> decoded_audio;
+        std::unique_ptr<DecodedAudio> decoded_audio;
         ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
         ASSERT_TRUE(decoded_audio);
       }
@@ -830,7 +830,7 @@ TEST_P(AudioDecoderTest, PartialAudio) {
           break;
         }
         ASSERT_EQ(kOutput, event);
-        scoped_refptr<DecodedAudio> decoded_audio;
+        std::unique_ptr<DecodedAudio> decoded_audio;
         ASSERT_NO_FATAL_FAILURE(ReadFromDecoder(&decoded_audio));
         ASSERT_TRUE(decoded_audio);
       }

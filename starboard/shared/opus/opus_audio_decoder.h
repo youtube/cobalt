@@ -46,7 +46,7 @@ class OpusAudioDecoder
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::unique_ptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -65,7 +65,7 @@ class OpusAudioDecoder
 
   OpusMSDecoder* decoder_ = NULL;
   bool stream_ended_ = false;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<std::unique_ptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
   int frames_per_au_ = kMaxOpusFramesPerAU;
 

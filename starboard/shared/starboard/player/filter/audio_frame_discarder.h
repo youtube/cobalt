@@ -34,8 +34,9 @@ namespace starboard::shared::starboard::player::filter {
 class AudioFrameDiscarder {
  public:
   void OnInputBuffers(const InputBuffers& input_buffers);
-  void AdjustForDiscardedDurations(int sample_rate,
-                                   scoped_refptr<DecodedAudio>* decoded_audio);
+  void AdjustForDiscardedDurations(
+      int sample_rate,
+      std::unique_ptr<DecodedAudio>* decoded_audio);
   void OnDecodedAudioEndOfStream();
 
   void Reset();
