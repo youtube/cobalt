@@ -18,6 +18,8 @@
 #include <time.h>
 #include <cstring>
 
+#include <type_traits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -25,39 +27,42 @@ namespace nplb {
 namespace {
 
 // Small duration for sleeps that should be short or return immediately.
-const long kShortSleepNs = 1'000'000L;  // 1 millisecond.
+constexpr long kShortSleepNs = 1'000'000L;  // 1 millisecond.
 // A slightly longer duration for testing actual sleep.
-const long kTestSleepNs = 50'000'000L;  // 50 milliseconds.
-const long kTestSleepUs = kTestSleepNs / 1'000;
+constexpr long kTestSleepNs = 50'000'000L;  // 50 milliseconds.
+constexpr long kTestSleepUs = kTestSleepNs / 1'000;
 // A very long duration for testing interruption.
-const long kLongSleepSec = 10;  // 10 seconds.
+constexpr long kLongSleepSec = 10;  // 10 seconds.
 // Duration for alarm to trigger, should be less than kLongSleepSec.
-const unsigned int kAlarmSec = 1;
+constexpr unsigned int kAlarmSec = 1;
 // Duration threshold for sleeps that should return immediately.
-const long kShortDurationThresholdUs = 100000;  // 100 milliseconds.
+constexpr long kShortDurationThresholdUs = 100'000;  // 100 milliseconds.
 
-void InterruptSignalHandler(int signum) {
-  (void)signum;  // Suppress unused parameter warning.
-}
+void InterruptSignalHandler(int) {}
+
+// Assert that nanosleep has the signature:
+// int nanosleep(const struct timespec*, struct timespec*)
+static_assert(std::is_same_v<decltype(nanosleep),
+                             int(const struct timespec*, struct timespec*)>,
+              "'nanosleep' is not declared or does not have the signature "
+              "'int (const struct timespec*, struct timespec*)'");
 
 class PosixNanosleepTests : public ::testing::Test {
  protected:
-  struct sigaction old_sa_sigalrm;
+  struct sigaction old_sa_sigalrm_;
 
   void SetUp() override {
     errno = 0;
     alarm(0);
 
     struct sigaction current_sa;
-    if (sigaction(SIGALRM, nullptr, &old_sa_sigalrm) != 0) {
-      perror("Warning: Could not get old SIGALRM handler in SetUp");
-    }
+    ASSERT_EQ(sigaction(SIGALRM, nullptr, &old_sa_sigalrm_), 0)
+        << "Warning: Could not get old SIGALRM handler in SetUp";
   }
 
   void TearDown() override {
-    if (sigaction(SIGALRM, &old_sa_sigalrm, nullptr) != 0) {
-      perror("Warning: Could not restore old SIGALRM handler in TearDown");
-    }
+    ASSERT_EQ(sigaction(SIGALRM, &old_sa_sigalrm_, nullptr), 0)
+        << "Warning: Could not restore old SIGALRM handler in TearDown";
     alarm(0);
   }
 };
@@ -172,7 +177,7 @@ TEST_F(PosixNanosleepTests, ErrorEfaultRequestNull) {
       << strerror(errno) << ")";
 }
 
-TEST_F(PosixNanosleepTests, ErrorEintrRelativeSleep) {
+TEST_F(PosixNanosleepTests, ErrorEintr) {
   struct timespec req = {kLongSleepSec, 0};
   struct timespec rem;
 
@@ -192,6 +197,7 @@ TEST_F(PosixNanosleepTests, ErrorEintrRelativeSleep) {
   EXPECT_EQ(EINTR, errno) << "Expected EINTR for interrupted sleep. errno: "
                           << errno << " (" << strerror(errno) << ")";
   if (ret == -1 && errno == EINTR) {
+    // Remaining time is less than requested, or is zero.
     EXPECT_TRUE(rem.tv_sec < req.tv_sec ||
                 (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
                  rem.tv_nsec >= 0) ||
@@ -200,7 +206,7 @@ TEST_F(PosixNanosleepTests, ErrorEintrRelativeSleep) {
         << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
     EXPECT_GE(rem.tv_sec, 0);
     EXPECT_GE(rem.tv_nsec, 0);
-    EXPECT_LT(rem.tv_nsec, 1000000000);
+    EXPECT_LT(rem.tv_nsec, 1'000'000'000);
   }
 }
 

@@ -19,6 +19,8 @@
 #include <cstring>
 #include <ctime>
 
+#include <type_traits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -33,14 +35,12 @@ const useconds_t kTestSleepUs =
 // A very long duration for testing interruption.
 const useconds_t kLongSleepUs = 10'000'000;  // 10 seconds
 // Delay in the signal-sending thread before sending the signal.
-const long kSignalSendDelayNs = 100'000'000L;
+constexpr long kSignalSendDelayNs = 100'000'000L;
 
 // Duration threshold for sleeps that should return immediately.
-const long kShortDurationThresholdUs = 100000;  // 100 milliseconds.
+constexpr long kShortDurationThresholdUs = 100'000;  // 100 milliseconds.
 
-void InterruptSignalHandler(int signum) {
-  (void)signum;  // Suppress unused parameter warning.
-}
+void InterruptSignalHandler(int) {}
 
 void* SendSigusr1Routine(void* arg) {
   pthread_t* target_thread_id = static_cast<pthread_t*>(arg);
@@ -53,24 +53,27 @@ void* SendSigusr1Routine(void* arg) {
   return nullptr;
 }
 
+// Assert that usleep has the signature:
+// int usleep(useconds_t)
+static_assert(std::is_same_v<decltype(usleep), int(useconds_t)>,
+              "'usleep' is not declared or does not have the signature "
+              "'int (useconds_t)'");
+
 class PosixUsleepTests : public ::testing::Test {
  protected:
-  struct sigaction old_sa_sigusr1;
-  bool sigusr1_handler_set = false;
+  struct sigaction old_sa_sigusr1_;
+  bool sigusr1_handler_set_ = false;
 
   void SetUp() override {
     errno = 0;
-    if (sigaction(SIGUSR1, nullptr, &old_sa_sigusr1) != 0) {
-      perror("Warning: Could not get current SIGUSR1 handler in SetUp");
-    }
+    ASSERT_EQ(sigaction(SIGUSR1, nullptr, &old_sa_sigusr1_), 0)
+        << "Warning: Could not get old SIGUSR1 handler in SetUp";
   }
 
   void TearDown() override {
-    if (sigusr1_handler_set) {
-      if (sigaction(SIGUSR1, &old_sa_sigusr1, nullptr) != 0) {
-        perror(
-            "Warning: Could not restore original SIGUSR1 handler in TearDown");
-      }
+    if (sigusr1_handler_set_) {
+      ASSERT_EQ(sigaction(SIGUSR1, &old_sa_sigusr1_, nullptr), 0)
+          << "Warning: Could not restore old SIGUSR1 handler in TearDown";
     }
   }
 
@@ -82,7 +85,7 @@ class PosixUsleepTests : public ::testing::Test {
     ASSERT_EQ(0, sigaction(SIGUSR1, &sa, nullptr))
         << "Failed to set SIGUSR1 handler. Errno: " << errno << " ("
         << strerror(errno) << ")";
-    sigusr1_handler_set = true;
+    sigusr1_handler_set_ = true;
   }
 };
 
@@ -143,7 +146,7 @@ TEST_F(PosixUsleepTests, ZeroDurationSleep) {
   }
 }
 
-TEST_F(PosixUsleepTests, ErrorEintrRelativeSleep) {
+TEST_F(PosixUsleepTests, ErrorEintr) {
   RegisterSigusr1Handler();
 
   pthread_t self_thread_id = pthread_self();
