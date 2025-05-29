@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COBALT_MAIN_DELEGATE_H_
-#define COBALT_COBALT_MAIN_DELEGATE_H_
+#ifndef COBALT_APP_COBALT_MAIN_DELEGATE_H_
+#define COBALT_APP_COBALT_MAIN_DELEGATE_H_
 
 #include "build/build_config.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
@@ -62,4 +62,4 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
 
 }  // namespace cobalt
 
-#endif  // COBALT_COBALT_MAIN_DELEGATE_H_
+#endif  // COBALT_APP_COBALT_MAIN_DELEGATE_H_
