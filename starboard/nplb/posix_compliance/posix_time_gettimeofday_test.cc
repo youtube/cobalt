@@ -61,8 +61,6 @@ TEST(PosixTimeGettimeofdayTests, NonNullTzIsIgnoredOrCausesEinval) {
     EXPECT_GE(tv.tv_sec, kReasonableMinTime);
     EXPECT_GE(tv.tv_usec, 0);
     EXPECT_LE(tv.tv_usec, 999999);
-    SUCCEED() << "gettimeofday with non-nullptr tz returned 0 (tz was likely "
-                 "ignored).";
   }
 }
 
@@ -131,8 +129,6 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
       }
     }
   }
-  SUCCEED() << "gettimeofday()-based time showed change across "
-            << kNumIterations << " iterations.";
 }
 
 }  // namespace

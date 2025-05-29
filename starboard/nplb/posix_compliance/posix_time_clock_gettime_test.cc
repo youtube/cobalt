@@ -52,18 +52,8 @@ TEST(PosixTimeClockGettimeTests, ClockMonotonicSucceedsAndIsMonotonic) {
         << previousMonotonicTime << ", Current: " << currentMonotonicTime
         << " on trial " << trial;
 
-    if (currentMonotonicTime < previousMonotonicTime) {
-      FAIL()
-          << "clock_gettime(CLOCK_MONOTONIC)-based time DECREASED. Previous: "
-          << previousMonotonicTime << ", Current: " << currentMonotonicTime
-          << " on trial " << trial;
-      return;
-    }
     previousMonotonicTime = currentMonotonicTime;
   }
-  SUCCEED() << "clock_gettime(CLOCK_MONOTONIC)-based time maintained "
-               "non-decreasing behavior over "
-            << kTrials << " trials.";
 }
 
 TEST(PosixTimeClockGettimeTests, ClockRealtimeSucceeds) {
@@ -86,7 +76,6 @@ TEST(PosixTimeClockGettimeTests, ClockProcessCpuTimeSucceedsAndIncreases) {
   if (ret_before == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_PROCESS_CPUTIME_ID not supported on this system "
                     "(returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret_before)
       << "Initial clock_gettime(CLOCK_PROCESS_CPUTIME_ID) failed. errno: "
@@ -122,7 +111,6 @@ TEST(PosixTimeClockGettimeTests, ClockThreadCpuTimeSucceedsAndIncreases) {
   if (ret_before == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_THREAD_CPUTIME_ID not supported on this system "
                     "(returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret_before)
       << "Initial clock_gettime(CLOCK_THREAD_CPUTIME_ID) failed. errno: "
@@ -159,7 +147,6 @@ TEST(PosixTimeClockGettimeTests, ClockMonotonicRawSucceedsAndIsMonotonic) {
   if (ret_initial == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_MONOTONIC_RAW defined but not supported "
                     "(returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret_initial)
       << "Initial clock_gettime(CLOCK_MONOTONIC_RAW) failed. errno: " << errno;
@@ -184,7 +171,6 @@ TEST(PosixTimeClockGettimeTests, ClockMonotonicRawSucceedsAndIsMonotonic) {
     }
     previousTime = currentTime;
   }
-  SUCCEED();
 }
 #else   // CLOCK_MONOTONIC_RAW
 TEST(PosixTimeClockGettimeTests, ClockMonotonicRawNotTestedDueToMissingDefine) {
@@ -201,13 +187,11 @@ TEST(PosixTimeClockGettimeTests, ClockRealtimeCoarseSucceeds) {
   if (ret == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_REALTIME_COARSE defined but not supported "
                     "(returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret) << "clock_gettime(CLOCK_REALTIME_COARSE) failed. errno: "
                     << errno;
   EXPECT_GE(ts.tv_nsec, 0);
   EXPECT_LT(ts.tv_nsec, 1000000000L);
-  SUCCEED();
 }
 #else   // CLOCK_REALTIME_COARSE
 TEST(PosixTimeClockGettimeTests,
@@ -227,7 +211,6 @@ TEST(PosixTimeClockGettimeTests, ClockMonotonicCoarseSucceedsAndIsMonotonic) {
   if (ret_initial == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_MONOTONIC_COARSE defined but not supported by "
                     "kernel (returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret_initial)
       << "Initial clock_gettime(CLOCK_MONOTONIC_COARSE) failed. errno: "
@@ -254,7 +237,6 @@ TEST(PosixTimeClockGettimeTests, ClockMonotonicCoarseSucceedsAndIsMonotonic) {
     }
     previousTime = currentTime;
   }
-  SUCCEED();
 }
 #else   // CLOCK_MONOTONIC_COARSE
 TEST(PosixTimeClockGettimeTests,
@@ -274,7 +256,6 @@ TEST(PosixTimeClockGettimeTests, ClockBoottimeSucceedsAndIsMonotonic) {
   if (ret_initial == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_BOOTTIME defined but not supported "
                     "(returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret_initial)
       << "Initial clock_gettime(CLOCK_BOOTTIME) failed. errno: " << errno;
@@ -299,7 +280,6 @@ TEST(PosixTimeClockGettimeTests, ClockBoottimeSucceedsAndIsMonotonic) {
     }
     previousTime = currentTime;
   }
-  SUCCEED();
 }
 #else   // CLOCK_BOOTTIME
 TEST(PosixTimeClockGettimeTests, ClockBoottimeNotTestedDueToMissingDefine) {
@@ -315,12 +295,10 @@ TEST(PosixTimeClockGettimeTests, ClockTaiSucceeds) {
   int ret = clock_gettime(CLOCK_TAI, &ts);
   if (ret == -1 && errno == EINVAL) {
     GTEST_SKIP() << "CLOCK_TAI defined but not supported (returned EINVAL).";
-    return;
   }
   ASSERT_EQ(0, ret) << "clock_gettime(CLOCK_TAI) failed. errno: " << errno;
   EXPECT_GE(ts.tv_nsec, 0);
   EXPECT_LT(ts.tv_nsec, 1000000000L);
-  SUCCEED();
 }
 #else   // CLOCK_TAI
 TEST(PosixTimeClockGettimeTests, ClockTaiNotTestedDueToMissingDefine) {
