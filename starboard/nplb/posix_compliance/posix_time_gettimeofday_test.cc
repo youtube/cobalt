@@ -16,6 +16,9 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include <type_traits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -25,6 +28,43 @@ namespace {
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
 const time_t kReasonableMinTime = 1735689600;  // 2025-01-01 00:00:00 UTC
+
+// Helper template to check for the existence of tv_sec
+template <typename T, typename = void>
+struct has_tv_sec : std::false_type {};
+template <typename T>
+struct has_tv_sec<T, std::void_t<decltype(T::tv_sec)>> : std::true_type {};
+
+// Helper template to check for the existence of tv_usec
+template <typename T, typename = void>
+struct has_tv_usec : std::false_type {};
+template <typename T>
+struct has_tv_usec<T, std::void_t<decltype(T::tv_usec)>> : std::true_type {};
+
+// Assert that the required struct timeval members exist.
+static_assert(has_tv_sec<struct timeval>::value,
+              "struct timeval must have a 'tv_sec' member");
+
+static_assert(has_tv_usec<struct timeval>::value,
+              "struct timeval must have a 'tv_usec' member");
+
+// Assert that the struct timeval members have the correct types.
+static_assert(std::is_same_v<decltype(timeval::tv_sec), time_t>,
+              "The type of 'timeval::tv_sec' must be 'time_t'");
+
+static_assert(std::is_same_v<decltype(timeval::tv_usec), suseconds_t>,
+              "The type of 'timeval::tv_usec' must be 'suseconds_t'");
+
+// TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
+// On non-hermetic builds, clock_gettime() is declared "noexcept".
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// 5. Assert that gettimeofday has the signature:
+// int gettimeofday(struct timeval*, void*)
+static_assert(
+    std::is_same_v<decltype(gettimeofday), int(struct timeval*, void*)>,
+    "'gettimeofday' is not declared or does not have the signature "
+    "'int (struct timeval*, struct timezone*)'");
+#endif
 
 TEST(PosixTimeGettimeofdayTests, SunnyDay) {
   struct timeval tv;

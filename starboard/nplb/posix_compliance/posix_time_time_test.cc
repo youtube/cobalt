@@ -15,6 +15,9 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <time.h>
+
+#include <type_traits>
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -30,6 +33,16 @@ const time_t kReasonableMinTime = 1735689600;  // 2025-01-01 00:00:00 UTC
 // kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
 // the current time is expected to fall.
 const time_t kReasonableMaxTime = 2366841600;  // 2045-01-01 00:00:00 UTC
+
+// TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
+// On non-hermetic builds, clock_gettime() is declared "noexcept".
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// Assert that time has the signature:
+// time_t time(time_t*)
+static_assert(std::is_same_v<decltype(time), time_t(time_t*)>,
+              "'time' is not declared or does not have the signature "
+              "'time_t (time_t*)'");
+#endif
 
 TEST(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
   time_t current_time = time(nullptr);
