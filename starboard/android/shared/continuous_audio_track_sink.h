@@ -89,10 +89,15 @@ class ContinuousAudioTrackSink
   std::optional<AudioStream::Timestamp> last_timestamp_ =
       AudioStream::Timestamp{0, 0};
 
-  int silence_frames_ = 0;
-
   bool is_playing_ = false;
   int64_t last_playback_start_us_ = 0;
+
+  void logRate(int num_frames_to_read, int64_t now_us);
+  int64_t in_frames_ = 0;
+  int64_t out_frames_ = 0;
+
+  bool data_has_arrived_ = false;
+  int initial_silence_frames_ = 0;
 };
 
 }  // namespace starboard::android::shared

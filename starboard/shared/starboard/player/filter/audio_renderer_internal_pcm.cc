@@ -693,14 +693,8 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   int frames_in_buffer = static_cast<int>(total_frames_sent_to_sink_ -
                                           total_frames_consumed_by_sink_);
 
-  static int count = 0;
   if (max_cached_frames_ - frames_in_buffer < min_frames_per_append_) {
     *is_frame_buffer_full = true;
-    if (count++ % 10 == 0) {
-      SB_LOG(INFO) << __func__
-                   << ": buffer is full: frames_in_buffer=" << frames_in_buffer
-                   << ", max_cached_frames=" << max_cached_frames_;
-    }
     return false;
   }
 
@@ -743,29 +737,6 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
   frames_appended += frames_to_append;
 
   total_frames_sent_to_sink_ += frames_appended;
-
-  if (log_start_us_ == 0) {
-    log_start_us_ = CurrentMonotonicTime();
-  }
-  if (last_logged_us_ == 0) {
-    last_logged_us_ = log_start_us_;
-  } else {
-    int64_t now_us = CurrentMonotonicTime();
-    int64_t elapsed_us = now_us - last_logged_us_;
-    if (elapsed_us > 5'000'000) {
-      int64_t total_elapsed_us = now_us - log_start_us_;
-      int64_t frames_for_last_internal =
-          total_frames_sent_to_sink_ - last_logged_frames_;
-      SB_LOG(INFO) << "frames/sec(so far)="
-                   << (total_frames_sent_to_sink_ * 1'000'000LL /
-                       total_elapsed_us)
-                   << ", frames/sec(last 5 sec)="
-                   << (frames_for_last_internal * 1'000'000LL / elapsed_us);
-
-      last_logged_us_ = now_us;
-      last_logged_frames_ = total_frames_sent_to_sink_;
-    }
-  }
 
   return frames_appended > 0;
 }
