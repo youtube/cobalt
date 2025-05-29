@@ -19,7 +19,8 @@ interface CobaltPerformance {
   [Sync]
   MeasureAvailableCpuMemory() => (uint64 bytes);
 
-  // Get the amount of used memory on the device in bytes.
+  // Get the amount of memory used by the Cobalt process, in bytes. This is also
+  // known as the resident set size.
   [Sync]
   MeasureUsedCpuMemory() => (uint64 bytes);
 
