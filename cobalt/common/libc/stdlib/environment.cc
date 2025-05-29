@@ -83,6 +83,9 @@ void Environment::RebuildAndSetGlobalEnviron() {
 }
 
 char** Environment::InitializeGlobalEnviron() {
+  // Set the PATH environment variable, expected by `EnvironmentTest` from
+  // base:base_unittests to exist and not be an empty string.
+  setenv("PATH", "none", 0);
   RebuildAndSetGlobalEnviron();
   return ::environ;
 }
