@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_main_delegate.h"
+#include "cobalt/app/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
 #include "base/threading/hang_watcher.h"
