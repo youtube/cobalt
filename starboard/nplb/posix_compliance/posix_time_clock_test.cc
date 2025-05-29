@@ -54,16 +54,9 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
     GTEST_SKIP() << "Second call to clock() returned error.";
   }
 
-  EXPECT_GE(clock_val2, clock_val1)
-      << "Clock value decreased, which is unexpected. val1=" << clock_val1
-      << ", val2=" << clock_val2;
-
-  if (clock_val2 == clock_val1) {
-    SUCCEED() << "Note: clock_val2 (" << clock_val2 << ") == clock_val1 ("
-              << clock_val1 << "). This might be due to insufficient CPU work "
-              << "for the clock's resolution or the nature of clock() on this "
-                 "platform.";
-  }
+  EXPECT_GT(clock_val2, clock_val1)
+      << "Clock value did not increase, which is unexpected. val1="
+      << clock_val1 << ", val2=" << clock_val2;
 }
 
 TEST(PosixTimeClockTests, ClocksPerSecIsPositive) {
