@@ -24,9 +24,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/AudioOutputManager_jni.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -112,6 +110,4 @@ extern "C" SB_EXPORT_PLATFORM void JNI_AudioOutputManager_OnAudioDeviceChanged(
       ->ClearCachedMimeSupportabilities();
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

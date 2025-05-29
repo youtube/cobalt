@@ -164,9 +164,7 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
   env->ReleaseByteArrayElements(j_session_id, session_id_elements, JNI_ABORT);
 }
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -462,6 +460,4 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

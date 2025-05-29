@@ -29,9 +29,7 @@
 
 using starboard::android::shared::JniEnvExt;
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 const int kSampleRateInHz = 16000;
@@ -474,9 +472,7 @@ void SbMicrophoneImpl::ClearBuffer() {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 int SbMicrophonePrivate::GetAvailableMicrophones(
     SbMicrophoneInfo* out_info_array,

@@ -18,9 +18,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 TEST(VideoFrameTrackerTest, DroppedFrameCountIsCumulative) {
@@ -161,6 +159,4 @@ TEST(VideoFrameTrackerTest, UnorderedInputFramesAreHandled) {
 }
 
 }  // namespace
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
