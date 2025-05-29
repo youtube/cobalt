@@ -5,14 +5,14 @@
     "enabled": false
   },
   "platforms": [
-    "evergreen-arm-hardfp-sbversion-14",
-    "evergreen-arm-hardfp-sbversion-15",
-    "evergreen-arm-hardfp-sbversion-16"
+    "evergreen-rdk-arm-hardfp-sbversion-14",
+    "evergreen-rdk-arm-hardfp-sbversion-15",
+    "evergreen-rdk-arm-hardfp-sbversion-16"
   ],
   "includes": [
     {
       "name":"sbversion-14",
-      "platform":"evergreen-arm-hardfp-sbversion-14",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-14",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
@@ -23,7 +23,7 @@
     },
     {
       "name":"sbversion-15",
-      "platform":"evergreen-arm-hardfp-sbversion-15",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-15",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
@@ -34,7 +34,7 @@
     },
     {
       "name":"sbversion-16",
-      "platform":"evergreen-arm-hardfp-sbversion-16",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-16",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
