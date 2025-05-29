@@ -51,6 +51,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
     // rebasing to m120+
     switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
+    // Disable Zygote (a process fork utility); in turn needs sandbox disabled.
+    switches::kNoZygote,
     sandbox::policy::switches::kNoSandbox,
 });
 
