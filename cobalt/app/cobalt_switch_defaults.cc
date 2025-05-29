@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_switch_defaults.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
@@ -24,10 +24,14 @@
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
 
+<<<<<<< HEAD:cobalt/cobalt_switch_defaults.cc
 #if !BUILDFLAG(IS_ANDROID)
 #include "ui/gl/gl_switches.h"
+=======
+#if BUILDFLAG(IS_OZONE)
+>>>>>>> cc63091511f (cobalt: Move top-level //cobalt files to //cobalt/app (#5892)):cobalt/app/cobalt_switch_defaults.cc
 #include "ui/ozone/public/ozone_switches.h"
-#endif  // !BUILDFLAG(IS_ANDROID)
+#endif
 
 namespace {
 
@@ -58,9 +62,15 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
         {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
     // Force some ozone settings.
-#if !BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_OZONE)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
+<<<<<<< HEAD:cobalt/cobalt_switch_defaults.cc
 #endif  // !BUILDFLAG(IS_ANDROID)
+=======
+#endif
+        // Use passthrough command decoder.
+        {switches::kUseCmdDecoder, "passthrough"},
+>>>>>>> cc63091511f (cobalt: Move top-level //cobalt files to //cobalt/app (#5892)):cobalt/app/cobalt_switch_defaults.cc
         // Set the default size for the content shell/starboard window.
         {switches::kContentShellHostWindowSize, "1920x1080"},
         // Enable remote Devtools access.
