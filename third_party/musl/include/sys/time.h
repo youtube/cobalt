@@ -1,5 +1,8 @@
 #ifndef _SYS_TIME_H
 #define _SYS_TIME_H
+
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -57,9 +60,9 @@ int adjtime (const struct timeval *, struct timeval *);
 #endif
 
 #if _REDIR_TIME64
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __REDIR(gettimeofday, __gettimeofday_time64);
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 __REDIR(getitimer, __getitimer_time64);
 __REDIR(setitimer, __setitimer_time64);
 __REDIR(utimes, __utimes_time64);
