@@ -42,9 +42,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
@@ -133,6 +131,4 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   return env->NewStringStandardUTFOrAbort(ret);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
