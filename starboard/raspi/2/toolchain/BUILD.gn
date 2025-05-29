@@ -29,6 +29,7 @@ gcc_toolchain("starboard") {
     current_cpu = "arm"
     current_os = "linux"
     is_starboard = true
+    sysroot = "$raspi_home/busterroot"
   }
   propagates_configs = true
 }
