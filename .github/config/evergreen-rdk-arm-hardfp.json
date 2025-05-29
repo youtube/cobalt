@@ -2,7 +2,10 @@
   "docker_service": "build-rdk",
   "evergreen_loader": "rdk-arm",
   "on_device_test": {
-    "enabled": false
+    "enabled": true,
+    "tests": [
+      "0"
+    ]
   },
   "platforms": [
     "evergreen-arm-hardfp-sbversion-14",
