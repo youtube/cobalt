@@ -94,7 +94,6 @@ class CobaltTextToSpeechHelper
   }
 
   /** Returns whether a screen reader is currently enabled */
-  @SuppressWarnings("unused")
   @CalledByNative
   public boolean isScreenReaderEnabled() {
     AccessibilityManager am =
