@@ -111,3 +111,8 @@ enable_ppapi = false
 
 # Disable D-Bus
 use_dbus = false
+
+# Disable Linux hardware-accelerated video APIs explicitly.
+use_vaapi = false
+use_vaapi_x11 = false
+use_v4l2_codec = false
