@@ -13,7 +13,6 @@
 // limitations under the License.
 
 namespace starboard::android::shared::accessibility {
-namespace accessibility {
 // ATV no longer supports GetTextToSpeechSettings in Chrobalt,
 // Please reference starboard/android/shared/text_to_speech_helper.h for
 // supported text-to-speech APIs instead.
@@ -21,5 +20,4 @@ bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   return false;
 }
 
-}  // namespace accessibility
 }  // namespace starboard::android::shared::accessibility
