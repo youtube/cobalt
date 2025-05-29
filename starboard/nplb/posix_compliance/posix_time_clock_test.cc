@@ -25,6 +25,53 @@ namespace {
 
 const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
+// Work time long enough to ensure measurable CPU time usage.
+constexpr long kMinimumWorkTimeMicroseconds = 100'000;  // 100ms
+
+static int64_t TimespecToMicroseconds(const struct timespec& ts) {
+  return (static_cast<int64_t>(ts.tv_sec) * kMicrosecondsPerSecond) +
+         (static_cast<int64_t>(ts.tv_nsec) / 1'000LL);
+}
+
+// Helper function to do CPU work for until at least work_time_microseconds
+// elapsed on the monotonic wall clock. Return the elapsed time in microseconds.
+// Note: This function uses CLOCK_MONOTONIC to measure the elapsed
+// time, not the CPU time clock. This is intentional, as the goal is to
+// consume CPU time for a specific duration as measured by wall clock time.
+// The CPU time clock is then checked to see how much CPU time was actually
+// consumed.
+long ConsumeCpuForDuration(long work_time_microseconds) {
+  struct timespec ts_before = {};
+  int ret_before = clock_gettime(CLOCK_MONOTONIC, &ts_before);
+  // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
+  // value.
+  EXPECT_EQ(0, ret_before);
+  if (ret_before) {
+    return 0;
+  }
+  int64_t time_before_us = TimespecToMicroseconds(ts_before);
+  int64_t time_after_us = 0;
+  // Loop for at least 100ms to ensure some measurable CPU time is consumed.
+  // Using volatile to prevent compiler from optimizing away the loop.
+  volatile int_fast32_t counter_sum = 0;
+  do {
+    const int kCpuWorkIterations = 2'000'000;
+    for (int i = 0; i < kCpuWorkIterations; ++i) {
+      counter_sum += i;  // Simple work
+    }
+    struct timespec ts_after = {};
+    int ret_current = clock_gettime(CLOCK_MONOTONIC, &ts_after);
+    // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
+    // value.
+    EXPECT_EQ(0, ret_current);
+    if (ret_current) {
+      return 0;
+    }
+    time_after_us = TimespecToMicroseconds(ts_after);
+  } while ((time_after_us - time_before_us) < work_time_microseconds);
+  return time_after_us - time_before_us;
+}
+
 TEST(PosixTimeClockTests, ClockReturnsNonNegativeOrError) {
   clock_t start_clock = clock();
   if (start_clock == static_cast<clock_t>(-1)) {
@@ -42,12 +89,10 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
                  << "cannot perform time increase test.";
   }
 
-  // Consume some CPU time.
-  const int kCpuWorkIterations = 2000000;
-  std::atomic<int> counter(0);
-  for (int i = 0; i < kCpuWorkIterations; ++i) {
-    counter++;
-  }
+  long elapsed_time_us = ConsumeCpuForDuration(kMinimumWorkTimeMicroseconds);
+  EXPECT_GE(elapsed_time_us, kMinimumWorkTimeMicroseconds)
+      << "Elapsed time shorter than the minimum "
+      << kMinimumWorkTimeMicroseconds << " us";
 
   clock_t clock_val2 = clock();
   if (clock_val2 == static_cast<clock_t>(-1)) {
@@ -57,6 +102,14 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
   EXPECT_GT(clock_val2, clock_val1)
       << "Clock value did not increase, which is unexpected. val1="
       << clock_val1 << ", val2=" << clock_val2;
+
+  // Expect to have measured at least 75% of the work time as CPU time.
+  long measured_work_time =
+      kMicrosecondsPerSecond * (clock_val2 - clock_val1) / CLOCKS_PER_SEC;
+  long minimum_work_time = 0.75 * elapsed_time_us;
+  EXPECT_GE(measured_work_time, minimum_work_time)
+      << "Clock value should measure at least " << minimum_work_time
+      << " us, of " << elapsed_time_us << " us spent doing CPU work.";
 }
 
 TEST(PosixTimeClockTests, ClocksPerSecIsPositive) {

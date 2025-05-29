@@ -9,7 +9,7 @@ hidden static inline int __clock_gettime(clockid_t clockid,
   clock_gettime(clockid, tp);
 }
 #else
-hidden int __clock_gettime(clockid_t, struct timespec*);
+hidden int __clock_gettime(clockid_t, struct timespec *);
 #endif  // defined(STARBOARD)
 hidden int __clock_nanosleep(clockid_t, int, const struct timespec *, struct timespec *);
 
