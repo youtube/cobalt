@@ -172,7 +172,7 @@ TEST_P(AvailableClock, Succeeds) {
   ClockIsRequired requirement = std::get<1>(param);
   std::string clock_name = GetClockName(clock_id);
 
-  struct timespec ts{};
+  struct timespec ts {};
   errno = 0;
   int ret = clock_gettime(clock_id, &ts);
 
@@ -222,7 +222,7 @@ TEST_P(IncreasingClock, Increases) {
   ClockIsRequired requirement = std::get<1>(param);
   std::string clock_name = GetClockName(clock_id);
 
-  struct timespec ts_before{};
+  struct timespec ts_before {};
   errno = 0;
   int ret_before = clock_gettime(clock_id, &ts_before);
 
@@ -241,7 +241,7 @@ TEST_P(IncreasingClock, Increases) {
   nanosleep(&sleep_duration, NULL);
 
   errno = 0;
-  struct timespec ts_after{};
+  struct timespec ts_after {};
   ASSERT_EQ(0, clock_gettime(clock_id, &ts_after))
       << "Second clock_gettime(" << clock_name << ") failed. errno: " << errno
       << " " << strerror(errno);
@@ -287,7 +287,7 @@ TEST_P(MonotonicClock, IsMonotonic) {
   std::string clock_name = GetClockName(clock_id);
   const int kTrials = 1'000;
 
-  struct timespec ts_initial{};
+  struct timespec ts_initial {};
   errno = 0;
   int ret_initial = clock_gettime(clock_id, &ts_initial);
 
@@ -303,7 +303,7 @@ TEST_P(MonotonicClock, IsMonotonic) {
   int64_t initial_time = TimespecToMicroseconds(ts_initial);
 
   for (int trial = 0; trial < kTrials; ++trial) {
-    struct timespec ts_curr{};
+    struct timespec ts_curr {};
     errno = 0;
     ASSERT_EQ(0, clock_gettime(clock_id, &ts_curr))
         << "clock_gettime(" << clock_name << ") in loop failed for trial "
@@ -344,7 +344,7 @@ TEST_P(CpuTimeClock, Increases) {
   std::string clock_name = GetClockName(clock_id);
 
   errno = 0;
-  struct timespec ts_before{};
+  struct timespec ts_before {};
   int initial_ret = clock_gettime(clock_id, &ts_before);
   if (initial_ret == -1 && errno == EINVAL) {
     if (requirement == ClockIsRequired::OPTIONAL) {
@@ -362,7 +362,7 @@ TEST_P(CpuTimeClock, Increases) {
       << kMinimumWorkTimeMicroseconds << " us";
 
   errno = 0;
-  struct timespec ts_after{};
+  struct timespec ts_after {};
   ASSERT_EQ(0, clock_gettime(clock_id, &ts_after))
       << "Final clock_gettime(" << clock_name << ") failed. errno: " << errno
       << " " << strerror(errno);
@@ -392,7 +392,7 @@ INSTANTIATE_TEST_SUITE_P(
            info) { return GetClockName(std::get<0>(info.param)); });
 
 TEST(PosixTimeClockGettimeTests, ReturnsEinvalForInvalidClockId) {
-  struct timespec ts{};
+  struct timespec ts {};
   memset(&ts, 0, sizeof(ts));
 
   // A large positive integer unlikely to be a valid clock ID.
