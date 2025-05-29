@@ -294,8 +294,8 @@ shared_library("libchrobalt") {
     ]
   }
   sources = [
-    "//cobalt/cobalt_main_delegate.cc",
-    "//cobalt/cobalt_main_delegate.h",
+    "//cobalt/app/cobalt_main_delegate.cc",
+    "//cobalt/app/cobalt_main_delegate.h",
     "cobalt_library_loader.cc",
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
