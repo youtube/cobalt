@@ -19,9 +19,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/extension/graphics.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -92,6 +90,4 @@ const void* GetGraphicsApi() {
   return &kGraphicsApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

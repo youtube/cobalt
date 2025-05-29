@@ -22,9 +22,7 @@
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // The C++ encapsulation of the Java class AudioTrackBridge.
 class AudioTrackBridge {
@@ -95,8 +93,6 @@ class AudioTrackBridge {
   jobject j_audio_data_ = nullptr;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_

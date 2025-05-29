@@ -15,9 +15,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 bool IsSystemNetworkConnected() {
   JniEnvExt* env = JniEnvExt::Get();
@@ -26,9 +24,7 @@ bool IsSystemNetworkConnected() {
   return j_is_connected;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 bool SbSystemNetworkIsDisconnected() {
   return !starboard::android::shared::IsSystemNetworkConnected();

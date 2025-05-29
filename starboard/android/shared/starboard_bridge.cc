@@ -32,9 +32,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
@@ -296,6 +294,47 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   return limit_ad_tracking_java;
 }
 
+<<<<<<< HEAD
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
+=======
+SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
+std::string StarboardBridge::GetTimeZoneId(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> timezone_id_java =
+      Java_StarboardBridge_getTimeZoneId(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, timezone_id_java);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetDisplayDpi(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetDeviceResolution(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getDisplayDpi(env, j_starboard_bridge_);
+}
+
+bool StarboardBridge::IsNetworkConnected(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_isNetworkConnected(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::ReportFullyDrawn(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_reportFullyDrawn(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
+}
+}  // namespace starboard::android::shared
+>>>>>>> 748a7f041ad (Use nested namespace (#5908))
