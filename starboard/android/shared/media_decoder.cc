@@ -83,7 +83,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            SbDrmSystem drm_system)
     : media_type_(kSbMediaTypeAudio),
       host_(host),
-      drm_system_(static_cast<DrmSystem*>(drm_system)),
+      drm_system_(static_cast<MediaDrmBridge*>(drm_system)),
       tunnel_mode_enabled_(false),
       condition_variable_(mutex_) {
   SB_DCHECK(host_);
@@ -126,7 +126,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            std::string* error_message)
     : media_type_(kSbMediaTypeVideo),
       host_(host),
-      drm_system_(static_cast<DrmSystem*>(drm_system)),
+      drm_system_(static_cast<MediaDrmBridge*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
       tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       condition_variable_(mutex_) {

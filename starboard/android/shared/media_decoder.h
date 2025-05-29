@@ -23,8 +23,8 @@
 #include <string>
 #include <vector>
 
-#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
@@ -176,7 +176,7 @@ class MediaDecoder final
 
   const SbMediaType media_type_;
   Host* host_;
-  DrmSystem* const drm_system_;
+  MediaDrmBridge* const drm_system_;
   const FrameRenderedCB frame_rendered_cb_;
   const bool tunnel_mode_enabled_;
 

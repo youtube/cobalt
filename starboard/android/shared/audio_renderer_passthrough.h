@@ -21,7 +21,7 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_track_bridge.h"
-#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"

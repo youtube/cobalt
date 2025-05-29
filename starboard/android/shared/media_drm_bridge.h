@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
-#define STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
+#ifndef STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
+#define STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
 
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 
@@ -34,15 +34,16 @@
 
 namespace starboard::android::shared {
 
-class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
+class MediaDrmBridge : public ::SbDrmSystemPrivate, private Thread {
  public:
-  DrmSystem(const char* key_system,
-            void* context,
-            SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback,
-            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
+  MediaDrmBridge(
+      const char* key_system,
+      void* context,
+      SbDrmSessionUpdateRequestFunc update_request_callback,
+      SbDrmSessionUpdatedFunc session_updated_callback,
+      SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-  ~DrmSystem() override;
+  ~MediaDrmBridge() override;
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
@@ -133,4 +134,4 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
 
 }  // namespace starboard::android::shared
 
-#endif  // STARBOARD_ANDROID_SHARED_DRM_SYSTEM_H_
+#endif  // STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_

@@ -78,7 +78,7 @@ AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
       enable_flush_during_seek_(enable_flush_during_seek),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
-      drm_system_(static_cast<DrmSystem*>(drm_system)) {
+      drm_system_(static_cast<MediaDrmBridge*>(drm_system)) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }
