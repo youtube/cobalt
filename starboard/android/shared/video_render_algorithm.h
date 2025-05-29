@@ -55,6 +55,8 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   double playback_rate_ = 1.0;
   VideoFrameReleaseTimeHelper video_frame_release_time_helper_;
   int dropped_frames_ = 0;
+  bool first_frame_released_ = false;
+  int64_t seek_to_time_ = 0;  // microseconds
 };
 
 }  // namespace shared
