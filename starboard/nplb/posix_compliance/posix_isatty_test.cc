@@ -115,6 +115,7 @@ TEST_F(PosixIsattyTest, HandlesValidDuplicateFd) {
   int fd = dup(STDIN_FILENO);
   EXPECT_TRUE(isatty(fd));
   EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
+  close(fd);
 }
 
 // Tests that isatty() does not recognize a duplicate of an invalid file
@@ -133,6 +134,7 @@ TEST_F(PosixIsattyTest, HandlesInvalidDuplicateFd) {
       << "Expected 0 or ENOTTY, got " << strerror(errno);
 
   close(fd);
+  close(fd_copy);
 }
 
 // Tests that isatty() doesn't recognize a pipe as a tty.
