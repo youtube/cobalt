@@ -138,7 +138,7 @@ TEST_P(AvailableClock, Succeeds) {
 
   if (ret == -1 && errno == EINVAL) {
     if (requirement == ClockIsRequired::OPTIONAL) {
-      // This is a succesful test result for optional clocks.
+      // This is a successful test result for optional clocks.
       return;
     }
   }
@@ -316,8 +316,7 @@ TEST_P(CpuTimeClock, Increases) {
       << "Initial clock_gettime(" << clock_name << ") failed. errno: " << errno
       << " " << strerror(errno);
 
-  long elapsed_time_us =
-      ConsumeCpuForDuration(kMinimumWorkTimeMicroseconds);
+  long elapsed_time_us = ConsumeCpuForDuration(kMinimumWorkTimeMicroseconds);
   EXPECT_GE(elapsed_time_us, kMinimumWorkTimeMicroseconds)
       << "Elapsed time shorter than the minimum "
       << kMinimumWorkTimeMicroseconds << " us";
