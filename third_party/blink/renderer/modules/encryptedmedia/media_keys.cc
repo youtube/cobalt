@@ -443,20 +443,14 @@ ScriptPromise MediaKeys::getStatusForPolicy(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
-  if (!cdm_) {
-    LOG(WARNING) << "Calling MediaKeys::getMetrics without a CDM";
+  std::string metrics;
+  if (!cdm_ || !cdm_->GetMetrics(metrics)) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
-        "Calling MediaKeys::getMetrics without a CDM");
+        !cdm_ ? "No active CDM" : "GetMetrics() failed");
     return WebString();
   }
-  std::string metrics;
-  if (cdm_->GetMetrics(metrics)) {
-    return WebString::FromUTF8(metrics);
-  }
-  exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                    "CDM returned empty GetMetrics()");
-  return WebString();
+  return WebString::FromUTF8(metrics);
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
