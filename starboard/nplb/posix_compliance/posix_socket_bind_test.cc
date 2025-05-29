@@ -23,10 +23,10 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketBindTest, RainyDayNullSocket) {
-  int port = htons(PosixGetPortNumberForTests());
+  const int port = htons(PosixGetPortNumberForTests());
   sockaddr_in address = {};
   address.sin_family = AF_INET;
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(bind(invalid_socket_fd, reinterpret_cast<sockaddr*>(&address),
                     sizeof(sockaddr_in)) == 0);
 }
@@ -41,7 +41,7 @@ TEST(PosixSocketBindTest, RainyDayNullAddress) {
 }
 
 TEST(PosixSocketBindTest, RainyDayNullNull) {
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(bind(invalid_socket_fd, NULL, 0) == 0);
 }
 
@@ -87,9 +87,9 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(PosixGetPortNumberForTests());
 
-  int socket_domain = AF_INET;
-  int socket_type = SOCK_STREAM;
-  int socket_protocol = IPPROTO_TCP;
+  const int socket_domain = AF_INET;
+  const int socket_type = SOCK_STREAM;
+  const int socket_protocol = IPPROTO_TCP;
 
   int socket_fd = socket(socket_domain, socket_type, socket_protocol);
   ASSERT_TRUE(socket_fd > 0);
@@ -102,17 +102,14 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
 TEST(PosixSocketBindTest, SunnyDayAnyAddr) {
   // Even though that failed, binding the same socket now with 0.0.0.0:2048
   // should work.
-  sockaddr_in address = {};
-  address.sin_family = AF_INET;
-  address.sin_port = htons(PosixGetPortNumberForTests());
-  address.sin_addr.s_addr = INADDR_ANY;
+  const sockaddr_in address = {AF_INET, htons(PosixGetPortNumberForTests()), {INADDR_ANY}};
 
-  int socket_domain = AF_INET;
-  int socket_type = SOCK_STREAM;
-  int socket_protocol = IPPROTO_TCP;
+  const int socket_domain = AF_INET;
+  const int socket_type = SOCK_STREAM;
+  const int socket_protocol = IPPROTO_TCP;
   int socket_fd = socket(socket_domain, socket_type, socket_protocol);
   ASSERT_TRUE(socket_fd > 0);
-  EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
+  EXPECT_TRUE(bind(socket_fd, reinterpret_cast<const sockaddr*>(&address),
                    sizeof(sockaddr_in)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
 }

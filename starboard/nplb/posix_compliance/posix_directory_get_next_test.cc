@@ -38,7 +38,7 @@ bool FileExists(const char* path) {
 
 TEST(PosixDirectoryGetNextTest, SunnyDay) {
   const int kNumFiles = 65;
-  ScopedRandomFile files[kNumFiles];
+  const ScopedRandomFile files[kNumFiles];
 
   std::string directory_name = files[0].filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
@@ -96,7 +96,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
-  std::string testdata_dir = GetFileTestsDataDir();
+  const std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))
       << "Missing directory: " << testdata_dir;
@@ -172,9 +172,9 @@ TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
 
 TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   // Ensure there's at least one file in the directory.
-  ScopedRandomFile file;
+  const ScopedRandomFile file;
 
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   EXPECT_TRUE(FileExists(path.c_str())) << "Directory is " << path;
 
@@ -188,7 +188,7 @@ TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
 }
 
 TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
-  ScopedRandomFile file;
+  const ScopedRandomFile file;
   std::string directory_name = file.filename();
   directory_name.resize(directory_name.find_last_of(kSbFileSepChar));
   EXPECT_TRUE(FileExists(directory_name.c_str()))
@@ -200,7 +200,7 @@ TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {
   for (int i = 0; i < kSbFileMaxName; i++) {
     entry[i] = i;
   }
-  std::vector<char> entry_copy = entry;
+  const std::vector<char> entry_copy = entry;
 
   struct dirent dirent_buffer;
   struct dirent* dirent;

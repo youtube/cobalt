@@ -23,7 +23,7 @@ int CreateMulticastSocket(const struct ip_mreq& address) {
   int socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   EXPECT_NE(-1, socket_fd);
 
-  int reuse = 1;
+  const int reuse = 1;
   EXPECT_NE(-1, setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
                            sizeof(reuse)));
 
@@ -46,7 +46,7 @@ int CreateSendSocket() {
   int socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   EXPECT_NE(-1, socket_fd);
 
-  int reuse = 1;
+  const int reuse = 1;
   EXPECT_NE(-1, setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse,
                            sizeof(reuse)));
   return socket_fd;
@@ -112,7 +112,7 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
 
   struct sockaddr_in receive_address;
   socklen_t receive_address_len = sizeof(receive_address);
-  int64_t stop_time = CurrentMonotonicTime() + 1'000'000LL;
+  const int64_t stop_time = CurrentMonotonicTime() + 1'000'000LL;
 
   while (true) {
     // Breaks the case where the test will hang in a loop when

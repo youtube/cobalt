@@ -28,7 +28,7 @@ void BasicTest(bool existing,
                bool expected_success,
                int original_line,
                mode_t mode = S_IRUSR | S_IWUSR) {
-  ScopedRandomFile random_file(existing ? ScopedRandomFile::kCreate
+  const ScopedRandomFile random_file(existing ? ScopedRandomFile::kCreate
                                         : ScopedRandomFile::kDontCreate);
   const std::string& filename = random_file.filename();
 #define SB_FILE_OPEN_TEST_CONTEXT                                      \
@@ -39,7 +39,7 @@ void BasicTest(bool existing,
 
   if (!existing) {
     struct stat file_info;
-    bool file_exists = stat(filename.c_str(), &file_info) == 0;
+    const bool file_exists = stat(filename.c_str(), &file_info) == 0;
     EXPECT_FALSE(file_exists) << SB_FILE_OPEN_TEST_CONTEXT;
     if (file_exists) {
       return;
@@ -60,7 +60,7 @@ void BasicTest(bool existing,
   } else {
     EXPECT_TRUE(fd >= 0);
     if (fd >= 0) {
-      int result = close(fd);
+      const int result = close(fd);
       EXPECT_TRUE(result == 0) << SB_FILE_OPEN_TEST_CONTEXT;
     }
   }

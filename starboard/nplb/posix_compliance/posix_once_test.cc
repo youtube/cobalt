@@ -145,7 +145,7 @@ int* GetIntSingleton() {
 }
 
 TEST(PosixOnceTest, InitializeOnceMacroFunction) {
-  int* int_singelton = GetIntSingleton();
+  int* const int_singelton = GetIntSingleton();
   ASSERT_TRUE(int_singelton);
   EXPECT_EQ(*int_singelton, 0)
       << "Singleton Macro does not default initialize.";

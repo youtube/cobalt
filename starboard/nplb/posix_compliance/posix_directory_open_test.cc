@@ -31,7 +31,7 @@ void ExpectFileExists(const char* path) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -49,7 +49,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -59,7 +59,7 @@ TEST(PosixDirectoryOpenTest, SunnyDayWithNullError) {
 }
 
 TEST(PosixDirectoryOpenTest, ManySunnyDay) {
-  std::string path = GetTempDir();
+  const std::string path = GetTempDir();
   EXPECT_FALSE(path.empty());
   ExpectFileExists(path.c_str());
 
@@ -82,7 +82,7 @@ TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   ExpectFileExists(path.c_str());
 
   // Funny way to make sure the directory seems valid but doesn't exist.
-  int len = static_cast<int>(path.length());
+  const int len = static_cast<int>(path.length());
   if (path[len - 1] != 'z') {
     path[len - 1] = 'z';
   } else {
@@ -108,7 +108,7 @@ TEST(PosixDirectoryOpenTest, FailsEmptyPath) {
 }
 
 TEST(PosixDirectoryOpenTest, FailsRegularFile) {
-  ScopedRandomFile file;
+  const ScopedRandomFile file;
 
   DIR* directory = opendir(file.filename().c_str());
   EXPECT_FALSE(directory != NULL);

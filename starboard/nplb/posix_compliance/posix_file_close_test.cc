@@ -23,7 +23,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixFileCloseTest, CloseInvalidFails) {
-  int fd = -1;
+  const int fd = -1;
   EXPECT_FALSE(close(fd) == 0);
 }
 

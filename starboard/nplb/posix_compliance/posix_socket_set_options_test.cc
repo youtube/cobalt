@@ -27,19 +27,19 @@ class PosixSocketSetOptionsTest : public ::testing::TestWithParam<int> {
 TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
   int socket_fd = socket(GetSocketDomain(), SOCK_STREAM, IPPROTO_TCP);
 
-  int true_val = 1;
+  const int true_val = 1;
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &true_val,
                        sizeof(true_val)),
             0);
 
-  int value = 16 * 1024;
+  const int value = 16 * 1024;
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)),
             0);
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)),
             0);
 
   // Test TCP keepalive option.
-  int period_seconds = static_cast<int>(30'000'000 / 1'000'000);
+  const int period_seconds = static_cast<int>(30'000'000 / 1'000'000);
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_KEEPALIVE, &true_val,
                        sizeof(true_val)),
             0);
@@ -69,7 +69,7 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
 TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
   int socket_fd = socket(GetSocketDomain(), SOCK_DGRAM, IPPROTO_UDP);
 
-  int true_val = 1;
+  const int true_val = 1;
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_BROADCAST, &true_val,
                        sizeof(true_val)),
             0);
@@ -77,7 +77,7 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
                        sizeof(true_val)),
             0);
 
-  int value = 16 * 1024;
+  const int value = 16 * 1024;
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)),
             0);
   EXPECT_EQ(setsockopt(socket_fd, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)),
@@ -87,12 +87,12 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllUDP) {
 }
 
 TEST_P(PosixSocketSetOptionsTest, RainyDayInvalidSocket) {
-  int true_val = 1;
+  const int true_val = 1;
   EXPECT_EQ(
       setsockopt(-1, SOL_SOCKET, SO_REUSEADDR, &true_val, sizeof(true_val)),
       -1);
 
-  int value = 16 * 1024;
+  const int value = 16 * 1024;
   EXPECT_EQ(setsockopt(-1, SOL_SOCKET, SO_RCVBUF, &value, sizeof(value)), -1);
   EXPECT_EQ(setsockopt(-1, SOL_SOCKET, SO_SNDBUF, &value, sizeof(value)), -1);
 

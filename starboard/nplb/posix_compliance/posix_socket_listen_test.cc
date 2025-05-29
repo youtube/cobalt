@@ -22,7 +22,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketListenTest, RainyDayInvalid) {
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(listen(invalid_socket_fd, kMaxConn) == 0);
 }
 

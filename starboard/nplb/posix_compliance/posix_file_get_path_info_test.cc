@@ -49,10 +49,10 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
     // We can't assume filesystem timestamp precision, so go back a minute
     // for a better chance to contain the imprecision and rounding errors.
     const int64_t kOneMinuteInMicroseconds = 60'000'000;
-    int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
+    const int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
 
     const int kFileSize = 12;
-    ScopedRandomFile random_file(kFileSize);
+    const ScopedRandomFile random_file(kFileSize);
     const std::string& filename = random_file.filename();
 
     {
@@ -73,13 +73,13 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
 
 TEST(PosixFileGetPathInfoTest, WorksOnADirectory) {
   std::vector<char> path(kSbFileMaxPath);
-  bool result =
+  const bool result =
       SbSystemGetPath(kSbSystemPathTempDirectory, path.data(), kSbFileMaxPath);
   EXPECT_TRUE(result);
 
   {
     struct stat file_info;
-    bool result = stat(path.data(), &file_info) == 0;
+    const bool result = stat(path.data(), &file_info) == 0;
     EXPECT_LE(0, file_info.st_size);
     EXPECT_TRUE(S_ISDIR(file_info.st_mode));
     EXPECT_FALSE(S_ISLNK(file_info.st_mode));
@@ -93,7 +93,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
   for (auto filename : GetFileTestsFilePaths()) {
     struct stat info;
     EXPECT_TRUE(stat(filename.c_str(), &info) == 0);
-    size_t content_length = GetTestFileExpectedContent(filename).length();
+    const size_t content_length = GetTestFileExpectedContent(filename).length();
     EXPECT_EQ(content_length, info.st_size);
     EXPECT_FALSE(S_ISDIR(info.st_mode));
     EXPECT_FALSE(S_ISLNK(info.st_mode));

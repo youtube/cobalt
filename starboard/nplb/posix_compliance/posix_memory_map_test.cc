@@ -55,7 +55,7 @@ TEST(PosixMemoryMapTest, CanReadWriteToResult) {
   void* memory = mmap(nullptr, kSize, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANON, -1, 0);
   ASSERT_NE(kFailed, memory);
-  char* data = static_cast<char*>(memory);
+  char* const data = static_cast<char*>(memory);
   for (int i = 0; i < kSize; ++i) {
     data[i] = static_cast<char>(i);
   }
@@ -112,7 +112,7 @@ CopySumFunctionIntoMemory(void* memory) {
   // MIPS32 instructions. Most other instructions are aligned to at least even
   // addresses, so this code should do nothing for those architectures.
   // https://www.linux-mips.org/wiki/MIPS16
-  ptrdiff_t sum_function_offset =
+  const ptrdiff_t sum_function_offset =
       sum_function_start -
       reinterpret_cast<uint8_t*>(
           reinterpret_cast<uintptr_t>(sum_function_start) & ~0x1);
@@ -141,7 +141,7 @@ CopySumFunctionIntoMemory(void* memory) {
                            nullptr, nullptr);
   }
 
-  size_t bytes_to_copy = sum_function_page_end - sum_function_start;
+  const size_t bytes_to_copy = sum_function_page_end - sum_function_start;
   if (bytes_to_copy > kSbMemoryPageSize) {
     return std::make_tuple(
         ::testing::AssertionFailure()
@@ -152,7 +152,7 @@ CopySumFunctionIntoMemory(void* memory) {
 
   memcpy(memory, sum_function_start, bytes_to_copy);
 
-  SumFunction mapped_function = reinterpret_cast<SumFunction>(
+  SumFunction const mapped_function = reinterpret_cast<SumFunction>(
       reinterpret_cast<uint8_t*>(memory) + sum_function_offset);
 
   return std::make_tuple(::testing::AssertionSuccess(), mapped_function,
@@ -190,7 +190,7 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
         // protections if we have write permissions either now or then, because
         // we have to actually put a valid function into the mapped memory.
         if (from_flags & PROT_WRITE) {
-          auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
+          const auto copy_sum_function_result = CopySumFunctionIntoMemory(memory);
           ASSERT_TRUE(std::get<0>(copy_sum_function_result));
           mapped_function = std::get<1>(copy_sum_function_result);
           original_function = std::get<2>(copy_sum_function_result);

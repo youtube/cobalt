@@ -33,7 +33,7 @@ TEST(PosixErrnoTest, CreateInvalidSocket) {
 }
 
 TEST(PosixErrnoTest, AcceptInvalidSocket) {
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(accept(invalid_socket_fd, NULL, NULL) == 0);
   EXPECT_TRUE(errno == EBADF);
   SB_DLOG(INFO) << "Failed to accept invalid socket, errno = "

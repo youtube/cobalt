@@ -22,7 +22,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketConnectTest, RainyDayNullNull) {
-  int invalid_socket = -1;
+  const int invalid_socket = -1;
   EXPECT_FALSE(connect(invalid_socket, NULL, 0) == 0);
 }
 
@@ -32,7 +32,7 @@ TEST(PosixSocketConnectTest, RainyDayNullSocket) {
   address.sin_family = AF_INET;
   address.sin_port = 2048;
 
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(connect(invalid_socket_fd, reinterpret_cast<sockaddr*>(&address),
                        sizeof(sockaddr_in)) == 0);
 }
@@ -49,7 +49,7 @@ TEST(PosixSocketConnectTest, RainyDayNullAddress) {
 
 TEST(PosixSocketConnectTest, SunnyDayConnectToServer) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  int result = PosixSocketCreateAndConnect(
+  const int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
@@ -60,7 +60,7 @@ TEST(PosixSocketConnectTest, SunnyDayConnectToServer) {
 
 TEST(PosixSocketConnectTest, SunnyDayConnectToServerAgain) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  int result = PosixSocketCreateAndConnect(
+  const int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);

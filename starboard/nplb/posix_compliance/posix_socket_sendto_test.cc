@@ -29,10 +29,10 @@ namespace {
 
 void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // The contents of this buffer are inconsequential.
-  struct trio_socket_fd* trio_ptr =
+  struct trio_socket_fd* const trio_ptr =
       reinterpret_cast<struct trio_socket_fd*>(trio_as_void_ptr);
   const size_t kBufSize = 1024;
-  char* send_buf = new char[kBufSize];
+  char* const send_buf = new char[kBufSize];
   memset(send_buf, 0, kBufSize);
 
   pthread_setname_np(pthread_self(), "SendToTest");
@@ -56,9 +56,9 @@ void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
 
 TEST(PosixSocketSendtoTest, RainyDayInvalidSocket) {
   char buf[16];
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
 
-  ssize_t bytes_written =
+  const ssize_t bytes_written =
       sendto(invalid_socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 }
@@ -68,7 +68,7 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
   ASSERT_TRUE(socket_fd >= 0);
 
   char buf[16];
-  ssize_t bytes_written =
+  const ssize_t bytes_written =
       sendto(socket_fd, buf, sizeof(buf), kSendFlags, NULL, 0);
   EXPECT_FALSE(bytes_written >= 0);
 
@@ -81,7 +81,7 @@ TEST(PosixSocketSendtoTest, RainyDayUnconnectedSocket) {
 
 TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  int result = PosixSocketCreateAndConnect(
+  const int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
@@ -90,7 +90,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(close(listen_socket_fd) == 0);
   listen_socket_fd = -1;
 
-  struct trio_socket_fd trio_as_void_ptr = {
+  const struct trio_socket_fd trio_as_void_ptr = {
       &listen_socket_fd, &client_socket_fd, &server_socket_fd};
 
   // Start a thread to write to the client socket.
@@ -170,6 +170,7 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketUntilBlocking) {
 // up as a connection reset error.
 TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
   static const int kChunkSize = 1024;
+  const int kNumRetries = 1000;
   int result = -1;
 
   // create listen socket, bind and listen on <port>
@@ -185,7 +186,6 @@ TEST(PosixSocketSendtoTest, RainyDaySendToSocketConnectionReset) {
 
   // Expect that after some retries the client socket will return that the
   // connection will reset.
-  int kNumRetries = 1000;
   for (int i = 0; i < kNumRetries; ++i) {
     char buff[kChunkSize] = {};
     usleep(1000);

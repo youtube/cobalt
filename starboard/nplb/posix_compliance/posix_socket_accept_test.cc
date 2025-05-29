@@ -27,7 +27,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketAcceptTest, RainyDayInvalidSocket) {
-  int invalid_socket_fd = -1;
+  const int invalid_socket_fd = -1;
   EXPECT_FALSE(accept(invalid_socket_fd, NULL, NULL) == 0);
 }
 
@@ -73,7 +73,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
 
   // Don't create a socket to connect to it.
   // Spin briefly to ensure that it won't accept.
-  int64_t start = CurrentMonotonicTime();
+  const int64_t start = CurrentMonotonicTime();
   int accepted_socket_fd = 0;
   while (true) {
     accepted_socket_fd = accept(socket_listen_fd, NULL, NULL);

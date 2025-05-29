@@ -57,7 +57,7 @@ const int kBufferLength = 16 * 1024;
 
 TYPED_TEST(PosixFileReadTest, InvalidFileErrors) {
   char buffer[kBufferLength];
-  int result = TypeParam::Read(-1, buffer, kBufferLength);
+  const int result = TypeParam::Read(-1, buffer, kBufferLength);
   EXPECT_EQ(-1, result);
 }
 
@@ -65,7 +65,7 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
   // Create a pattern file that is not an even multiple of the buffer size,
   // but is over several times the size of the buffer.
   const int kFileSize = kBufferLength * 16 / 3;
-  ScopedRandomFile random_file(kFileSize);
+  const ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
@@ -122,13 +122,13 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
     EXPECT_EQ('\xCD', real_buffer[i]);
   }
 
-  bool result = close(file);
+  const bool result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
 TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
   const int kFileSize = kBufferLength;
-  ScopedRandomFile random_file(kFileSize);
+  const ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
@@ -156,13 +156,13 @@ TYPED_TEST(PosixFileReadTest, ReadZeroBytes) {
     EXPECT_EQ('\xCD', real_buffer[i]);
   }
 
-  int result = close(file);
+  const int result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
 TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
   const int kFileSize = kBufferLength * 2;
-  ScopedRandomFile random_file(kFileSize);
+  const ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
 
   int file = open(filename.c_str(), O_RDONLY);
@@ -183,7 +183,7 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
   // Read from the middle of the file.
   int position = static_cast<int>(lseek(file, kFileSize / 4, SEEK_SET));
   EXPECT_EQ(kFileSize / 4, position);
-  int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
+  const int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_GE(kBufferLength, bytes_read);
   EXPECT_LT(0, bytes_read);
 
@@ -203,7 +203,7 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
     }
   }
 
-  int result = close(file);
+  const int result = close(file);
   EXPECT_TRUE(result == 0);
 }
 
@@ -261,7 +261,7 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
 
     EXPECT_EQ(GetTestFileExpectedContent(filename), content);
 
-    int result = close(file);
+    const int result = close(file);
     EXPECT_TRUE(result == 0);
   }
 }

@@ -30,7 +30,7 @@ TEST(PosixSocketResolveTest, SunnyDay) {
   struct addrinfo hints = {0};
   struct addrinfo* ai = nullptr;
 
-  int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+  const int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
@@ -63,7 +63,7 @@ TEST(PosixSocketResolveTest, SunnyDaySocketType) {
   hints.ai_socktype = SOCK_DGRAM;
   struct addrinfo* ai = nullptr;
 
-  int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+  const int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
@@ -81,7 +81,7 @@ TEST(PosixSocketResolveTest, SunnyDayFamily) {
   hints.ai_family = AF_INET6;
   struct addrinfo* ai = nullptr;
 
-  int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+  const int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
@@ -111,7 +111,7 @@ TEST(PosixSocketResolveTest, SunnyDayFlags) {
     hints.ai_socktype = SOCK_STREAM;
     struct addrinfo* ai = nullptr;
 
-    int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+    const int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
     EXPECT_EQ(result, 0);
     ASSERT_NE(nullptr, ai);
 
@@ -133,7 +133,7 @@ TEST(PosixSocketResolveTest, SunnyDayProtocol) {
     hints.ai_protocol = protocol;
     struct addrinfo* ai = nullptr;
 
-    int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
+    const int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
     EXPECT_EQ(result, 0);
     ASSERT_NE(nullptr, ai);
 
@@ -149,7 +149,7 @@ TEST(PosixSocketResolveTest, Localhost) {
   struct addrinfo hints = {0};
   struct addrinfo* ai = nullptr;
 
-  int result = getaddrinfo(kLocalhost, 0, &hints, &ai);
+  const int result = getaddrinfo(kLocalhost, 0, &hints, &ai);
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 

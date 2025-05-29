@@ -65,7 +65,7 @@ TEST(PosixSocketReceiveTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
-  int result = PosixSocketCreateAndConnect(
+  const int result = PosixSocketCreateAndConnect(
       AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
@@ -78,8 +78,8 @@ TEST(PosixSocketReceiveTest, SunnyDay) {
 
   // Create the buffers and fill the send buffer with a pattern, the receive
   // buffer with zeros.
-  char* send_buf = new char[kBufSize];
-  char* receive_buf = new char[kBufSize];
+  char* const send_buf = new char[kBufSize];
+  char* const receive_buf = new char[kBufSize];
   for (int i = 0; i < kBufSize; ++i) {
     send_buf[i] = static_cast<char>(i);
     receive_buf[i] = 0;
