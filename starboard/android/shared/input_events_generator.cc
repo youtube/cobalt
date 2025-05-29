@@ -961,6 +961,4 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
                              &Application::DeleteDestructor<SbInputData>)));
 }
 
-}  // namespace shared
 }  // namespace starboard::android::shared
-}  // namespace starboard

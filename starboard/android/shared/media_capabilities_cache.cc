@@ -683,7 +683,6 @@ Java_dev_cobalt_util_DisplayUtil_nativeOnDisplayChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-<<<<<<< HEAD
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
   // Audio output device change could change passthrough decoder capabilities,
@@ -692,9 +691,4 @@ Java_dev_cobalt_media_AudioOutputManager_nativeOnAudioDeviceChanged() {
   MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
-=======
 }  // namespace starboard::android::shared
->>>>>>> 748a7f041ad (Use nested namespace (#5908))
