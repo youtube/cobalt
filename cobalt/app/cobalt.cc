@@ -27,9 +27,14 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
+<<<<<<< HEAD:cobalt/cobalt.cc
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_switch_defaults.h"
 #include "cobalt/platform_event_source_starboard.h"
+=======
+#include "cobalt/app/cobalt_main_delegate.h"
+#include "cobalt/app/cobalt_switch_defaults.h"
+>>>>>>> cc63091511f (cobalt: Move top-level //cobalt files to //cobalt/app (#5892)):cobalt/app/cobalt.cc
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/shell/browser/shell.h"

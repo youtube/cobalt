@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "base/android/jni_android.h"
-#include "cobalt/cobalt_main_delegate.h"
+#include "cobalt/app/cobalt_main_delegate.h"
 #include "content/public/app/content_jni_onload.h"
 #include "content/public/app/content_main.h"
 
