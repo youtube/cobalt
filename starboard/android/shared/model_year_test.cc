@@ -16,9 +16,7 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 namespace {
 
 TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
@@ -38,6 +36,4 @@ TEST(ModelYearTest, YearIsFourDigitsOrUnknown) {
 }
 
 }  // namespace
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

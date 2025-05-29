@@ -23,9 +23,7 @@
 #include "starboard/media.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO(cobalt, b/372559388): Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -97,8 +95,6 @@ class AudioTrackBridge {
   ScopedJavaGlobalRef<jobject> j_audio_data_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
