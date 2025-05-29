@@ -33,43 +33,46 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre", switches::kNoFirstRun, switches::kKioskMode,
-      // Enable Blink to work in overlay video mode
-      switches::kForceVideoOverlays,
-      // Disable multiprocess mode.
-      switches::kSingleProcess,
-      // Hide content shell toolbar.
-      switches::kContentShellHideToolbar,
-      // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
-      // to enable it.
-      switches::kIgnoreGpuBlocklist,
+    // Disable first run experience, kiosk, etc.
+    "disable-fre",
+    switches::kNoFirstRun,
+    switches::kKioskMode,
+    // Enable Blink to work in overlay video mode
+    switches::kForceVideoOverlays,
+    // Disable multiprocess mode.
+    switches::kSingleProcess,
+    // Hide content shell toolbar.
+    switches::kContentShellHideToolbar,
+    // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
+    // to enable it.
+    switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
-      // This flag is added specifically for m114 and should be removed after
-      // rebasing to m120+
-      switches::kUserLevelMemoryPressureSignalParams,
+    // This flag is added specifically for m114 and should be removed after
+    // rebasing to m120+
+    switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-      sandbox::policy::switches::kNoSandbox
+    sandbox::policy::switches::kNoSandbox,
 });
 
 // Map of switches with parameters and their defaults.
 const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
-    // Disable Vulkan.
-    {switches::kDisableFeatures, "Vulkan"},
-        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
-    // Force some ozone settings.
+      // Disable Vulkan.
+      {switches::kDisableFeatures, "Vulkan"},
+      // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
+      {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
+  // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
-        {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
+      {switches::kUseGL, "angle"},
+      {switches::kUseANGLE, "gles-egl"},
 #endif
-        // Use passthrough command decoder.
-        {switches::kUseCmdDecoder, "passthrough"},
-        // Set the default size for the content shell/starboard window.
-        {switches::kContentShellHostWindowSize, "1920x1080"},
-        // Enable remote Devtools access.
-        {switches::kRemoteDebuggingPort, "9222"},
-        {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+      // Use passthrough command decoder.
+      {switches::kUseCmdDecoder, "passthrough"},
+      // Set the default size for the content shell/starboard window.
+      {switches::kContentShellHostWindowSize, "1920x1080"},
+      // Enable remote Devtools access.
+      {switches::kRemoteDebuggingPort, "9222"},
+      {switches::kRemoteAllowOrigins, "http://localhost:9222"},
   });
   return cobalt_param_switch_defaults;
 }
