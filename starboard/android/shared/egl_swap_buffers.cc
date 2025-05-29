@@ -20,13 +20,9 @@
 #include "starboard/android/shared/video_window.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 extern std::atomic_bool g_block_swapbuffers;
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 extern "C" {
 EGLBoolean __real_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);

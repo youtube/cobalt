@@ -22,9 +22,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -297,6 +295,4 @@ int AudioTrackBridge::GetStartThresholdInFrames(
                                    "getStartThresholdInFrames", "()I");
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

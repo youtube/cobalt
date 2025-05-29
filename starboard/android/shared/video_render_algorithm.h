@@ -21,9 +21,7 @@
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
                                  filter::VideoRenderAlgorithm {
@@ -57,8 +55,6 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
   int dropped_frames_ = 0;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_VIDEO_RENDER_ALGORITHM_H_
