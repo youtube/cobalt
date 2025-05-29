@@ -6,7 +6,11 @@
 
 /.github/  # no owners
 /cobalt/  # no owners
-/starboard/  @youtube/cobalt-starboard-owners  @youtube/cobalt-media
+/starboard/*.h  @youtube/cobalt-starboard-owners
+/starboard/sabi @youtube/cobalt-starboard-owners
+/starboard/elf_loader @youtube/cobalt-starboard-owners
+/starboard/loader_app @youtube/cobalt-starboard-owners
+/starboard/common @youtube/cobalt-starboard-owners
 /components/viz/service/display/starboard/  # no owners
 /ui/ozone/platform/starboard/  # no owners
 /cobalt/build/gn.py @youtube/cobalt-build
