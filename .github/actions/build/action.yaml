@@ -17,6 +17,7 @@ runs:
       run: |
         set -x
         env
+        extra_build_targets="${{matrix.extra_build_targets}}"
         if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
           BUILD_PLATFORM=${{ matrix.target_platform }}
           BUILD_TARGET=all
@@ -26,6 +27,10 @@ runs:
         else
           BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
           BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
+          if [ ! -z "${{matrix.evergreen_loader_extra_build_targets}}" ]
+          then
+            extra_build_targets="${{matrix.evergreen_loader_extra_build_targets}}"
+          fi
         fi
         # GitHub Runners have home set to /github/home.
         if [ -d /root/starboard-toolchains ]; then
@@ -33,7 +38,7 @@ runs:
         fi
         # Set Ninja output format
         NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET} ${extra_build_targets}
       shell: bash
     - name: Show Sccache Stats
       run: sccache -s

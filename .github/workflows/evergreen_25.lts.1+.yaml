@@ -56,3 +56,12 @@ jobs:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
+  evergreen-rdk-arm-hardfp:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: evergreen-rdk-arm-hardfp
+      nightly: ${{ github.event.inputs.nightly }}
+      run_api_leak_detector: true

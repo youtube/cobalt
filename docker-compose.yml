@@ -24,12 +24,6 @@ x-common-definitions: &common-definitions
 
 x-build-volumes: &build-volumes
   volumes:
-    # TODO(b/402053134): Mounting HOME and RDK_SDK is only needed to be able to access the
-    #                    RDK sysroot inside the container, once the RDK sysroot is publicly available
-    #                    these should be removed and the SDK extracted directly from the docker
-    #                    container (as done for e.g. raspi)
-    - ${HOME:-.}:${HOME}
-    - ${RDK_SDK:-.}:/root/rdk-home/
     - ${COBALT_SRC:-.}:/code/
     - android-debug-keystore:/root/.android/
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
