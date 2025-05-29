@@ -21,6 +21,7 @@
 #include <atomic>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <vector>
 
 namespace starboard {
@@ -121,6 +122,45 @@ long ConsumeCpuForDuration(long work_time_microseconds) {
   } while ((time_after_us - time_before_us) < work_time_microseconds);
   return time_after_us - time_before_us;
 }
+
+// A helper template to check for the existence of tv_sec
+template <typename T, typename = void>
+struct has_tv_sec : std::false_type {};
+
+template <typename T>
+struct has_tv_sec<T, std::void_t<decltype(T::tv_sec)>> : std::true_type {};
+
+// A helper template to check for the existence of tv_nsec
+template <typename T, typename = void>
+struct has_tv_nsec : std::false_type {};
+
+template <typename T>
+struct has_tv_nsec<T, std::void_t<decltype(T::tv_nsec)>> : std::true_type {};
+
+// Static assertions for struct timespec members
+static_assert(has_tv_sec<struct timespec>::value,
+              "struct timespec must have a 'tv_sec' member");
+static_assert(has_tv_nsec<struct timespec>::value,
+              "struct timespec must have a 'tv_nsec' member");
+
+// Assert that timespec::tv_sec is of type time_t
+static_assert(std::is_same_v<decltype(timespec::tv_sec), time_t>,
+              "The type of 'timespec::tv_sec' must be 'time_t'");
+
+// Assert that timespec::tv_nsec is of type long
+static_assert(std::is_same_v<decltype(timespec::tv_nsec), long>,
+              "The type of 'timespec::tv_nsec' must be 'long'");
+
+// TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
+// On non-hermetic builds, clock_gettime() is declared "noexcept".
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// Assert that clock_gettime has the signature:
+// int clock_gettime(clockid_t, struct timespec*)
+static_assert(
+    std::is_same_v<decltype(clock_gettime), int(clockid_t, struct timespec*)>,
+    "'clock_gettime' is not declared or does not have the signature "
+    "'int (clockid_t, struct timespec*)'");
+#endif
 
 class AvailableClock
     : public ::testing::TestWithParam<std::tuple<clockid_t, ClockIsRequired>> {

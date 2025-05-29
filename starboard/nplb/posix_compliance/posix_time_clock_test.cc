@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include <atomic>
+#include <type_traits>
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -71,6 +72,16 @@ long ConsumeCpuForDuration(long work_time_microseconds) {
   } while ((time_after_us - time_before_us) < work_time_microseconds);
   return time_after_us - time_before_us;
 }
+
+// TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
+// On non-hermetic builds, clock_gettime() is declared "noexcept".
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// Assert that clock has the signature:
+// clock_t clock(void)
+static_assert(std::is_same_v<decltype(clock), clock_t(void)>,
+              "'clock' is not declared or does not have the signature "
+              "'clock_t (void)'");
+#endif
 
 TEST(PosixTimeClockTests, ClockReturnsNonNegativeOrError) {
   clock_t start_clock = clock();
