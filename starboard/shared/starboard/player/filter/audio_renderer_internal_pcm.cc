@@ -35,16 +35,16 @@ namespace {
 class IdentityAudioResampler : public AudioResampler {
  public:
   IdentityAudioResampler() : eos_reached_(false) {}
-  scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> audio_data) override {
+  std::unique_ptr<DecodedAudio> Resample(
+      std::unique_ptr<DecodedAudio> audio_data) override {
     SB_DCHECK(!eos_reached_);
 
     return audio_data;
   }
-  scoped_refptr<DecodedAudio> WriteEndOfStream() override {
+  std::unique_ptr<DecodedAudio> WriteEndOfStream() override {
     SB_DCHECK(!eos_reached_);
     eos_reached_ = true;
-    return new DecodedAudio();
+    return std::make_unique<DecodedAudio>();
   }
 
  private:
@@ -597,9 +597,9 @@ void AudioRendererPcm::ProcessAudioData() {
       return;
     }
 
-    scoped_refptr<DecodedAudio> resampled_audio;
+    std::unique_ptr<DecodedAudio> resampled_audio;
     int decoded_audio_sample_rate;
-    scoped_refptr<DecodedAudio> decoded_audio =
+    std::unique_ptr<DecodedAudio> decoded_audio =
         decoder_->Read(&decoded_audio_sample_rate);
     SB_DCHECK(decoded_audio);
     if (!audio_renderer_sink_->HasStarted()) {
@@ -635,7 +635,7 @@ void AudioRendererPcm::ProcessAudioData() {
         continue;
       }
 
-      resampled_audio = resampler_->Resample(decoded_audio);
+      resampled_audio = resampler_->Resample(std::move(decoded_audio));
     }
 
     if (resampled_audio && resampled_audio->size_in_bytes() > 0) {
@@ -648,7 +648,7 @@ void AudioRendererPcm::ProcessAudioData() {
             kSbMediaAudioSampleTypeFloat32,
             kSbMediaAudioFrameStorageTypeInterleaved);
       }
-      time_stretcher_.EnqueueBuffer(resampled_audio);
+      time_stretcher_.EnqueueBuffer(std::move(resampled_audio));
     }
 
     // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
@@ -704,7 +704,7 @@ bool AudioRendererPcm::AppendAudioToFrameBuffer(bool* is_frame_buffer_full) {
 
   int offset_to_append = total_frames_sent_to_sink_ % max_cached_frames_;
 
-  scoped_refptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
+  std::unique_ptr<DecodedAudio> decoded_audio = time_stretcher_.Read(
       max_cached_frames_ - frames_in_buffer, playback_rate_);
   SB_DCHECK(decoded_audio);
 

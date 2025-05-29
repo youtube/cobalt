@@ -42,7 +42,7 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::unique_ptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
   void WriteEndOfStream() override;
 
@@ -71,10 +71,10 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   bool stream_ended_ = false;
   uint8_t output_buffer_[kMaxOutputBufferSizeInBytes];
 
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<std::unique_ptr<DecodedAudio>> decoded_audios_;
   // The DecodedAudio being filled up, will be appended to |decoded_audios_|
   // once it's fully filled (and |output_cb_| will be called).
-  scoped_refptr<DecodedAudio> partially_decoded_audio_;
+  std::unique_ptr<DecodedAudio> partially_decoded_audio_;
   int partially_decoded_audio_data_in_bytes_ = 0;
   // The input buffers being decoded.
   std::queue<scoped_refptr<InputBuffer>> decoding_input_buffers_;

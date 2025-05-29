@@ -42,7 +42,7 @@ void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
 
 void AudioFrameDiscarder::AdjustForDiscardedDurations(
     int sample_rate,
-    scoped_refptr<DecodedAudio>* decoded_audio) {
+    std::unique_ptr<DecodedAudio>* decoded_audio) {
   if (!decoded_audio || !*decoded_audio) {
     SB_LOG(ERROR) << "No input buffer to adjust.";
     SB_DCHECK(decoded_audio);

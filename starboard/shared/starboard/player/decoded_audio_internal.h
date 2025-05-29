@@ -84,17 +84,17 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
 
   bool IsFormat(SbMediaAudioSampleType sample_type,
                 SbMediaAudioFrameStorageType storage_type) const;
-  scoped_refptr<DecodedAudio> SwitchFormatTo(
+  std::unique_ptr<DecodedAudio> SwitchFormatTo(
       SbMediaAudioSampleType new_sample_type,
       SbMediaAudioFrameStorageType new_storage_type) const
       SB_WARN_UNUSED_RESULT;
 
-  scoped_refptr<DecodedAudio> Clone() const;
+  std::unique_ptr<DecodedAudio> Clone() const;
 
  private:
-  scoped_refptr<DecodedAudio> SwitchSampleTypeTo(
+  std::unique_ptr<DecodedAudio> SwitchSampleTypeTo(
       SbMediaAudioSampleType new_sample_type) const;
-  scoped_refptr<DecodedAudio> SwitchStorageTypeTo(
+  std::unique_ptr<DecodedAudio> SwitchStorageTypeTo(
       SbMediaAudioFrameStorageType new_storage_type) const;
 
   const int channels_;

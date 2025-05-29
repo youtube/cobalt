@@ -54,7 +54,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::unique_ptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -78,7 +78,7 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   AVFrame* av_frame_;
 
   bool stream_ended_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<std::unique_ptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
 };
 

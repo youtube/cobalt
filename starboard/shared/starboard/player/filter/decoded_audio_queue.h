@@ -47,7 +47,7 @@ class DecodedAudioQueue {
   void Clear();
 
   // Appends |decoded_audio| to this queue.
-  void Append(const scoped_refptr<DecodedAudio>& decoded_audio);
+  void Append(std::unique_ptr<DecodedAudio> decoded_audio);
 
   // Reads a maximum of |frames| frames into |dest| from the current position.
   // Returns the number of frames read. The current position will advance by the
@@ -75,7 +75,7 @@ class DecodedAudioQueue {
 
  private:
   // Definition of the buffer queue.
-  typedef std::deque<scoped_refptr<DecodedAudio>> BufferQueue;
+  typedef std::deque<std::unique_ptr<DecodedAudio>> BufferQueue;
 
   // An internal method shared by ReadFrames() and SeekFrames() that actually
   // does reading. It reads a maximum of |frames| frames into |dest|. Returns

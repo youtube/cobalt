@@ -76,9 +76,9 @@ scoped_refptr<FdkAacAudioDecoder::DecodedAudio> FdkAacAudioDecoder::Read(
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> result;
+  std::unique_ptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
+    result = std::move(decoded_audios_.front());
     decoded_audios_.pop();
   }
   *samples_per_second = samples_per_second_;
@@ -93,7 +93,7 @@ void FdkAacAudioDecoder::Reset() {
   InitializeCodec();
 
   stream_ended_ = false;
-  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear
+  decoded_audios_ = std::queue<std::unique_ptr<DecodedAudio>>();  // clear
   partially_decoded_audio_ = nullptr;
   partially_decoded_audio_data_in_bytes_ = 0;
   decoding_input_buffers_ = decltype(decoding_input_buffers_)();  // clear
@@ -118,7 +118,8 @@ void FdkAacAudioDecoder::WriteEndOfStream() {
   }
   stream_ended_ = true;
   // Put EOS into the queue.
-  decoded_audios_.push(new DecodedAudio);
+  decoded_audios_.push(std::make_unique<DecodedAudio>());
+  ;
   Schedule(output_cb_);
 }
 

@@ -41,18 +41,18 @@ void DecodedAudioQueue::Clear() {
   frames_ = 0;
 }
 
-void DecodedAudioQueue::Append(
-    const scoped_refptr<DecodedAudio>& decoded_audio) {
+void DecodedAudioQueue::Append(std::unique_ptr<DecodedAudio> decoded_audio) {
   SB_DCHECK(decoded_audio->storage_type() ==
             kSbMediaAudioFrameStorageTypeInterleaved)
       << decoded_audio->storage_type();
+  const int decoded_frames = decoded_audio->frames();
   // Add the buffer to the queue. Inserting into deque invalidates all
   // iterators, so point to the first buffer.
-  buffers_.push_back(decoded_audio);
+  buffers_.push_back(std::move(decoded_audio));
   current_buffer_ = buffers_.begin();
 
   // Update the |frames_| counter since we have added frames.
-  frames_ += decoded_audio->frames();
+  frames_ += decoded_frames;
   SB_CHECK(frames_ > 0);  // make sure it doesn't overflow.
 }
 
@@ -97,7 +97,7 @@ int DecodedAudioQueue::InternalRead(int frames,
       break;
     }
 
-    scoped_refptr<DecodedAudio> buffer = *current_buffer;
+    DecodedAudio* buffer = current_buffer->get();
 
     int remaining_frames_in_buffer = buffer->frames() - current_buffer_offset;
 

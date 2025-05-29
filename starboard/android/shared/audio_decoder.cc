@@ -142,17 +142,17 @@ void AudioDecoder::WriteEndOfStream() {
   }
 }
 
-scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
+std::unique_ptr<AudioDecoder::DecodedAudio> AudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  scoped_refptr<DecodedAudio> result;
+  std::unique_ptr<DecodedAudio> result;
   {
     starboard::ScopedLock lock(decoded_audios_mutex_);
     SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
-      result = decoded_audios_.front();
+      result = std::move(decoded_audios_.front());
       VERBOSE_MEDIA_LOG() << "T3: timestamp " << result->timestamp();
       decoded_audios_.pop();
     }
@@ -239,7 +239,7 @@ void AudioDecoder::ProcessOutputBuffer(
       size /= 2;
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+    auto decoded_audio = std::make_unique<DecodedAudio>(
         audio_stream_info_.number_of_channels, sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
@@ -250,7 +250,7 @@ void AudioDecoder::ProcessOutputBuffer(
 
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       VERBOSE_MEDIA_LOG() << "T2: timestamp "
                           << decoded_audios_.front()->timestamp();
     }
@@ -261,7 +261,7 @@ void AudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
-      decoded_audios_.push(new DecodedAudio());
+      decoded_audios_.push(std::make_unique<DecodedAudio>());
     }
     audio_frame_discarder_.OnDecodedAudioEndOfStream();
     Schedule(output_cb_);
