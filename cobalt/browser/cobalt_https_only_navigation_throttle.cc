@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "cobalt/browser/cobalt_https_only_navigation_throttle.h"
+#include "cobalt/browser/switches.h"
 #include "content/public/browser/navigation_handle.h"
 #include "net/http/http_response_headers.h"
 
@@ -18,7 +19,7 @@ CobaltHttpsOnlyNavigationThrottle::~CobaltHttpsOnlyNavigationThrottle() =
 // Called when a network request is about to be made for this navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   const GURL& url = navigation_handle()->GetURL();
   if (url.SchemeIs(url::kHttpsScheme)) {
     return content::NavigationThrottle::PROCEED;
@@ -27,7 +28,7 @@ CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
                   "HTTPS-only violation";
   return content::NavigationThrottle::ThrottleCheckResult(
       content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
-#endif  // COBALT_IS_RELEASE_BUILD
+#endif  // COBALT_IS_OFFICIAL_BUILD
 
   return content::NavigationThrottle::PROCEED;
 }
@@ -35,7 +36,7 @@ CobaltHttpsOnlyNavigationThrottle::WillStartRequest() {
 // Called when a server redirect is received by the navigation.
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   const GURL& url = navigation_handle()->GetURL();
   if (url.SchemeIs(url::kHttpsScheme)) {
     return content::NavigationThrottle::PROCEED;
@@ -44,7 +45,7 @@ CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
                   "HTTPS-only violation";
   return content::NavigationThrottle::ThrottleCheckResult(
       content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
-#endif  // COBALT_IS_RELEASE_BUILD
+#endif  // COBALT_IS_OFFICIAL_BUILD
 
   return content::NavigationThrottle::PROCEED;
 }
@@ -52,21 +53,40 @@ CobaltHttpsOnlyNavigationThrottle::WillRedirectRequest() {
 // Called when a response's metadata is available
 content::NavigationThrottle::ThrottleCheckResult
 CobaltHttpsOnlyNavigationThrottle::WillProcessResponse() {
-#if defined(COBALT_IS_RELEASE_BUILD)
+  if (cobalt::switches::ShouldEnforceCSP(
+          *base::CommandLine::ForCurrentProcess())) {
+    return EnforceCSPHeaders();
+  }
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  return EnforceCSPHeaders();
+#endif  // COBALT_IS_OFFICIAL_BUILD
+  return content::NavigationThrottle::PROCEED;
+}
+
+// Returns a Navigation ThrottleCheckResult based on the
+// presence or absence of CSP headers
+content::NavigationThrottle::ThrottleCheckResult
+CobaltHttpsOnlyNavigationThrottle::EnforceCSPHeaders() {
   std::string CSP_value;
   const net::HttpResponseHeaders* response_headers =
       navigation_handle()->GetResponseHeaders();
+  DCHECK(response_headers);
+  if (response_headers == nullptr) {
+    LOG(WARNING) << "Navigation throttle canceling navigation due to "
+                    "missing response headers";
+    return content::NavigationThrottle::ThrottleCheckResult(
+        content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
+  }
+
   if (response_headers->GetNormalizedHeader("Content-Security-Policy",
                                             &CSP_value)) {
     return content::NavigationThrottle::PROCEED;
   }
+
   LOG(WARNING) << "Navigation throttle canceling navigation due to "
                   "missing CSP headers";
   return content::NavigationThrottle::ThrottleCheckResult(
       content::NavigationThrottle::CANCEL, net::ERR_BLOCKED_BY_CLIENT);
-#endif  // COBALT_IS_RELEASE_BUILD
-
-  return content::NavigationThrottle::PROCEED;
 }
 
 const char* CobaltHttpsOnlyNavigationThrottle::GetNameForLogging() {

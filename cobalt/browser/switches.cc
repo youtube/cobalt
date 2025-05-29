@@ -24,5 +24,12 @@ std::string GetInitialURL(const base::CommandLine& command_line) {
   return kDefaultURL;
 }
 
+bool ShouldEnforceCSP(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(kRequireCSP)) {
+    return true;
+  }
+  return false;
+}
+
 }  // namespace switches
 }  // namespace cobalt

@@ -28,7 +28,12 @@ namespace switches {
 // Allow the user to override the default URL via a command line parameter.
 std::string GetInitialURL(const base::CommandLine& command_line);
 
+// Allow the user to disable CSP headers enforcement via a command line
+// parameter.
+bool ShouldEnforceCSP(const base::CommandLine& command_line);
+
 constexpr char kInitialURL[] = "url";
+constexpr char kRequireCSP[] = "require-csp";
 
 }  // namespace switches
 }  // namespace cobalt
