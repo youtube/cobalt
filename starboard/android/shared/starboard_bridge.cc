@@ -32,9 +32,7 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AppendJavaStringArrayToStringVector;
@@ -333,6 +331,4 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetAudioOutputManager(
   SB_DCHECK(env);
   return Java_StarboardBridge_getAudioOutputManager(env, j_starboard_bridge_);
 }
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

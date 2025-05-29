@@ -21,9 +21,7 @@
 #include "base/observer_list.h"
 #include "starboard/android/shared/text_to_speech_observer.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -55,8 +53,6 @@ class CobaltTextToSpeechHelper {
   mutable base::Lock observers_lock_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_HELPER_H_

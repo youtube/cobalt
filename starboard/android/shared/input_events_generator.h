@@ -23,9 +23,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 class InputEventsGenerator {
   //  public:
@@ -96,8 +94,6 @@ class InputEventsGenerator {
   //   SbKey left_thumbstick_key_pressed_[2];
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_INPUT_EVENTS_GENERATOR_H_

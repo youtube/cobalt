@@ -20,9 +20,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -160,6 +158,4 @@ jlong VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::AdjustReleaseTime(
       frame_presentation_time_us, unadjusted_release_time_ns, playback_rate);
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

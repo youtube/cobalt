@@ -39,9 +39,7 @@ typedef struct CobaltExtensionPlatformServicePrivate {
   }
 } CobaltExtensionPlatformServicePrivate;
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -161,6 +159,4 @@ const void* GetPlatformServiceApi() {
   return &kPlatformServiceApi;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

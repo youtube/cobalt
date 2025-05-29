@@ -27,9 +27,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/gles/gl_call.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 
@@ -147,6 +145,4 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

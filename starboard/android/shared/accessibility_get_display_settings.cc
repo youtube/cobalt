@@ -17,10 +17,7 @@
 
 #include "starboard/android/shared/accessibility_extension.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
-namespace accessibility {
+namespace starboard::android::shared::accessibility {
 
 using starboard::android::shared::JniEnvExt;
 
@@ -29,7 +26,4 @@ bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
   return false;
 }
 
-}  // namespace accessibility
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared::accessibility
