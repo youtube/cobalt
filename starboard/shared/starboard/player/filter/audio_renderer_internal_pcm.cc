@@ -653,7 +653,10 @@ void AudioRendererPcm::ProcessAudioData() {
 
     // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
     // false.
-    while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
+    // We don't try to append frame if the frame buffer is full.
+    if (!is_frame_buffer_full) {
+      while (AppendAudioToFrameBuffer(&is_frame_buffer_full)) {
+      }
     }
   }
 
