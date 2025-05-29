@@ -46,6 +46,7 @@ source_set("browser") {
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
+    "//cobalt/browser:switches",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
