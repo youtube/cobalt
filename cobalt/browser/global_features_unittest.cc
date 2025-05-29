@@ -19,7 +19,7 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/test/scoped_path_override.h"
 #include "base/test/task_environment.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
+#include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "components/prefs/testing_pref_service.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -43,7 +43,7 @@ class GlobalFeaturesTest : public testing::Test {
 };
 
 // TODO(b/419612226): test case crashing on CI and not reproducible locally.
-TEST_F(GlobalFeaturesTest, DISABLE_CreatesPrefServiceOnInitialization) {
+TEST_F(GlobalFeaturesTest, DISABLED_CreatesPrefServiceOnInitialization) {
   GlobalFeatures* instance = GlobalFeatures::GetInstance();
   EXPECT_NE(nullptr, instance->experiment_config());
   EXPECT_NE(nullptr, instance->metrics_local_state());
