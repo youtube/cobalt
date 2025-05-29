@@ -1,7 +1,5 @@
 #include <time.h>
-#if !defined(STARBOARD)
 #include "syscall.h"
-#endif
 
 time_t time(time_t *t)
 {
