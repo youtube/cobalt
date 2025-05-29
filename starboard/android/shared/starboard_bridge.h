@@ -21,9 +21,7 @@
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::JavaParamRef;
@@ -104,8 +102,6 @@ class StarboardBridge {
   ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_STARBOARD_BRIDGE_H_

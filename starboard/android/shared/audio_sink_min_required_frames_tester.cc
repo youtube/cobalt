@@ -20,9 +20,7 @@
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 namespace {
 const int kCheckpointFramesInterval = 1024;
@@ -263,6 +261,4 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
   }
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

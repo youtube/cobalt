@@ -33,9 +33,7 @@ struct SbFilePrivate {
   SbFilePrivate() : descriptor(-1), asset(NULL) {}
 };
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 extern const char* g_app_assets_dir;
 extern const char* g_app_files_dir;
@@ -49,8 +47,6 @@ bool IsAndroidAssetPath(const char* path);
 AAsset* OpenAndroidAsset(const char* path);
 AAssetDir* OpenAndroidAssetDir(const char* path);
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_FILE_INTERNAL_H_

@@ -17,9 +17,7 @@
 
 #include "base/observer_list_types.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Breaks circular dependency between H5vccAccessibilityImpl and
 // CobaltTextToSpeechHelper through an observer interface pattern:
@@ -35,8 +33,6 @@ class TextToSpeechObserver : public base::CheckedObserver {
   ~TextToSpeechObserver() override = default;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_OBSERVER_H_

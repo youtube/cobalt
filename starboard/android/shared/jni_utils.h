@@ -21,9 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // Wrapper class to manage the lifetime of a local reference to Java type
 // |JT|. This is necessary for local references to |JT|s that are obtained in
@@ -56,8 +54,6 @@ class ScopedLocalJavaRef {
   void operator=(const ScopedLocalJavaRef&) = delete;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_JNI_UTILS_H_
