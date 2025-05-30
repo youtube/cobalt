@@ -50,8 +50,7 @@ public class AudioOutputManager {
     audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   AudioTrackBridge createAudioTrackBridge(
       int sampleType,
       int sampleRate,
@@ -129,15 +128,13 @@ public class AudioOutputManager {
     return audioTrackBridge;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
     audioTrackBridgeList.remove(audioTrackBridge);
   }
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
-  @SuppressWarnings("unused")
   public static class OutputDeviceInfo {
     public int type;
     public int channels;
@@ -154,7 +151,6 @@ public class AudioOutputManager {
   }
 
   /** Returns output device info. */
-  @SuppressWarnings("unused")
   @CalledByNative
   boolean getOutputDeviceInfo(int index, OutputDeviceInfo outDeviceInfo) {
     if (index < 0) {
@@ -313,8 +309,7 @@ public class AudioOutputManager {
   }
 
   /** Returns the minimum buffer size of AudioTrack. */
-  @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
     int channelConfig;
     switch (channelCount) {
@@ -334,7 +329,6 @@ public class AudioOutputManager {
   }
 
   /** Generate audio session id used by tunneled playback. */
-  @SuppressWarnings("unused")
   @UsedByNative
   int generateTunnelModeAudioSessionId(int numberOfChannels) {
     // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
@@ -360,7 +354,6 @@ public class AudioOutputManager {
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
-  @SuppressWarnings("unused")
   @UsedByNative
   boolean hasPassthroughSupportFor(int encoding) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
@@ -524,7 +517,7 @@ public class AudioOutputManager {
         .build();
   }
 
-  @UsedByNative
+  @CalledByNative
   private boolean getAndResetHasAudioDeviceChanged() {
     return hasAudioDeviceChanged.getAndSet(false);
   }

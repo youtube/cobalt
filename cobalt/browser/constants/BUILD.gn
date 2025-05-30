@@ -12,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-static_library("configuration") {
-  sources = [
-    "configuration.cc",
-    "configuration.h",
-  ]
-  deps = [
-    "//base",
-    "//starboard:starboard_headers_only",
-  ]
+source_set("cobalt_experiment_names") {
+  sources = [ "cobalt_experiment_names.h" ]
 }

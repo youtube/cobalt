@@ -25,9 +25,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
@@ -731,6 +729,4 @@ bool MediaDecoder::Flush() {
   return true;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared

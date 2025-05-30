@@ -22,6 +22,7 @@
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
+#include <sys/epoll.h>
 #include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -213,9 +214,12 @@ ExportedSymbols::ExportedSymbols() {
   // POSIX APIs
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
-  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(dup);
   REGISTER_SYMBOL(dup2);
+  REGISTER_SYMBOL(epoll_create);
+  REGISTER_SYMBOL(epoll_create1);
+  REGISTER_SYMBOL(epoll_ctl);
+  REGISTER_SYMBOL(epoll_wait);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
@@ -235,7 +239,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
-  REGISTER_SYMBOL(opendir);
+  REGISTER_SYMBOL(pipe);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(pread);
   REGISTER_SYMBOL(pwrite);
@@ -270,6 +274,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(accept);
   REGISTER_WRAPPER(bind);
   REGISTER_WRAPPER(clock_gettime);
+  REGISTER_WRAPPER(closedir);
   REGISTER_WRAPPER(connect);
   if (errno_translation()) {
     REGISTER_WRAPPER(__errno_location);
@@ -284,6 +289,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(gmtime_r);
   REGISTER_WRAPPER(lseek);
   REGISTER_WRAPPER(mmap);
+  REGISTER_WRAPPER(opendir);
+  REGISTER_WRAPPER(pthread_attr_init);
   REGISTER_WRAPPER(pthread_attr_destroy);
   REGISTER_WRAPPER(pthread_attr_getdetachstate);
   REGISTER_WRAPPER(pthread_attr_getschedpolicy);
@@ -340,6 +347,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(pthread_setname_np);
   REGISTER_WRAPPER(pthread_setschedparam);
   REGISTER_WRAPPER(pthread_setspecific);
+  REGISTER_WRAPPER(readdir);
   REGISTER_WRAPPER(readdir_r);
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);

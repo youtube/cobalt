@@ -15,9 +15,7 @@
 #include "starboard/android/shared/accessibility_extension.h"
 #include "starboard/extension/accessibility.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
     kStarboardExtensionAccessibilityName,
@@ -31,6 +29,4 @@ const void* GetAccessibilityApi() {
   return &kAccessibilityAPI;
 }
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
