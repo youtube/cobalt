@@ -135,7 +135,7 @@ public class AudioTrackBridge {
             .setChannelMask(channelConfig)
             .build();
 
-    int audioTrackBufferSize = preferredBufferSizeInBytes;
+    int audioTrackBufferSize = preferredBufferSizeInBytes * 2; // Multiplied by 2 due to setPlaybackParams needing more buffer size for faster playbacks
     // TODO: Investigate if this implementation could be refined.
     // It is not necessary to loop until 0 since there is new implementation based on
     // AudioTrack.getMinBufferSize(). Especially for tunnel mode, it would fail if audio HAL does
@@ -239,8 +239,10 @@ public class AudioTrackBridge {
       audioTrack.setPlaybackParams(params);
     } catch (IllegalArgumentException e){
       Log.e(TAG, String.format("Unable to set playback_rate, error: %s.", e.toString()));
+      return 0;
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format("Unable to set playback_rate, error: %s", e.toString()));
+      return 0;
     }
     return 1;
   }
