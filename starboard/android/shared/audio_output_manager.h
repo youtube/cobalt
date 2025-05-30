@@ -22,9 +22,7 @@
 #include "base/memory/singleton.h"
 #include "starboard/media.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::JavaParamRef;
@@ -79,8 +77,6 @@ class AudioOutputManager {
   ScopedJavaGlobalRef<jobject> j_audio_output_manager_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  //  STARBOARD_ANDROID_SHARED_AUDIO_OUTPUT_MANAGER_H_
