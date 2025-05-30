@@ -348,13 +348,16 @@ int __abi_wrap_pthread_condattr_destroy(musl_pthread_condattr_t* attr) {
 
 int __abi_wrap_pthread_condattr_getclock(const musl_pthread_condattr_t* attr,
                                          clockid_t* clock_id) {
-  if (!attr) {
+  if (!attr || !clock_id) {
     return MUSL_EINVAL;
   }
 
   int ret = pthread_condattr_getclock(
       CONST_PTHREAD_INTERNAL_CONDITION_ATTR(attr), clock_id);
   *clock_id = clock_id_to_musl_clock_id(*clock_id);
+  if (!ret && *clock_id == MUSL_CLOCK_INVALID) {
+    return MUSL_EINVAL;
+  }
   return errno_to_musl_errno(ret);
 }
 
@@ -373,6 +376,9 @@ int __abi_wrap_pthread_condattr_setclock(musl_pthread_condattr_t* attr,
   }
 
   clock_id = musl_clock_id_to_clock_id(clock_id);
+  if (clock_id == MUSL_CLOCK_INVALID) {
+    return MUSL_EINVAL;
+  }
   int ret = pthread_condattr_setclock(PTHREAD_INTERNAL_CONDITION_ATTR(attr),
                                       clock_id);
   return errno_to_musl_errno(ret);
