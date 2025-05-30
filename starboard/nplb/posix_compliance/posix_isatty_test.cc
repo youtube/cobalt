@@ -35,16 +35,13 @@ TEST_F(PosixIsattyTest, HandlesStdin) {
   EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
 }
 
-// Tests that isatty() recognizes stdout as a tty.
-TEST_F(PosixIsattyTest, HandlesStdout) {
-  EXPECT_TRUE(isatty(STDOUT_FILENO));
+// Tests that isatty() recognizes /dev/tty as a tty.
+TEST_F(PosixIsattyTest, HandlesDevTty) {
+  int fd = open("/dev/tty", O_RDWR);
+  ASSERT_NE(-1, fd) << "Failed to open /dev/tty";
+  EXPECT_TRUE(isatty(fd));
   EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
-}
-
-// Tests that isatty() recognizes stderr as a tty.
-TEST_F(PosixIsattyTest, HandlesStderr) {
-  EXPECT_TRUE(isatty(STDERR_FILENO));
-  EXPECT_EQ(0, errno) << "errno was set: " << strerror(errno);
+  close(fd);
 }
 
 // Tests that isatty() does not recognize invalid file descriptors as a tty.
@@ -88,7 +85,7 @@ TEST_F(PosixIsattyTest, HandlesOpenFile) {
   remove(kTestFileName);
 }
 
-// Tests that isatty() doesn't recognize devices as ttys.
+// Tests that isatty() doesn't recognize non-terminal devices as ttys.
 TEST_F(PosixIsattyTest, HandlesDevices) {
   int fd = open("/dev/null", O_RDWR);
   ASSERT_NE(-1, fd) << "Failed to open /dev/null";
