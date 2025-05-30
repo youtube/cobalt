@@ -30,6 +30,7 @@ gcc_toolchain("starboard") {
     current_os = "linux"
     is_starboard = true
     sysroot = "$raspi_home/busterroot"
+    use_cxx17 = true
   }
   propagates_configs = true
 }
@@ -48,5 +49,6 @@ gcc_toolchain("native_target") {
     is_clang = false
     current_cpu = "arm"
     current_os = "linux"
+    use_cxx17 = true
   }
 }
