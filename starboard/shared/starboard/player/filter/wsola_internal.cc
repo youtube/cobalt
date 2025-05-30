@@ -60,29 +60,29 @@ float MultiChannelSimilarityMeasure(const float* dot_prod_a_b,
   return similarity_measure;
 }
 
-void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
+void MultiChannelDotProduct(const DecodedAudio& a,
                             int frame_offset_a,
-                            const scoped_refptr<DecodedAudio>& b,
+                            const DecodedAudio& b,
                             int frame_offset_b,
                             int num_frames,
                             float* dot_product) {
-  SB_DCHECK(a->channels() == b->channels());
+  SB_DCHECK(a.channels() == b.channels());
   SB_DCHECK(frame_offset_a >= 0) << frame_offset_a;
   SB_DCHECK(frame_offset_b >= 0) << frame_offset_b;
-  SB_DCHECK(frame_offset_a + num_frames <= a->frames());
-  SB_DCHECK(frame_offset_b + num_frames <= b->frames());
+  SB_DCHECK(frame_offset_a + num_frames <= a.frames());
+  SB_DCHECK(frame_offset_b + num_frames <= b.frames());
 
-  const float* a_frames = reinterpret_cast<const float*>(a->data());
-  const float* b_frames = reinterpret_cast<const float*>(b->data());
+  const float* a_frames = reinterpret_cast<const float*>(a.data());
+  const float* b_frames = reinterpret_cast<const float*>(b.data());
 
 // SIMD optimized variants can provide a massive speedup to this operation.
 #if defined(USE_SIMD)
   const int rem = num_frames % 4;
   const int last_index = num_frames - rem;
-  const int channels = a->channels();
+  const int channels = a.channels();
   for (int ch = 0; ch < channels; ++ch) {
-    const float* a_src = a_frames + frame_offset_a * a->channels() + ch;
-    const float* b_src = b_frames + frame_offset_b * b->channels() + ch;
+    const float* a_src = a_frames + frame_offset_a * a.channels() + ch;
+    const float* b_src = b_frames + frame_offset_b * b.channels() + ch;
 
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
     // First sum all components.
@@ -117,27 +117,27 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   frame_offset_a += last_index;
   frame_offset_b += last_index;
 #else   // defined(USE_SIMD)
-  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
+  memset(dot_product, 0, sizeof(*dot_product) * a.channels());
 #endif  // defined(USE_SIMD)
 
-  for (int k = 0; k < a->channels(); ++k) {
-    const float* ch_a = a_frames + frame_offset_a * a->channels() + k;
-    const float* ch_b = b_frames + frame_offset_b * b->channels() + k;
+  for (int k = 0; k < a.channels(); ++k) {
+    const float* ch_a = a_frames + frame_offset_a * a.channels() + k;
+    const float* ch_b = b_frames + frame_offset_b * b.channels() + k;
     for (int n = 0; n < num_frames; ++n) {
       dot_product[k] += *ch_a * *ch_b;
-      ch_a += a->channels();
-      ch_b += b->channels();
+      ch_a += a.channels();
+      ch_b += b.channels();
     }
   }
 }
 
-void MultiChannelMovingBlockEnergies(const scoped_refptr<DecodedAudio>& input,
+void MultiChannelMovingBlockEnergies(const DecodedAudio& input,
                                      int frames_per_block,
                                      float* energy) {
-  int num_blocks = input->frames() - (frames_per_block - 1);
-  int channels = input->channels();
+  int num_blocks = input.frames() - (frames_per_block - 1);
+  int channels = input.channels();
 
-  const float* input_frames = reinterpret_cast<const float*>(input->data());
+  const float* input_frames = reinterpret_cast<const float*>(input.data());
   for (int k = 0; k < channels; ++k) {
     const float* input_channel = input_frames + k;
 
@@ -183,13 +183,13 @@ void QuadraticInterpolation(const float* y_values,
 
 int DecimatedSearch(int decimation,
                     Interval exclude_interval,
-                    const scoped_refptr<DecodedAudio>& target_block,
-                    const scoped_refptr<DecodedAudio>& search_segment,
+                    const DecodedAudio& target_block,
+                    const DecodedAudio& search_segment,
                     const float* energy_target_block,
                     const float* energy_candidate_blocks) {
-  int channels = search_segment->channels();
-  int block_size = target_block->frames();
-  int num_candidate_blocks = search_segment->frames() - (block_size - 1);
+  int channels = search_segment.channels();
+  int block_size = target_block.frames();
+  int num_candidate_blocks = search_segment.frames() - (block_size - 1);
   std::unique_ptr<float[]> dot_prod(new float[channels]);
   float similarity[3];  // Three elements for cubic interpolation.
 
@@ -263,12 +263,12 @@ int DecimatedSearch(int decimation,
 int FullSearch(int low_limit,
                int high_limit,
                Interval exclude_interval,
-               const scoped_refptr<DecodedAudio>& target_block,
-               const scoped_refptr<DecodedAudio>& search_block,
+               const DecodedAudio& target_block,
+               const DecodedAudio& search_block,
                const float* energy_target_block,
                const float* energy_candidate_blocks) {
-  int channels = search_block->channels();
-  int block_size = target_block->frames();
+  int channels = search_block.channels();
+  int block_size = target_block.frames();
   std::unique_ptr<float[]> dot_prod(new float[channels]);
 
   float best_similarity = std::numeric_limits<float>::min();
@@ -296,16 +296,16 @@ int FullSearch(int low_limit,
 
 }  // namespace
 
-int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
-                 const scoped_refptr<DecodedAudio>& target_block,
+int OptimalIndex(const DecodedAudio& search_block,
+                 const DecodedAudio& target_block,
                  SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval) {
-  int channels = search_block->channels();
-  SB_DCHECK(channels == target_block->channels());
+  int channels = search_block.channels();
+  SB_DCHECK(channels == target_block.channels());
   SB_DCHECK(storage_type == kSbMediaAudioFrameStorageTypeInterleaved);
 
-  int target_size = target_block->frames();
-  int num_candidate_blocks = search_block->frames() - (target_size - 1);
+  int target_size = target_block.frames();
+  int num_candidate_blocks = search_block.frames() - (target_size - 1);
 
   // This is a compromise between complexity reduction and search accuracy. I
   // don't have a proof that down sample of order 5 is optimal. One can compute
