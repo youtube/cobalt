@@ -6,9 +6,8 @@
     // to base::SysInfo::AmountOfAvailablePhysicalMemory().
     [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
 
-    // Returns the amount of used memory on the device in bytes, according
-    // to:
-    // base::SysInfo::AmountOfPhysicalMemory() - base::SysInfo::AmountOfAvailablePhysicalMemory()
+    // Returns the amount of memory used by the Cobalt process, in bytes. This
+    // is also known as the resident set size.
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 
     // Returns the application startup duration in microseconds (us).
