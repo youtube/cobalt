@@ -42,7 +42,7 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
   MOCK_METHOD2(Decode, void(const InputBuffers&, const ConsumedCB&));
   MOCK_METHOD0(WriteEndOfStream, void());
-  MOCK_METHOD1(Read, scoped_refptr<DecodedAudio>(int*));
+  MOCK_METHOD1(Read, std::unique_ptr<DecodedAudio>(int*));
   MOCK_METHOD0(Reset, void());
 };
 

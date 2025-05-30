@@ -52,7 +52,7 @@ class AudioDecoder
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::unique_ptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
   bool is_valid() const { return media_decoder_ != NULL; }
@@ -89,7 +89,7 @@ class AudioDecoder
   ConsumedCB consumed_cb_;
 
   starboard::Mutex decoded_audios_mutex_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<std::unique_ptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaDecoder> media_decoder_;

@@ -43,14 +43,14 @@ class AudioResampler {
 
   // Write frames to the AudioResampler.  The format of the frames is determined
   // by the input formats passed to Create().
-  virtual scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> audio_data) = 0;
+  virtual std::unique_ptr<DecodedAudio> Resample(
+      std::unique_ptr<DecodedAudio> audio_data) = 0;
 
   // Signal that the last audio input frame has been written.  The resampler
   // should allow for reading of any audio data inside its internal cache.  The
   // caller should continue call Read() after calling this function until Read()
   // returns EOS.
-  virtual scoped_refptr<DecodedAudio> WriteEndOfStream() = 0;
+  virtual std::unique_ptr<DecodedAudio> WriteEndOfStream() = 0;
 
   // Create an AudioResampler that takes input specified by |source_*| and
   // produce output specified by |destination_*|.  The input and output have to

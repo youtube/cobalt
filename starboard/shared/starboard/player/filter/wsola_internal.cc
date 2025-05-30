@@ -65,9 +65,9 @@ float MultiChannelSimilarityMeasure(const float* dot_prod_a_b,
   return similarity_measure;
 }
 
-void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
+void MultiChannelDotProduct(const std::unique_ptr<DecodedAudio>& a,
                             int frame_offset_a,
-                            const scoped_refptr<DecodedAudio>& b,
+                            const std::unique_ptr<DecodedAudio>& b,
                             int frame_offset_b,
                             int num_frames,
                             float* dot_product) {
@@ -136,7 +136,7 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   }
 }
 
-void MultiChannelMovingBlockEnergies(const scoped_refptr<DecodedAudio>& input,
+void MultiChannelMovingBlockEnergies(const std::unique_ptr<DecodedAudio>& input,
                                      int frames_per_block,
                                      float* energy) {
   int num_blocks = input->frames() - (frames_per_block - 1);
@@ -188,8 +188,8 @@ void QuadraticInterpolation(const float* y_values,
 
 int DecimatedSearch(int decimation,
                     Interval exclude_interval,
-                    const scoped_refptr<DecodedAudio>& target_block,
-                    const scoped_refptr<DecodedAudio>& search_segment,
+                    const std::unique_ptr<DecodedAudio>& target_block,
+                    const std::unique_ptr<DecodedAudio>& search_segment,
                     const float* energy_target_block,
                     const float* energy_candidate_blocks) {
   int channels = search_segment->channels();
@@ -268,8 +268,8 @@ int DecimatedSearch(int decimation,
 int FullSearch(int low_limit,
                int high_limit,
                Interval exclude_interval,
-               const scoped_refptr<DecodedAudio>& target_block,
-               const scoped_refptr<DecodedAudio>& search_block,
+               const std::unique_ptr<DecodedAudio>& target_block,
+               const std::unique_ptr<DecodedAudio>& search_block,
                const float* energy_target_block,
                const float* energy_candidate_blocks) {
   int channels = search_block->channels();
@@ -301,8 +301,8 @@ int FullSearch(int low_limit,
 
 }  // namespace
 
-int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
-                 const scoped_refptr<DecodedAudio>& target_block,
+int OptimalIndex(const std::unique_ptr<DecodedAudio>& search_block,
+                 const std::unique_ptr<DecodedAudio>& target_block,
                  SbMediaAudioFrameStorageType storage_type,
                  Interval exclude_interval) {
   int channels = search_block->channels();

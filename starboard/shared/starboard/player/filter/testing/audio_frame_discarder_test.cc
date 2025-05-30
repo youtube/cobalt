@@ -44,8 +44,9 @@ class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
   VideoDmpReader dmp_reader_;
 };
 
-scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, int64_t timestamp) {
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+std::unique_ptr<DecodedAudio> MakeDecodedAudio(int channels,
+                                               int64_t timestamp) {
+  auto decoded_audio = std::make_unique<DecodedAudio>(
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
       media::GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels *
@@ -66,7 +67,7 @@ TEST_P(AudioFrameDiscarderTest, Empty) {
 
 TEST_P(AudioFrameDiscarderTest, NonPartialAudio) {
   InputBuffers input_buffers;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
+  std::vector<std::unique_ptr<DecodedAudio>> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
 
   for (int i = 0; i < std::min<int>(32, dmp_reader_.number_of_audio_buffers());
@@ -102,7 +103,7 @@ TEST_P(AudioFrameDiscarderTest, NonPartialAudio) {
 
 TEST_P(AudioFrameDiscarderTest, PartialAudio) {
   InputBuffers input_buffers;
-  std::vector<scoped_refptr<DecodedAudio>> decoded_audios;
+  std::vector<std::unique_ptr<DecodedAudio>> decoded_audios;
   const auto& audio_stream_info = dmp_reader_.audio_stream_info();
   const int64_t duration = media::AudioFramesToDuration(
       MakeDecodedAudio(audio_stream_info.number_of_channels, 0)->frames(),

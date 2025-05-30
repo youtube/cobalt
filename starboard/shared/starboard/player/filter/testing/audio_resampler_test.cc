@@ -98,7 +98,7 @@ class AudioResamplerTest
               ? sizeof(int16_t)
               : sizeof(float);
       int audio_size = kSamplesPerInput * channels_ * sample_size;
-      scoped_refptr<DecodedAudio> input = new DecodedAudio(
+      std::unique_ptr<DecodedAudio> input = new DecodedAudio(
           channels_, source_sample_type_, source_storage_type_,
           1'000'000LL * total_frames / source_sample_rate_, audio_size);
       total_frames += kSamplesPerInput;
@@ -114,7 +114,7 @@ class AudioResamplerTest
   int destination_sample_rate_;
   int channels_;
 
-  std::vector<scoped_refptr<DecodedAudio>> inputs_;
+  std::vector<std::unique_ptr<DecodedAudio>> inputs_;
 };
 
 TEST_P(AudioResamplerTest, SunnyDay) {
@@ -124,15 +124,15 @@ TEST_P(AudioResamplerTest, SunnyDay) {
       destination_sample_rate_, channels_);
 
   int total_input_frames = 0;
-  std::vector<scoped_refptr<DecodedAudio>> outputs;
+  std::vector<std::unique_ptr<DecodedAudio>> outputs;
   for (auto input : inputs_) {
-    scoped_refptr<DecodedAudio> output = resampler->Resample(input);
+    std::unique_ptr<DecodedAudio> output = resampler->Resample(input);
     total_input_frames += input->frames();
     if (output) {
       outputs.push_back(output);
     }
   }
-  scoped_refptr<DecodedAudio> output = resampler->WriteEndOfStream();
+  std::unique_ptr<DecodedAudio> output = resampler->WriteEndOfStream();
   if (output) {
     outputs.push_back(output);
   }

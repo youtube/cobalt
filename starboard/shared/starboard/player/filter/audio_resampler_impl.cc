@@ -46,10 +46,10 @@ class AudioResamplerImpl : public AudioResampler {
                                    static_cast<double>(destination_sample_rate),
                                channels) {}
 
-  scoped_refptr<DecodedAudio> Resample(
-      scoped_refptr<DecodedAudio> buffer) override;
+  std::unique_ptr<DecodedAudio> Resample(
+      std::unique_ptr<DecodedAudio> buffer) override;
 
-  scoped_refptr<DecodedAudio> WriteEndOfStream() override;
+  std::unique_ptr<DecodedAudio> WriteEndOfStream() override;
 
  private:
   const SbMediaAudioSampleType destination_sample_type_;
@@ -57,7 +57,7 @@ class AudioResamplerImpl : public AudioResampler {
 
   InterleavedSincResampler interleaved_resampler_;
 
-  std::deque<scoped_refptr<DecodedAudio>> audio_inputs_;
+  std::deque<std::unique_ptr<DecodedAudio>> audio_inputs_;
 
   size_t frames_to_resample_ = 0;
   size_t frames_resampled_ = 0;
@@ -81,7 +81,7 @@ std::unique_ptr<AudioResampler> AudioResampler::Create(
       destination_sample_rate, channels));
 }
 
-scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
+std::unique_ptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
   double sample_rate_ratio = interleaved_resampler_.GetSampleRateRatio();
   int out_num_of_frames =
       round(frames_to_resample_ / sample_rate_ratio) - frames_outputted_;
@@ -93,7 +93,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
       interleaved_resampler_.QueueBuffer(nullptr, 0);
       int channels = interleaved_resampler_.channels();
       int resampled_audio_size = out_num_of_frames * channels * sizeof(float);
-      scoped_refptr<DecodedAudio> resampled_audio = new DecodedAudio(
+      auto resampled_audio = std::make_unique<DecodedAudio>(
           channels, kSbMediaAudioSampleTypeFloat32,
           kSbMediaAudioFrameStorageTypeInterleaved,
           audio_inputs_.front()->timestamp(), resampled_audio_size);
@@ -110,32 +110,34 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
     }
   }
 
-  return new DecodedAudio;
+  return std::make_unique<DecodedAudio>();
 }
 
-scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
-    scoped_refptr<DecodedAudio> audio_input) {
+std::unique_ptr<DecodedAudio> AudioResamplerImpl::Resample(
+    std::unique_ptr<DecodedAudio> audio_input) {
   SB_DCHECK(audio_input->channels() == interleaved_resampler_.channels());
+  DecodedAudio* raw_audio_input = audio_input.get();
 
-  audio_inputs_.push_back(audio_input);
+  audio_inputs_.push_back(std::move(audio_input));
 
   // It does nothing if source sample type is float and source storage type is
   // interleaved.
-  if (!audio_input->IsFormat(kSbMediaAudioSampleTypeFloat32,
-                             kSbMediaAudioFrameStorageTypeInterleaved)) {
-    audio_input =
-        audio_input->SwitchFormatTo(kSbMediaAudioSampleTypeFloat32,
-                                    kSbMediaAudioFrameStorageTypeInterleaved);
+  if (!raw_audio_input->IsFormat(kSbMediaAudioSampleTypeFloat32,
+                                 kSbMediaAudioFrameStorageTypeInterleaved)) {
+    audio_input = raw_audio_input->SwitchFormatTo(
+        kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved);
+    raw_audio_input = audio_input.get();
   }
 
   // Enqueue the input.
-  int num_of_input_frames = audio_input->frames();
+  int num_of_input_frames = raw_audio_input->frames();
   frames_to_resample_ += num_of_input_frames;
-  float* input_samples = reinterpret_cast<float*>(audio_input->data());
+  float* input_samples = reinterpret_cast<float*>(raw_audio_input->data());
   interleaved_resampler_.QueueBuffer(input_samples, num_of_input_frames);
 
   // Check if we have enough frames to output.
-  scoped_refptr<DecodedAudio>& next_audio_to_output = audio_inputs_.front();
+  std::unique_ptr<DecodedAudio>& next_audio_to_output = audio_inputs_.front();
   int num_of_output_frames =
       static_cast<int>(
           ceil((frames_resampled_ + next_audio_to_output->frames()) /
@@ -143,13 +145,13 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::Resample(
       frames_outputted_;
   int channels = next_audio_to_output->channels();
 
-  scoped_refptr<DecodedAudio> resampled_audio = nullptr;
+  std::unique_ptr<DecodedAudio> resampled_audio;
   if (interleaved_resampler_.HasEnoughData(num_of_output_frames)) {
     int output_audio_size = num_of_output_frames * channels * sizeof(float);
-    resampled_audio =
-        new DecodedAudio(channels, kSbMediaAudioSampleTypeFloat32,
-                         kSbMediaAudioFrameStorageTypeInterleaved,
-                         next_audio_to_output->timestamp(), output_audio_size);
+    resampled_audio = std::make_unique<DecodedAudio>(
+        channels, kSbMediaAudioSampleTypeFloat32,
+        kSbMediaAudioFrameStorageTypeInterleaved,
+        next_audio_to_output->timestamp(), output_audio_size);
     float* dst = reinterpret_cast<float*>(resampled_audio->data());
     interleaved_resampler_.Resample(dst, num_of_output_frames);
     frames_resampled_ += next_audio_to_output->frames();
