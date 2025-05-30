@@ -710,6 +710,9 @@ if (use_blink) {
         ":motionevent_jni_headers",
         "//ui/android:ui_full_java",
       ]
+      if (is_cobalt) {
+        sources += [ "keycodes/cobalt/keyboard_code_conversion_cobalt_unittest.cc" ]
+      }
     } else {
       data_deps = [ "//third_party/angle:includes" ]
     }
