@@ -195,7 +195,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     // Includes the leftover partial frame from last request. However, we can
     // only skip over complete frames, so a partial frame may remain for next
     // time.
-    muted_partial_frame_ += frames_to_render * 1;
+    muted_partial_frame_ += frames_to_render;
     // Handle the case where muted_partial_frame_ rounds up to
     // audio_buffer_.frames()+1.
     int seek_frames = std::min(static_cast<int>(muted_partial_frame_),
@@ -231,7 +231,8 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   do {
     rendered_frames += WriteCompletedFramesTo(
         requested_frames - rendered_frames, rendered_frames, dest);
-  } while (rendered_frames < requested_frames && RunOneWsolaIteration(1));
+  } while (rendered_frames < requested_frames &&
+           RunOneWsolaIteration(playback_rate < 1 ? playback_rate : 1));
   dest->ShrinkTo(rendered_frames * bytes_per_frame_);
   return dest;
 }

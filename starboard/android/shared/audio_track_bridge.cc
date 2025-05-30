@@ -231,7 +231,7 @@ void AudioTrackBridge::SetPlaybackRate(double playback_rate,
   SB_DCHECK(is_valid());
 
   jint status =
-      env->CallIntMethodOrAbort(j_audio_track_bridge_, "setPlaybackRate",
+      env->CallIntMethodOrAbort(j_audio_track_bridge_.obj(), "setPlaybackRate",
                                 "(F)I", static_cast<float>(playback_rate));
   if (status == 0) {
     SB_LOG(ERROR) << "Failed to set playback_rate to " << playback_rate;
