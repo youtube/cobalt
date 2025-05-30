@@ -53,7 +53,7 @@ void SetProcessTitleFromCommandLine(const char** main_argv) {
   std::string title;
   bool have_argv0 = false;
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
   DCHECK_EQ(base::PlatformThread::CurrentId(), getpid());
 
   if (main_argv)
@@ -88,7 +88,7 @@ void SetProcessTitleFromCommandLine(const char** main_argv) {
     *base_name_storage = std::move(base_name);
     program_invocation_short_name = &(*base_name_storage)[0];
   }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD)
 
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();

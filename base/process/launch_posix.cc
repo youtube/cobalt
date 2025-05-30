@@ -754,12 +754,12 @@ pid_t ForkWithFlags(int flags, pid_t* ptid, pid_t* ctid) {
     return CloneAndLongjmpInChild(flags, ptid, ctid, &env);
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
   // Since we use clone() directly, it does not call any pthread_aftork()
   // callbacks, we explicitly invalidate tid cache here (normally this call is
   // done as pthread_aftork() callback).  See crbug.com/902514.
   base::internal::InvalidateTidCache();
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD)
 
   return 0;
 }

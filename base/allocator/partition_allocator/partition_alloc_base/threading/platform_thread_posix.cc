@@ -17,7 +17,7 @@
 #include "base/allocator/partition_allocator/partition_alloc_base/threading/platform_thread_internal_posix.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
 #include <sys/syscall.h>
 #include <atomic>
 #endif
@@ -28,7 +28,7 @@
 
 namespace partition_alloc::internal::base {
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
 
 namespace {
 
@@ -79,7 +79,8 @@ PlatformThreadId PlatformThread::CurrentId() {
   // into the kernel.
 #if BUILDFLAG(IS_APPLE)
   return pthread_mach_thread_np(pthread_self());
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#elif (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
+
   static InitAtFork init_at_fork;
   if (g_thread_id == -1 ||
       (g_is_main_thread &&
@@ -116,6 +117,8 @@ PlatformThreadId PlatformThread::CurrentId() {
   return zx_thread_self();
 #elif BUILDFLAG(IS_SOLARIS) || BUILDFLAG(IS_QNX)
   return pthread_self();
+#elif BUILDFLAG(IS_POSIX) && BUILDFLAG(IS_STARBOARD)
+  return static_cast<PlatformThreadId>(pthread_self());
 #elif BUILDFLAG(IS_POSIX) && BUILDFLAG(IS_AIX)
   return pthread_self();
 #elif BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_AIX)
