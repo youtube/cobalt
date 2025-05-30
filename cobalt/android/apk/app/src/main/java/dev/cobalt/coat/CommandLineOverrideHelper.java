@@ -20,16 +20,7 @@ import org.chromium.base.CommandLine;
 
 /** Helper class to provide commandLine Overrides. */
 public final class CommandLineOverrideHelper {
-    private static List<String> sCliOverrides =
-            getDefaultCommandLineOverridesList();
-    private static StringBuilder sV8ParamOverrides =
-        getDefaultV8OverridesList();
-    private static StringBuilder sEnableFeatureOverrides =
-        getDefaultEnableFeatureOverridesList();
-    private static StringBuilder sDisableFeatureOverrides =
-        getDefaultDisableFeatureOverridesList();
-    private static StringBuilder sBlinkEnableFeatureOverrides =
-        getDefaultBlinkEnableFeatureOverridesList();
+    private CommandLineOverrideHelper() {} // Prevent instantiation.
 
     /** Param class to simplify #getFlagOverrides method signature */
     public static class CommandLineOverrideHelperParams {
@@ -132,61 +123,91 @@ public final class CommandLineOverrideHelper {
 
     public static void getFlagOverrides(
         CommandLineOverrideHelperParams params) {
+        List<String> cliOverrides =
+            getDefaultCommandLineOverridesList();
+        StringBuilder v8ParamOverrides =
+            getDefaultV8OverridesList();
+        StringBuilder enableFeatureOverrides =
+            getDefaultEnableFeatureOverridesList();
+        StringBuilder disableFeatureOverrides =
+            getDefaultDisableFeatureOverridesList();
+        StringBuilder blinkEnableFeatureOverrides =
+            getDefaultBlinkEnableFeatureOverridesList();
+
         if (params != null) {
             if (params.mShouldSetJNIPrefix) {
                 // Helps Kimono build avoid package name conflict with cronet.
-                sCliOverrides.add("--cobalt-jni-prefix");
+                cliOverrides.add("--cobalt-jni-prefix");
             }
             if (!params.mIsOfficialBuild) {
-                sCliOverrides.add(
+                cliOverrides.add(
                   "--remote-allow-origins="
                   + "https://chrome-devtools-frontend.appspot.com");
             }
 
             if (params.mCommandLineOverrides != null) {
                 for (String param: params.mCommandLineOverrides) {
-                    sCliOverrides.add(param);
+                    cliOverrides.add(param);
                 }
             }
             if (params.mV8CommandLineOverrides != null) {
                 for (String param: params.mV8CommandLineOverrides) {
-                    sV8ParamOverrides.append(",");
-                    sV8ParamOverrides.append(param);
+                    if (param == null || param.isEmpty()) {
+                        continue; // Skip null or empty params
+                    }
+                    if (v8ParamOverrides.length() > 0) {
+                        v8ParamOverrides.append(",");
+                    }
+                    v8ParamOverrides.append(param);
                 }
             }
             if (params.mEnableFeaturesCommandLineOverrides != null) {
                 for (String param: params.mEnableFeaturesCommandLineOverrides) {
-                    sEnableFeatureOverrides.append(",");
-                    sEnableFeatureOverrides.append(param);
+                    if (param == null || param.isEmpty()) {
+                        continue; // Skip null or empty params
+                    }
+                    if (enableFeatureOverrides.length() > 0) {
+                        enableFeatureOverrides.append(",");
+                    }
+                    enableFeatureOverrides.append(param);
                 }
             }
 
             if (params.mDisableFeaturesCommandLineOverrides != null) {
                 for (String param: params.mDisableFeaturesCommandLineOverrides) {
-                    sDisableFeatureOverrides.append(",");
-                    sDisableFeatureOverrides.append(param);
+                    if (param == null || param.isEmpty()) {
+                        continue; // Skip null or empty params
+                    }
+                    if (disableFeatureOverrides.length() > 0) {
+                        disableFeatureOverrides.append(",");
+                    }
+                    disableFeatureOverrides.append(param);
                 }
             }
             if (params.mBlinkEnableFeaturesCommandLineOverrides != null) {
                 for (String param: params.mBlinkEnableFeaturesCommandLineOverrides) {
-                    sDisableFeatureOverrides.append(",");
-                    sBlinkEnableFeatureOverrides.append(param);
+                    if (param == null || param.isEmpty()) {
+                        continue; // Skip null or empty params
+                    }
+                    if (blinkEnableFeatureOverrides.length() > 0) {
+                        blinkEnableFeatureOverrides.append(",");
+                    }
+                    blinkEnableFeatureOverrides.append(param);
                 }
             }
         }
-        String[] cliArgs = sCliOverrides.toArray(new String[0]);
-        CommandLine.getInstance().appendSwitchesAndArguments(cliArgs);
         CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--js-flags=" + sV8ParamOverrides.toString() });
+            cliOverrides.toArray(new String[0]));
+        CommandLine.getInstance().appendSwitchesAndArguments(
+            new String[]{"--js-flags=" + v8ParamOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-features="
-            + sEnableFeatureOverrides.toString() });
+            + enableFeatureOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--disable-features="
-            + sDisableFeatureOverrides.toString() });
+            + disableFeatureOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--blink-enable-features="
-            + sBlinkEnableFeatureOverrides.toString() });
-
+            + blinkEnableFeatureOverrides.toString() });
     }
 }
