@@ -57,7 +57,7 @@ SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   return eglGetDisplay((EGLNativeDisplayType)display_id);
 }
 
-#if defined EGL_VERSION_1_5
+#if defined(EGL_VERSION_1_5)
 SbEglDisplay SbEglGetPlatformDisplay(SbEglEnum platform,
                                      void* native_display,
                                      const SbEglAttrib* attrib_list) {
@@ -113,7 +113,7 @@ const SbEglInterface g_sb_egl_interface = {
 #if BUILDFLAG(IS_ANDROID)
     nullptr,  // eglGetPlatformDisplay
 #else
-#if defined EGL_VERSION_1_5
+#if defined(EGL_VERSION_1_5)
     &SbEglGetPlatformDisplay,
 #endif        // EGL_VERSION_1_5
 #endif        // BUILDFLAG(IS_ANDROID)
