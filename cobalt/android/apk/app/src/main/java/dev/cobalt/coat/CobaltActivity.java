@@ -69,6 +69,10 @@ public abstract class CobaltActivity extends Activity {
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
+  public static final String COMMAND_LINE_V8_ENABLE_FEATURES_KEY = "v8EnableFeatures";
+  public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enableFeatures";
+  public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disableFeatures";
+  public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blinkEnableFeatures";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -92,78 +96,30 @@ public abstract class CobaltActivity extends Activity {
   private IntentRequestTracker mIntentRequestTracker;
   protected Boolean shouldSetJNIPrefix = true;
 
-  private List<String> getDefaultOverridesList() {
-      List<String> paramOverrides = new ArrayList<>();
-      // Disable first run experience.
-      paramOverrides.add("--disable-fre");
-      paramOverrides.add("--no-first-run");
-      // Run Cobalt as a single process.
-      paramOverrides.add("--single-process");
-      // Enable Blink to work in overlay video mode.
-      paramOverrides.add("--force-video-overlays");
-      // Autoplay video with url.
-      paramOverrides.add("--autoplay-policy=no-user-gesture-required");
-      // Remove below if Cobalt rebase to m120+.
-      paramOverrides.add("--user-level-memory-pressure-signal-params");
-      // Disable rescaling Webpage.
-      paramOverrides.add("--force-device-scale-factor=1");
-      // Enable low end device mode.
-      paramOverrides.add("--enable-low-end-device-mode");
-      // Disables RGBA_4444 textures which
-      // causes rendering artifacts when
-      // low-end-device-mode is enabled.
-      paramOverrides.add("--disable-rgba-4444-textures");
-      // Trades a little V8 performance for significant memory savings.
-      paramOverrides.add("--js-flags=--optimize_for_size=true");
-      // Disable concurrent-marking due to b/415843979
-      paramOverrides.add("--js-flags=--concurrent_marking=false");
-
-      return paramOverrides;
-  }
-
-  private String[] getFlagOverrides() {
-      List<String> paramOverrides = getDefaultOverridesList();
-      if (shouldSetJNIPrefix) {
-        // Helps Kimono build avoid package name conflict with cronet.
-        paramOverrides.add("--cobalt-jni-prefix");
-      }
-      if (!VersionInfo.isOfficialBuild()) {
-        paramOverrides.add(
-          "--remote-allow-origins="
-          + "https://chrome-devtools-frontend.appspot.com");
-      }
-
-      // TODO: Parse enable-features, disable-features,
-      // blink-enable-features, and blink-disable-features
-
-      // Align with MSE spec for MediaSource.duration.
-      paramOverrides.add(
-        "--enable-blink-features="
-        + "MediaSourceNewAbortAndDuration");
-      // Use SurfaceTexture for decode-to-texture mode.
-      paramOverrides.add("--disable-features=AImageReader");
-      String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
-      // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
-      paramOverrides.add(
-        "--enable-features=LogJsConsoleMessages,"
-        + "LimitImageDecodeCacheSize:mb/32");
-      if (commandLineParams != null) {
-        for (String param: commandLineParams) {
-          paramOverrides.add(param);
-        }
-      }
-
-      return paramOverrides.toArray(new String[0]);
-  }
-
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
       CommandLine.init(null);
-      String[] overrides = getFlagOverrides();
-      Log.e(TAG, "avvall - " + Arrays.toString(overrides));
-      CommandLine.getInstance().appendSwitchesAndArguments(getFlagOverrides());
+      CommandLineOverrideHelper.getFlagOverrides(
+          new CommandLineOverrideHelper.CommandLineOverrideHelperParams(
+              shouldSetJNIPrefix, VersionInfo.isOfficialBuild(),
+              /* commandLineOverrides= */
+                  getCommandLineParamsFromIntent(
+                    getIntent(), COMMAND_LINE_ARGS_KEY),
+              /* v8CommandLineOverrides= */
+                  getCommandLineParamsFromIntent(
+                      getIntent(), COMMAND_LINE_V8_ENABLE_FEATURES_KEY),
+              /* enableFeaturesCommandLineOverrides= */
+              getCommandLineParamsFromIntent(
+                  getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY),
+              /* disableFeaturesCommandLineOverrides= */
+              getCommandLineParamsFromIntent(
+                  getIntent(), COMMAND_LINE_DISABLE_FEATURES_KEY),
+              /* blinkEnableFeaturesCommandLineOverrides= */
+              getCommandLineParamsFromIntent(
+                  getIntent(), COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY)
+        ));
     }
 
     DeviceUtils.addDeviceSpecificUserAgentSwitch();
@@ -326,8 +282,8 @@ public abstract class CobaltActivity extends Activity {
     return intent != null ? intent.getDataString() : null;
   }
 
-  private static String[] getCommandLineParamsFromIntent(Intent intent) {
-    return intent != null ? intent.getStringArrayExtra(COMMAND_LINE_ARGS_KEY) : null;
+  private static String[] getCommandLineParamsFromIntent(Intent intent, String key) {
+    return intent != null ? intent.getStringArrayExtra(key) : null;
   }
 
   /**
@@ -526,7 +482,7 @@ public abstract class CobaltActivity extends Activity {
    */
   protected String[] getArgs() {
     ArrayList<String> args = new ArrayList<>();
-    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent());
+    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent(), COMMAND_LINE_ARGS_KEY);
     if (commandLineArgs != null) {
       args.addAll(Arrays.asList(commandLineArgs));
     }
