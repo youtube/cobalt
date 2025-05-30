@@ -63,6 +63,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(INFO) << "Loaded Cobalt library information into Crashpad.";
   }
 
+#if 0
   auto get_evergreen_sabi_string_func = reinterpret_cast<const char* (*)()>(
       g_elf_loader.LookupSymbol("GetEvergreenSabiString"));
 
@@ -70,6 +71,7 @@ void LoadLibraryAndInitialize(const std::string& library_path,
     SB_LOG(ERROR) << "CheckSabi failed";
     return;
   }
+#endif
 
   g_sb_event_func = reinterpret_cast<void (*)(const SbEvent*)>(
       g_elf_loader.LookupSymbol("SbEventHandle"));

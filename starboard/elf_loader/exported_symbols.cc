@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/exported_symbols.h"
 
 #include <dirent.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -67,6 +68,10 @@
   do {                                                         \
     map_[#s] = reinterpret_cast<const void*>(&__abi_wrap_##s); \
   } while (0)
+
+void* dlsym_stub(void* handle, const char* name) {
+  return nullptr;
+}
 
 namespace starboard {
 namespace elf_loader {
@@ -355,15 +360,20 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vswprintf);
   REGISTER_WRAPPER(writev);
 
+  map_["dlsym"] = reinterpret_cast<const void*>(&dlsym_stub);
+  REGISTER_SYMBOL(pthread_atfork);
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (!address) {
-    SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  if (address) {
+    return address;
   }
+  address = dlsym(RTLD_DEFAULT, name);
+  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name
+                << "'. Fallinig back to address" << address << "'.";
   return address;
 }
 

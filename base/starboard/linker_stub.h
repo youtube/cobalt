@@ -19,7 +19,7 @@
 
 // TODO: b/413130400 - Cobalt: Remove this file and implement linker stubs
 
-#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define COBALT_LINKER_STUB()
 #else
 #define COBALT_LINKER_STUB_MSG                                    \
