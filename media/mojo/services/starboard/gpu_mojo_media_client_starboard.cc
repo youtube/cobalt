@@ -50,8 +50,8 @@ std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
 }
 
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
-    StarboardRendererTraits& traits) {
-  return std::make_unique<StarboardRendererWrapper>(traits);
+    StarboardRendererTraits traits) {
+  return std::make_unique<StarboardRendererWrapper>(std::move(traits));
 }
 
 std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
