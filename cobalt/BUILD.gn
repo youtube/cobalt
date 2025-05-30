@@ -193,3 +193,41 @@ test("cobalt_unittests") {
     deps += [ "//ui/ozone:ozone_switches" ]
   }
 }
+
+config("starboard_feature_config") {
+  defines = [
+    "DECLARE_FEATURE=STARBOARD_DECLARE_FEATURE",
+    "FEATURE=STARBOARD_FEATURES",
+  ]
+}
+
+static_library("starboard_features") {
+  sources = get_target_outputs(":generate_starboard_features")
+  public_configs = [ ":starboard_feature_config" ]
+  deps = [ ":generate_starboard_features" ]
+}
+
+action("generate_starboard_features") {
+  script = "//cobalt/generate_features.py"
+  header = "//starboard/feature_config.h"
+  source = "//starboard/feature_config.cc"
+  inputs = [
+    header,
+    source,
+  ]
+  output_header = rebase_path("$target_gen_dir/feature_config.h", root_out_dir)
+  output_source = rebase_path("$target_gen_dir/feature_config.cc", root_out_dir)
+
+  outputs = [
+    output_header,
+    output_source,
+  ]
+  args = [
+    "--header",
+    rebase_path(header, root_out_dir),
+    "--source",
+    rebase_path(source, root_out_dir),
+    "--output-dir",
+    target_gen_dir,
+  ]
+}
