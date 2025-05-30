@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sys/time.h>
-#include <time.h>
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
 
-extern "C" {
+// This file is a stub added to reduce code changes to musl implementations that
+// include syscall.h
 
-int __abi_wrap_clock_gettime(clockid_t clk_id, struct timespec* ts);
-
-int clock_gettime(clockid_t clk_id, struct timespec* ts) {
-  return __abi_wrap_clock_gettime(clk_id, ts);
-}
-
-struct tm* __abi_wrap_gmtime_r(const time_t* clock, struct tm* result);
-
-struct tm* gmtime_r(const time_t* clock, struct tm* result) {
-  return __abi_wrap_gmtime_r(clock, result);
-}
-}
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_SYSCALL_H_
