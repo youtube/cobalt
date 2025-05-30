@@ -46,8 +46,12 @@ public class AudioOutputManager {
     audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
   }
 
+<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
+=======
+  @CalledByNative
+>>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   AudioTrackBridge createAudioTrackBridge(
       int sampleType,
       int sampleRate,
@@ -125,16 +129,23 @@ public class AudioOutputManager {
     return audioTrackBridge;
   }
 
+<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
+=======
+  @CalledByNative
+>>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   void destroyAudioTrackBridge(AudioTrackBridge audioTrackBridge) {
     audioTrackBridge.release();
     audioTrackBridgeList.remove(audioTrackBridge);
   }
 
   /** Stores info from AudioDeviceInfo to be passed to the native app. */
+<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
+=======
+>>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   public static class OutputDeviceInfo {
     @UsedByNative public int type;
     @UsedByNative public int channels;
@@ -151,8 +162,12 @@ public class AudioOutputManager {
   }
 
   /** Returns output device info. */
+<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
+=======
+  @CalledByNative
+>>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   boolean getOutputDeviceInfo(int index, OutputDeviceInfo outDeviceInfo) {
     if (index < 0) {
       return false;
@@ -310,8 +325,12 @@ public class AudioOutputManager {
   }
 
   /** Returns the minimum buffer size of AudioTrack. */
+<<<<<<< HEAD
   @SuppressWarnings("unused")
   @UsedByNative
+=======
+  @CalledByNative
+>>>>>>> 696e6935296 (Remove unnecessary annotation (#5907))
   int getMinBufferSize(int sampleType, int sampleRate, int channelCount) {
     int channelConfig;
     switch (channelCount) {
@@ -331,7 +350,6 @@ public class AudioOutputManager {
   }
 
   /** Generate audio session id used by tunneled playback. */
-  @SuppressWarnings("unused")
   @UsedByNative
   int generateTunnelModeAudioSessionId(int numberOfChannels) {
     // Android 9.0 (Build.VERSION.SDK_INT >= 28) support v2 sync header that
@@ -357,7 +375,6 @@ public class AudioOutputManager {
   }
 
   /** Returns whether passthrough on `encoding` is supported. */
-  @SuppressWarnings("unused")
   @UsedByNative
   boolean hasPassthroughSupportFor(int encoding) {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
