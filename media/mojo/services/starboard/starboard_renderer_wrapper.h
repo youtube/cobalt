@@ -48,7 +48,7 @@ class StarboardRendererWrapper final
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
 
-  StarboardRendererWrapper(StarboardRendererTraits& traits);
+  explicit StarboardRendererWrapper(StarboardRendererTraits traits);
 
   StarboardRendererWrapper(const StarboardRendererWrapper&) = delete;
   StarboardRendererWrapper& operator=(const StarboardRendererWrapper&) = delete;
@@ -80,7 +80,7 @@ class StarboardRendererWrapper final
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
-  std::unique_ptr<StarboardRenderer> renderer_;
+  StarboardRenderer renderer_;
   mojom::CommandBufferIdPtr command_buffer_id_;
 
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
