@@ -63,79 +63,19 @@ class AppConfig:
     self.output_directory = output_config.output_directory
     self.cobalt_flags = cobalt_flags
 
-  def _parse_flag_value(self, value_str):
-    """
-    Parses a single flag value string, attempting to convert it to an int,
-    a list of strings/ints, or keeping it as a string.
-    The final return value will always be a string representation.
-    """
-    # Try converting to an integer first
-    try:
-      # If it's an integer, convert it to a string
-      return str(int(value_str))
-    except ValueError:
-      pass
-
-    # If it's not an integer, check if it's a comma-separated list
-    if ',' in value_str:
-      # Split by comma and try to parse each sub-value
-      parts = [part.strip() for part in value_str.split(',')]
-      parsed_parts = []
-      for part in parts:
-        try:
-          parsed_parts.append(int(part))
-        except ValueError:
-          parsed_parts.append(part)
-      # Convert the list to its string representation
-      return str(parsed_parts)
-
-    # If it's not an int or a comma-separated list, return as a string directly
-    return value_str
-
-  def parse_cobalt_cli_flags(self):
-    """
-    Takes a comma-separated string of flags (key=value or standalone key)
-    and formats it into a single string where each key-value pair is
-    formatted as --key=value and separated by a comma.
-
-    Supports "key=value" pairs and "key" standalone flags.
-    Expected input format: "key1=val1,key2=val2,etc." or "key1,key2=val2".
-    Output format: "--key1=val1,--key2=val2,etc."
-    Standalone keys will have a value of "True" in the output.
-    """
-    formatted_flags_list = []
-    if not self.cobalt_flags:
-      return ''
-
-    # Split the main string by comma to get
-    # individual key=value pairs or standalone keys
-    pairs = [pair.strip() for pair in self.cobalt_flags.split(',')]
-
-    for pair in pairs:
-      parsed_value = None  # Assign "True" as the value for standalone flags
-      # Check if it's a key=value pair or a standalone key
-      if '=' in pair:
-        first_equals_index = pair.find('=')
-        key = pair[:first_equals_index].strip()
-        value_str = pair[first_equals_index + 1:].strip()
-        if not key:
-          print(f'Warning: Skipping malformed flag \'{pair}\' with empty key.')
-          continue
-        parsed_value = self._parse_flag_value(value_str)
-      else:
-        # It's a standalone key
-        key = pair.strip()
-        if not key:
-          print('Warning: Skipping empty standalone flag.')
-          continue
-
-      if parsed_value is None:
-        formatted_flags_list.append(f'--{key}')
-      else:
-        # Format as --key=value
-        formatted_flags_list.append(f'--{key}={parsed_value}')
-
-    # Join all formatted key-value pairs with a comma
-    joined_flag_list = ','.join(formatted_flags_list)
-    joined_flag_list = '"' + joined_flag_list + '"'
-    return joined_flag_list
+  def parse_cobalt_cli_flags(self) -> str:
+    """Parses and formats Cobalt CLI and experiment flags."""
+    flags = f'--remote-allow-origins=*,--url="{self.url}",'
+    cobalt_flags = self.cobalt_flags.split(',')
+    for flag_kv in cobalt_flags:
+      if flag_kv:
+        if 'url' in flag_kv:
+          raise ValueError(
+              'Overriding the --url flag inside of the cobalt flags is '\
+              + 'disallowed in this script'
+          )
+        kv = flag_kv.split('=')
+        if len(kv) != 2:
+          raise ValueError(self.EXPECTED_FLAGS_FORMAT)
+        flags += f'--{kv[0]}={kv[1]},'
+    return flags.rstrip(',')  # Remove trailing comma
