@@ -94,10 +94,17 @@ class ContinuousAudioTrackSink
 
   void logRate(int num_frames_to_read, int64_t now_us);
   int64_t in_frames_ = 0;
-  int64_t out_frames_ = 0;
+  int64_t aaudio_in_frames_ = 0;
 
   bool data_has_arrived_ = false;
   int initial_silence_frames_ = 0;
+
+  int64_t last_callback_us_ = 0;
+
+  int64_t callback_interval_count_ = 0;
+  int64_t callback_interval_frames_ = 0;
+
+  AudioStream::Timestamp aaudio_in_ts_{0, 0};
 };
 
 }  // namespace starboard::android::shared

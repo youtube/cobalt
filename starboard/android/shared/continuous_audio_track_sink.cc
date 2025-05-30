@@ -147,6 +147,21 @@ void ContinuousAudioTrackSink::ReportPlayedFrames() {
   if (!latest_timestamp.has_value()) {
     return;
   }
+  auto GetOriginMs = [&](const AudioStream::Timestamp ts) {
+    return ts.system_time_us / 1'000 -
+           ts.frame_position * 1'000 / sampling_frequency_hz_;
+  };
+
+  thread_local int64_t last_callback_us = 0;
+  int64_t now_us = CurrentMonotonicTime();
+  if (now_us - last_callback_us > 5'000'000) {
+    SB_LOG(INFO) << "latency(msec)="
+                 << GetOriginMs(*latest_timestamp) - GetOriginMs(aaudio_in_ts_)
+                 << ", origin_out(msec)=" << GetOriginMs(*latest_timestamp)
+                 << ", origin_in(msec)=" << GetOriginMs(aaudio_in_ts_);
+    last_callback_us = now_us;
+  }
+
   AudioStream::Timestamp timestamp = [&] {
     if (!is_playing_) {
       SB_LOG(INFO) << "not playing: use latest timestamp";
@@ -183,6 +198,23 @@ void ContinuousAudioTrackSink::ReportPlayedFrames() {
 }
 
 void ContinuousAudioTrackSink::logRate(int num_frames_to_read, int64_t now_us) {
+  callback_interval_frames_ += num_frames_to_read;
+  callback_interval_count_++;
+
+  int64_t cp_elapsed_us = now_us - last_callback_us_;
+  if (cp_elapsed_us > 10'000'000) {
+    SB_LOG(INFO) << "frames/callback="
+                 << (callback_interval_frames_ / callback_interval_count_)
+                 << ", callbacks/sec="
+                 << (callback_interval_count_ * 1'000'000 / cp_elapsed_us)
+                 << ", callback_interval(msec)="
+                 << (cp_elapsed_us / callback_interval_count_ / 1'000);
+
+    callback_interval_frames_ = 0;
+    callback_interval_count_ = 0;
+    last_callback_us_ = now_us;
+  }
+
   static int64_t last_us = 0;
   static int64_t last_frame_position = 0;
   static int64_t frame_position = 0;
@@ -190,13 +222,14 @@ void ContinuousAudioTrackSink::logRate(int num_frames_to_read, int64_t now_us) {
   frame_position += num_frames_to_read;
 
   int64_t elapsed_us = now_us - last_us;
-  if (elapsed_us > 10'000'000) {
+  if (elapsed_us > 5'000'000) {
     SB_LOG(INFO) << "sample_rate="
                  << (frame_position - last_frame_position) * 1'000'000 /
                         elapsed_us
-                 << ", in/out gap=" << (out_frames_ - in_frames_)
-                 << ", in_frames_=" << in_frames_
-                 << ", out_frames_=" << out_frames_;
+                 << ", aa-in/source-in gap="
+                 << (aaudio_in_frames_ - in_frames_ - initial_silence_frames_)
+                 << ", pending_frames_in_platform_buffer_="
+                 << pending_frames_in_platform_buffer_;
 
     last_us = now_us;
     last_frame_position = frame_position;
@@ -204,7 +237,7 @@ void ContinuousAudioTrackSink::logRate(int num_frames_to_read, int64_t now_us) {
 }
 
 bool ContinuousAudioTrackSink::OnReadData(void* data, int num_frames_to_read) {
-  out_frames_ += num_frames_to_read;
+  aaudio_in_frames_ += num_frames_to_read;
 
   ReportPlayedFrames();
 
@@ -239,7 +272,8 @@ bool ContinuousAudioTrackSink::ReadMoreFrames(void* data,
 
   if (!data_has_arrived_) {
     if (available_frames > 0) {
-      SB_LOG(INFO) << "Firs batch of data arrived: frames=" << available_frames;
+      SB_LOG(INFO) << "First batch of data arrived: frames="
+                   << available_frames;
       data_has_arrived_ = true;
     } else {
       initial_silence_frames_ += num_frames_to_read;
@@ -288,6 +322,10 @@ bool ContinuousAudioTrackSink::ReadMoreFrames(void* data,
     }
   }
 
+  aaudio_in_ts_ = {
+      .frame_position = aaudio_in_frames_,
+      .system_time_us = CurrentMonotonicTime(),
+  };
   return true;
 }
 
