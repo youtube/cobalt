@@ -20,6 +20,7 @@
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
@@ -57,21 +58,27 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
 // Map of switches with parameters and their defaults.
 const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
-    // Disable Vulkan.
-    {switches::kDisableFeatures, "Vulkan"},
-        // Enable LimitImageDecodeCacheSize, and set its limit to 32 mbytes.
-        {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/32"},
-    // Force some ozone settings.
+      {switches::kDisableFeatures, "Vulkan"},
+      // These two switches limit the amount of memory used by the //cc system
+      // (the Renderer Compositor, see //docs/how_cc_works.md). The Image Decode
+      // Cache is specified by the second entry (e.g. 32MiB) and the difference
+      // between the first and the second is the memory available for the Tiles,
+      // i.e. content that has been rastered already or prerastered and is kept
+      // around for later fast (re)use.
+      {switches::kForceGpuMemAvailableMb, "50"},
+      {switches::kEnableFeatures, "LimitImageDecodeCacheSize:mb/20"},
+  // Force some ozone settings.
 #if BUILDFLAG(IS_OZONE)
-        {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
+      {switches::kUseGL, "angle"},
+      {switches::kUseANGLE, "gles-egl"},
 #endif
-        // Use passthrough command decoder.
-        {switches::kUseCmdDecoder, "passthrough"},
-        // Set the default size for the content shell/starboard window.
-        {switches::kContentShellHostWindowSize, "1920x1080"},
-        // Enable remote Devtools access.
-        {switches::kRemoteDebuggingPort, "9222"},
-        {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+      // Use passthrough command decoder.
+      {switches::kUseCmdDecoder, "passthrough"},
+      // Set the default size for the content shell/starboard window.
+      {switches::kContentShellHostWindowSize, "1920x1080"},
+      // Enable remote Devtools access.
+      {switches::kRemoteDebuggingPort, "9222"},
+      {switches::kRemoteAllowOrigins, "http://localhost:9222"},
   });
   return cobalt_param_switch_defaults;
 }
