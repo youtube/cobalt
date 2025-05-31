@@ -77,11 +77,11 @@ public class StarboardBridge {
   private final Holder<Service> serviceHolder;
   private final String[] args;
   private final long nativeApp;
-  private final Runnable stopRequester =
+  private final Runnable updateDefaultLocale =
       new Runnable() {
         @Override
         public void run() {
-          requestSuspend();
+          updateDefaultLocale();
         }
       };
 
@@ -119,7 +119,7 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.serviceHolder = serviceHolder;
     this.args = args;
-    this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
+    this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, updateDefaultLocale);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
@@ -156,6 +156,7 @@ public class StarboardBridge {
     // void closeNativeStarboard(long nativeApp);
 
     void handleDeepLink(String url, boolean applicationStarted);
+    void updateDefaultLocale();
 
     void setAndroidBuildFingerprint(String fingerprint);
     void setAndroidOSExperience(boolean isAmatiDevice);
@@ -269,6 +270,10 @@ public class StarboardBridge {
     if (activity != null) {
       activity.moveTaskToBack(false);
     }
+  }
+
+  public void updateDefaultLocale() {
+    StarboardBridgeJni.get().updateDefaultLocale();
   }
 
   // TODO(cobalt): remove when Kimono fully switches to Chrobalt.

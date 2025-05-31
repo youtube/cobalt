@@ -30,6 +30,7 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
 #include "cobalt/browser/global_features.h"
+#include "cobalt/browser/locale/update_default_locale_manager.h"
 #include "cobalt/browser/user_agent/user_agent_platform_info.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
@@ -42,6 +43,7 @@
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
@@ -51,6 +53,7 @@
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
+#include "starboard/system.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
@@ -71,6 +74,14 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
+
+std::string GetApplicationLocaleHelper() {
+#if BUILDFLAG(IS_ANDROID)
+  return std::string(SbSystemGetLocaleId());
+#else
+  return base::i18n::GetConfiguredLocale();
+#endif
+}
 
 }  // namespace
 
@@ -151,7 +162,7 @@ CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
 
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  return base::i18n::GetConfiguredLocale();
+  return GetApplicationLocaleHelper();
 }
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
@@ -198,6 +209,13 @@ CobaltContentBrowserClient::GetStoragePartitionConfigForSite(
   return default_storage_partition_config;
 }
 
+void CobaltContentBrowserClient::UpdateDefaultLocale() {
+  browser_context()
+      ->GetDefaultStoragePartition()
+      ->GetNetworkContext()
+      ->SetAcceptLanguage(GetApplicationLocaleHelper());
+}
+
 void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     content::BrowserContext* context,
     bool in_memory,
@@ -211,6 +229,10 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
   network_context_params->enable_referrers = true;
   network_context_params->quic_user_agent_id = "";
   network_context_params->accept_language = GetApplicationLocale();
+
+  cobalt::browser::UpdateDefaultLocaleManager::GetInstance()->set_update(
+      base::BindRepeating(&CobaltContentBrowserClient::UpdateDefaultLocale,
+                          weak_factory_.GetWeakPtr()));
 
   // Always enable the HTTP cache.
   network_context_params->http_cache_enabled = true;

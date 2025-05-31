@@ -26,11 +26,11 @@ import dev.cobalt.util.Log;
 // changes.
 final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
   private boolean isForeground;
-  private final Runnable stopRequester;
+  private final Runnable updateDefaultLocale;
 
-  CobaltSystemConfigChangeReceiver(Context appContext, Runnable stopRequester) {
+  CobaltSystemConfigChangeReceiver(Context appContext, Runnable updateDefaultLocale) {
     this.isForeground = true;
-    this.stopRequester = stopRequester;
+    this.updateDefaultLocale = updateDefaultLocale;
     IntentFilter filter = new IntentFilter();
     filter.addAction(Intent.ACTION_LOCALE_CHANGED);
     filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
@@ -54,7 +54,7 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
         break;
       case Intent.ACTION_LOCALE_CHANGED:
         Log.w(TAG, "System locale settings have changed.");
-        stopRequester.run();
+        updateDefaultLocale.run();
         break;
       default:
         Log.w(TAG, "Unknown intent.");
