@@ -112,7 +112,8 @@ public abstract class CobaltActivity extends Activity {
             "--autoplay-policy=no-user-gesture-required",
             // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
-            // Pass javascript console log to adb log, and limit decoded image cache to 32 mbytes.
+            // Pass javascript console log to adb log, and limit decoded image
+            // cache to 32 mbytes.
             "--enable-features=LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
