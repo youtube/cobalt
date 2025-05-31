@@ -354,7 +354,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            bool enable_flush_during_seek,
                            std::string* error_message)
     : video_codec_(video_stream_info.codec),
-      drm_system_(static_cast<DrmSystem*>(drm_system)),
+      drm_system_(static_cast<MediaDrmBridge*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
@@ -377,7 +377,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK(tunnel_mode_audio_session_id != -1);
     SB_DCHECK(!drm_system_);
-    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
+    drm_system_to_enforce_tunnel_mode_ = std::make_unique<MediaDrmBridge>(
         "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
         StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();

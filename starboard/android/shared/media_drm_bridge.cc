@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 
 #include <memory>
 #include <utility>
@@ -25,8 +25,8 @@
 
 namespace {
 
-using starboard::android::shared::DrmSystem;
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::MediaDrmBridge;
 using starboard::android::shared::ScopedLocalJavaRef;
 
 const char kNoUrl[] = "";
@@ -94,7 +94,8 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
   SB_DCHECK(session_id_elements);
   SB_DCHECK(message_elements);
 
-  DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
+  MediaDrmBridge* drm_system =
+      reinterpret_cast<MediaDrmBridge*>(native_media_drm_bridge);
   SB_DCHECK(drm_system);
   drm_system->CallUpdateRequestCallback(
       ticket, SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(request_type),
@@ -156,7 +157,8 @@ Java_dev_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
     }
   }
 
-  DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
+  MediaDrmBridge* drm_system =
+      reinterpret_cast<MediaDrmBridge*>(native_media_drm_bridge);
   SB_DCHECK(drm_system);
   drm_system->CallDrmSessionKeyStatusesChangedCallback(
       session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
@@ -175,7 +177,7 @@ jbyteArray ByteArrayFromRaw(const void* data, int size) {
 
 }  // namespace
 
-DrmSystem::DrmSystem(
+MediaDrmBridge::MediaDrmBridge(
     const char* key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
@@ -215,7 +217,7 @@ DrmSystem::DrmSystem(
   Start();
 }
 
-void DrmSystem::Run() {
+void MediaDrmBridge::Run() {
   JniEnvExt* env = JniEnvExt::Get();
   bool result = env->CallBooleanMethodOrAbort(
       j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
@@ -237,7 +239,7 @@ void DrmSystem::Run() {
   }
 }
 
-DrmSystem::~DrmSystem() {
+MediaDrmBridge::~MediaDrmBridge() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
   Join();
 
@@ -253,7 +255,7 @@ DrmSystem::~DrmSystem() {
   }
 }
 
-DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
+MediaDrmBridge::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
     const char* type,
     const void* initialization_data,
@@ -265,7 +267,7 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
   j_mime_ = env->NewStringStandardUTFOrAbort(type);
 }
 
-void DrmSystem::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
+void MediaDrmBridge::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
   if (!references_are_global_) {
     JniEnvExt* env = JniEnvExt::Get();
     j_init_data_ = env->ConvertLocalRefToGlobalRef(j_init_data_);
@@ -274,7 +276,7 @@ void DrmSystem::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
   }
 }
 
-DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
+MediaDrmBridge::SessionUpdateRequest::~SessionUpdateRequest() {
   JniEnvExt* env = JniEnvExt::Get();
   if (references_are_global_) {
     env->DeleteGlobalRef(j_init_data_);
@@ -287,7 +289,7 @@ DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
   j_mime_ = nullptr;
 }
 
-void DrmSystem::SessionUpdateRequest::Generate(
+void MediaDrmBridge::SessionUpdateRequest::Generate(
     jobject j_media_drm_bridge) const {
   JniEnvExt* env = JniEnvExt::Get();
   env->CallVoidMethodOrAbort(j_media_drm_bridge, "createSession",
@@ -295,10 +297,11 @@ void DrmSystem::SessionUpdateRequest::Generate(
                              j_init_data_, j_mime_);
 }
 
-void DrmSystem::GenerateSessionUpdateRequest(int ticket,
-                                             const char* type,
-                                             const void* initialization_data,
-                                             int initialization_data_size) {
+void MediaDrmBridge::GenerateSessionUpdateRequest(
+    int ticket,
+    const char* type,
+    const void* initialization_data,
+    int initialization_data_size) {
   std::unique_ptr<SessionUpdateRequest> session_update_request(
       new SessionUpdateRequest(ticket, type, initialization_data,
                                initialization_data_size));
@@ -315,11 +318,11 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   // |onSessionMessage|.
 }
 
-void DrmSystem::UpdateSession(int ticket,
-                              const void* key,
-                              int key_size,
-                              const void* session_id,
-                              int session_id_size) {
+void MediaDrmBridge::UpdateSession(int ticket,
+                                   const void* key,
+                                   int key_size,
+                                   const void* session_id,
+                                   int session_id_size) {
   ScopedLocalJavaRef<jbyteArray> j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
   ScopedLocalJavaRef<jbyteArray> j_response(ByteArrayFromRaw(key, key_size));
@@ -342,7 +345,7 @@ void DrmSystem::UpdateSession(int ticket,
                             error_msg.c_str(), session_id, session_id_size);
 }
 
-void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
+void MediaDrmBridge::CloseSession(const void* session_id, int session_id_size) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
@@ -361,7 +364,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
                              j_session_id.Get());
 }
 
-DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
+MediaDrmBridge::DecryptStatus MediaDrmBridge::Decrypt(InputBuffer* buffer) {
   SB_DCHECK(buffer);
   SB_DCHECK(buffer->drm_info());
   SB_DCHECK(j_media_crypto_);
@@ -373,7 +376,7 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   return kSuccess;
 }
 
-const void* DrmSystem::GetMetrics(int* size) {
+const void* MediaDrmBridge::GetMetrics(int* size) {
   JniEnvExt* env = JniEnvExt::Get();
   jbyteArray j_metrics = static_cast<jbyteArray>(env->CallObjectMethodOrAbort(
       j_media_drm_bridge_, "getMetricsInBase64", "()[B"));
@@ -394,19 +397,20 @@ const void* DrmSystem::GetMetrics(int* size) {
   return metrics_.data();
 }
 
-void DrmSystem::CallUpdateRequestCallback(int ticket,
-                                          SbDrmSessionRequestType request_type,
-                                          const void* session_id,
-                                          int session_id_size,
-                                          const void* content,
-                                          int content_size,
-                                          const char* url) {
+void MediaDrmBridge::CallUpdateRequestCallback(
+    int ticket,
+    SbDrmSessionRequestType request_type,
+    const void* session_id,
+    int session_id_size,
+    const void* content,
+    int content_size,
+    const char* url) {
   update_request_callback_(this, context_, ticket, kSbDrmStatusSuccess,
                            request_type, NULL, session_id, session_id_size,
                            content, content_size, url);
 }
 
-void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
+void MediaDrmBridge::CallDrmSessionKeyStatusesChangedCallback(
     const void* session_id,
     int session_id_size,
     const std::vector<SbDrmKeyId>& drm_key_ids,
@@ -433,7 +437,7 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
                                  drm_key_ids.data(), drm_key_statuses.data());
 }
 
-void DrmSystem::OnInsufficientOutputProtection() {
+void MediaDrmBridge::OnInsufficientOutputProtection() {
   // HDCP has lost, update the statuses of all keys in all known sessions to be
   // restricted.
   ScopedLock scoped_lock(mutex_);
@@ -444,7 +448,8 @@ void DrmSystem::OnInsufficientOutputProtection() {
   CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
 }
 
-void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
+void MediaDrmBridge::
+    CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
   mutex_.DCheckAcquired();
 
   for (auto& iter : cached_drm_key_ids_) {

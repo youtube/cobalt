@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/drm_system.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 
 #include "starboard/android/shared/media_common.h"
 
@@ -24,9 +24,9 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
     SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
     SbDrmSessionClosedFunc session_closed_callback) {
-  using starboard::android::shared::DrmSystem;
   using starboard::android::shared::IsWidevineL1;
   using starboard::android::shared::IsWidevineL3;
+  using starboard::android::shared::MediaDrmBridge;
 
   if (!update_request_callback || !session_updated_callback ||
       !key_statuses_changed_callback || !server_certificate_updated_callback ||
@@ -38,9 +38,9 @@ SbDrmSystem SbDrmCreateSystem(
     return kSbDrmSystemInvalid;
   }
 
-  DrmSystem* drm_system =
-      new DrmSystem(key_system, context, update_request_callback,
-                    session_updated_callback, key_statuses_changed_callback);
+  MediaDrmBridge* drm_system = new MediaDrmBridge(
+      key_system, context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback);
   if (!drm_system->is_valid()) {
     delete drm_system;
     return kSbDrmSystemInvalid;

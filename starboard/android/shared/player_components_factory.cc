@@ -24,11 +24,11 @@
 #include "starboard/android/shared/audio_decoder.h"
 #include "starboard/android/shared/audio_renderer_passthrough.h"
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
-#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
@@ -613,8 +613,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                    << creation_parameters.video_codec() << " is not supported.";
       return false;
     }
-    DrmSystem* drm_system_ptr =
-        static_cast<DrmSystem*>(creation_parameters.drm_system());
+    MediaDrmBridge* drm_system_ptr =
+        static_cast<MediaDrmBridge*>(creation_parameters.drm_system());
     jobject j_media_crypto =
         drm_system_ptr ? drm_system_ptr->GetMediaCrypto() : NULL;
 
@@ -714,7 +714,7 @@ bool PlayerComponents::Factory::OutputModeSupported(
     SbPlayerOutputMode output_mode,
     SbMediaVideoCodec codec,
     SbDrmSystem drm_system) {
-  using ::starboard::android::shared::DrmSystem;
+  using ::starboard::android::shared::MediaDrmBridge;
 
   if (output_mode == kSbPlayerOutputModePunchOut) {
     return true;
@@ -724,7 +724,8 @@ bool PlayerComponents::Factory::OutputModeSupported(
     if (!SbDrmSystemIsValid(drm_system)) {
       return true;
     }
-    DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
+    MediaDrmBridge* android_drm_system =
+        static_cast<MediaDrmBridge*>(drm_system);
     bool require_secure_decoder = android_drm_system->require_secured_decoder();
     SB_LOG_IF(INFO, require_secure_decoder)
         << "Output mode under decode-to-texture is not supported due to secure "

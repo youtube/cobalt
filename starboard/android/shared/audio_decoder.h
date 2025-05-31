@@ -21,9 +21,9 @@
 #include <queue>
 #include <string>
 
-#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -82,7 +82,7 @@ class AudioDecoder
   jint output_sample_rate_;
   jint output_channel_count_;
 
-  DrmSystem* drm_system_;
+  MediaDrmBridge* drm_system_;
 
   OutputCB output_cb_;
   ErrorCB error_cb_;

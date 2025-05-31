@@ -21,10 +21,10 @@
 #include <vector>
 
 #include "starboard/android/shared/decode_target.h"
-#include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/android/shared/media_drm_bridge.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/common/condition_variable.h"
@@ -131,7 +131,7 @@ class VideoDecoder
   const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
   ErrorCB error_cb_;
-  DrmSystem* drm_system_;
+  MediaDrmBridge* drm_system_;
   const SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
@@ -163,7 +163,7 @@ class VideoDecoder
   // On some platforms tunnel mode is only supported in the secure pipeline.  So
   // we create a dummy drm system to force the video playing in secure pipeline
   // to enable tunnel mode.
-  std::unique_ptr<DrmSystem> drm_system_to_enforce_tunnel_mode_;
+  std::unique_ptr<MediaDrmBridge> drm_system_to_enforce_tunnel_mode_;
 
   const bool is_video_frame_tracker_enabled_;
   std::unique_ptr<VideoFrameTracker> video_frame_tracker_;
