@@ -207,6 +207,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
+  int64_t last_written_at_us = 0;
+  auto GetOriginMs = [&](int64_t system_time_us, int64_t frame_position) {
+    return system_time_us / 1'000 -
+           frame_position * 1'000 / sampling_frequency_hz_;
+  };
+
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
@@ -229,6 +235,15 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
       SB_DCHECK(playback_head_position >= last_playback_head_position);
+
+      int64_t rendered_origin_ms =
+          GetOriginMs(frames_consumed_at, playback_head_position);
+      int64_t write_origin_ms =
+          GetOriginMs(last_written_at_us, accumulated_written_frames);
+
+      SB_LOG(INFO) << "Latency(msec)=" << (rendered_origin_ms - write_origin_ms)
+                   << ", rendered origin(msec): " << rendered_origin_ms
+                   << ", write origin(msec): " << write_origin_ms;
 
       int frames_consumed =
           playback_head_position - last_playback_head_position;
@@ -359,6 +374,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
     frames_in_audio_track += written_frames;
     accumulated_written_frames += written_frames;
+
+    last_written_at_us = CurrentMonotonicTime();
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
