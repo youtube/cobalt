@@ -141,17 +141,18 @@ void AdaptiveAudioDecoder::WriteEndOfStream() {
   if (first_input_written_) {
     audio_decoder_->WriteEndOfStream();
   } else {
-    decoded_audios_.push(new DecodedAudio);
+    decoded_audios_.push(std::make_unique<DecodedAudio>());
+    ;
     Schedule(output_cb_);
   }
 }
 
-scoped_refptr<DecodedAudio> AdaptiveAudioDecoder::Read(
+std::unique_ptr<DecodedAudio> AdaptiveAudioDecoder::Read(
     int* samples_per_second) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!decoded_audios_.empty());
 
-  scoped_refptr<DecodedAudio> ret = decoded_audios_.front();
+  std::unique_ptr<DecodedAudio> ret = std::move(decoded_audios_.front());
   decoded_audios_.pop();
 
   SB_DCHECK(ret->is_end_of_stream() ||
@@ -233,7 +234,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   SB_DCHECK(output_cb_);
 
   int decoded_sample_rate;
-  scoped_refptr<DecodedAudio> decoded_audio =
+  std::unique_ptr<DecodedAudio> decoded_audio =
       audio_decoder_->Read(&decoded_sample_rate);
 
   if (!decoded_audio->is_end_of_stream() && !decoded_audio->frames()) {
@@ -256,13 +257,13 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
   if (decoded_audio->is_end_of_stream()) {
     // Flush resampler.
     if (resampler_) {
-      scoped_refptr<DecodedAudio> resampler_output =
+      std::unique_ptr<DecodedAudio> resampler_output =
           resampler_->WriteEndOfStream();
       if (resampler_output && resampler_output->size_in_bytes() > 0) {
         if (channel_mixer_) {
           resampler_output = channel_mixer_->Mix(resampler_output);
         }
-        decoded_audios_.push(resampler_output);
+        decoded_audios_.push(std::move(resampler_output));
         Schedule(output_cb_);
       }
     }
@@ -274,7 +275,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
       Decode(input_buffers, ResetAndReturn(&pending_consumed_cb_));
     } else {
       SB_DCHECK(stream_ended_);
-      decoded_audios_.push(decoded_audio);
+      decoded_audios_.push(std::move(decoded_audio));
       Schedule(output_cb_);
     }
     return;
@@ -303,7 +304,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     }
   }
   if (resampler_) {
-    decoded_audio = resampler_->Resample(decoded_audio);
+    decoded_audio = resampler_->Resample(std::move(decoded_audio));
   } else {
     // If |resampler_| is NULL, |output_samples_per_second_| should be the same
     // as |decoded_sample_rate|.
@@ -313,7 +314,7 @@ void AdaptiveAudioDecoder::OnDecoderOutput() {
     if (channel_mixer_) {
       decoded_audio = channel_mixer_->Mix(decoded_audio);
     }
-    decoded_audios_.push(decoded_audio);
+    decoded_audios_.push(std::move(decoded_audio));
     Schedule(output_cb_);
   }
 }

@@ -63,7 +63,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
-  scoped_refptr<DecodedAudio> Read(int* samples_per_second) override;
+  std::unique_ptr<DecodedAudio> Read(int* samples_per_second) override;
   void Reset() override;
 
  private:
@@ -90,7 +90,7 @@ class AdaptiveAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   std::unique_ptr<filter::AudioChannelLayoutMixer> channel_mixer_;
   InputBuffers pending_input_buffers_;
   ConsumedCB pending_consumed_cb_;
-  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
+  std::queue<std::unique_ptr<DecodedAudio>> decoded_audios_;
   bool flushing_ = false;
   bool stream_ended_ = false;
   bool first_output_received_ = false;

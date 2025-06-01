@@ -166,7 +166,7 @@ const float kFivePointOneToQuadMatrix[] = {
 // to hold samples from all channels of the frame.
 template <typename SampleType>
 const SampleType* GetInterleavedSamplesOfFrame(
-    const scoped_refptr<DecodedAudio>& input,
+    const std::unique_ptr<DecodedAudio>& input,
     int frame_index,
     SampleType* aux_buffer) {
   const SampleType* input_buffer =
@@ -185,7 +185,7 @@ const SampleType* GetInterleavedSamplesOfFrame(
 
 template <typename SampleType>
 void StoreInterleavedSamplesOfFrame(const SampleType* samples,
-                                    scoped_refptr<DecodedAudio>* destination,
+                                    std::unique_ptr<DecodedAudio>* destination,
                                     int frame_index) {
   SampleType* dest_buffer =
       reinterpret_cast<SampleType*>((*destination)->data());
@@ -250,16 +250,16 @@ class AudioChannelLayoutMixerImpl : public AudioChannelLayoutMixer {
                               SbMediaAudioFrameStorageType storage_type,
                               int output_channels);
 
-  scoped_refptr<DecodedAudio> Mix(
-      const scoped_refptr<DecodedAudio>& input) override;
+  std::unique_ptr<DecodedAudio> Mix(
+      const std::unique_ptr<DecodedAudio>& input) override;
 
  private:
   template <typename SampleType>
-  scoped_refptr<DecodedAudio> Mix(const scoped_refptr<DecodedAudio>& input,
-                                  const float* matrix);
+  std::unique_ptr<DecodedAudio> Mix(const std::unique_ptr<DecodedAudio>& input,
+                                    const float* matrix);
 
-  scoped_refptr<DecodedAudio> MixMonoToStereoOptimized(
-      const scoped_refptr<DecodedAudio>& input);
+  std::unique_ptr<DecodedAudio> MixMonoToStereoOptimized(
+      const std::unique_ptr<DecodedAudio>& input);
 
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;
@@ -274,13 +274,13 @@ AudioChannelLayoutMixerImpl::AudioChannelLayoutMixerImpl(
       storage_type_(storage_type),
       output_channels_(output_channels) {}
 
-scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input) {
+std::unique_ptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
+    const std::unique_ptr<DecodedAudio>& input) {
   SB_DCHECK(input->sample_type() == sample_type_);
   SB_DCHECK(input->storage_type() == storage_type_);
 
   if (input->channels() == output_channels_) {
-    return input;
+    return input->Clone();
   }
 
   if (input->channels() == 1 && output_channels_ == 2) {
@@ -325,7 +325,7 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
   if (!matrix) {
     SB_NOTREACHED() << "Mixing " << input->channels() << " channels to "
                     << output_channels_ << " channels is not supported.";
-    return scoped_refptr<DecodedAudio>();
+    return std::unique_ptr<DecodedAudio>();
   }
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
@@ -336,11 +336,11 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
 }
 
 template <typename SampleType>
-scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
-    const scoped_refptr<DecodedAudio>& input,
+std::unique_ptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
+    const std::unique_ptr<DecodedAudio>& input,
     const float* matrix) {
   size_t frames = input->frames();
-  scoped_refptr<DecodedAudio> output(new DecodedAudio(
+  std::unique_ptr<DecodedAudio> output(new DecodedAudio(
       output_channels_, sample_type_, storage_type_, input->timestamp(),
       frames * output_channels_ * GetBytesPerSample(sample_type_)));
   SampleType aux_buffer[8];
@@ -355,13 +355,13 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
   return output;
 }
 
-scoped_refptr<DecodedAudio>
+std::unique_ptr<DecodedAudio>
 AudioChannelLayoutMixerImpl::MixMonoToStereoOptimized(
-    const scoped_refptr<DecodedAudio>& input) {
+    const std::unique_ptr<DecodedAudio>& input) {
   SB_DCHECK(output_channels_ == 2);
   SB_DCHECK(input->channels() == 1);
 
-  scoped_refptr<DecodedAudio> output(
+  std::unique_ptr<DecodedAudio> output(
       new DecodedAudio(output_channels_, sample_type_, storage_type_,
                        input->timestamp(), input->size_in_bytes() * 2));
   if (storage_type_ == kSbMediaAudioFrameStorageTypeInterleaved) {

@@ -152,30 +152,30 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
   internal::GetSymmetricHanningWindow(2 * ola_window_size_,
                                       transition_window_.get());
 
-  wsola_output_ = new DecodedAudio(
+  wsola_output_ = std::make_unique<DecodedAudio>(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       (ola_window_size_ + ola_hop_size_) * bytes_per_frame_);
   // Initialize for overlap-and-add of the first block.
   memset(wsola_output_->data(), 0, wsola_output_->size_in_bytes());
 
   // Auxiliary containers.
-  optimal_block_ = new DecodedAudio(channels_, sample_type_,
-                                    kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                    ola_window_size_ * bytes_per_frame_);
-  search_block_ = new DecodedAudio(
+  optimal_block_ = std::make_unique<DecodedAudio>(
+      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+      ola_window_size_ * bytes_per_frame_);
+  search_block_ = std::make_unique<DecodedAudio>(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       (num_candidate_blocks_ + (ola_window_size_ - 1)) * bytes_per_frame_);
-  target_block_ = new DecodedAudio(channels_, sample_type_,
-                                   kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                   ola_window_size_ * bytes_per_frame_);
+  target_block_ = std::make_unique<DecodedAudio>(
+      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+      ola_window_size_ * bytes_per_frame_);
 }
 
-scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
-                                                     double playback_rate) {
+std::unique_ptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
+                                                       double playback_rate) {
   SB_DCHECK(bytes_per_frame_ > 0);
   SB_DCHECK(playback_rate >= 0);
 
-  scoped_refptr<DecodedAudio> dest = new DecodedAudio(
+  auto dest = std::make_unique<DecodedAudio>(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       requested_frames * bytes_per_frame_);
 
@@ -221,7 +221,8 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   if (ola_window_size_ <= faster_step && slower_step >= ola_window_size_) {
     const int frames_to_copy =
         std::min(audio_buffer_.frames(), requested_frames);
-    const int frames_read = audio_buffer_.ReadFrames(frames_to_copy, 0, dest);
+    const int frames_read =
+        audio_buffer_.ReadFrames(frames_to_copy, 0, dest.get());
     SB_DCHECK(frames_read == frames_to_copy);
     dest->ShrinkTo(frames_read * bytes_per_frame_);
     return dest;
@@ -230,7 +231,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   int rendered_frames = 0;
   do {
     rendered_frames += WriteCompletedFramesTo(
-        requested_frames - rendered_frames, rendered_frames, dest);
+        requested_frames - rendered_frames, rendered_frames, dest.get());
   } while (rendered_frames < requested_frames &&
            RunOneWsolaIteration(playback_rate));
   dest->ShrinkTo(rendered_frames * bytes_per_frame_);
@@ -252,9 +253,9 @@ void AudioTimeStretcher::FlushBuffers() {
 }
 
 void AudioTimeStretcher::EnqueueBuffer(
-    const scoped_refptr<DecodedAudio>& audio_data) {
+    std::unique_ptr<DecodedAudio> audio_data) {
   SB_DCHECK(!audio_data->is_end_of_stream());
-  audio_buffer_.Append(audio_data);
+  audio_buffer_.Append(std::move(audio_data));
 }
 
 bool AudioTimeStretcher::IsQueueFull() const {
@@ -390,8 +391,8 @@ void AudioTimeStretcher::GetOptimalBlock() {
     // |optimal_index| is in frames and it is relative to the beginning of the
     // |search_block_|.
     optimal_index = internal::OptimalIndex(
-        search_block_.get(), target_block_.get(),
-        kSbMediaAudioFrameStorageTypeInterleaved, exclude_interval);
+        search_block_, target_block_, kSbMediaAudioFrameStorageTypeInterleaved,
+        exclude_interval);
 
     // Translate |index| w.r.t. the beginning of |audio_buffer_| and extract the
     // optimal block.

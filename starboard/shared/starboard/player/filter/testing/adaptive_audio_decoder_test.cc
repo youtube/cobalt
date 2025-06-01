@@ -196,7 +196,7 @@ class AdaptiveAudioDecoderTest
   }
 
   vector<std::unique_ptr<VideoDmpReader>> dmp_readers_;
-  scoped_refptr<DecodedAudio> last_decoded_audio_;
+  std::unique_ptr<DecodedAudio> last_decoded_audio_;
   deque<scoped_refptr<InputBuffer>> written_inputs_;
   int num_of_output_frames_ = 0;
   int output_sample_rate_;
@@ -237,7 +237,7 @@ class AdaptiveAudioDecoderTest
 
   void ReadFromDecoder() {
     int samples_per_second;
-    scoped_refptr<DecodedAudio> decoded_audio =
+    std::unique_ptr<DecodedAudio> decoded_audio =
         audio_decoder_->Read(&samples_per_second);
     ASSERT_TRUE(decoded_audio);
     if (first_output_received_) {
