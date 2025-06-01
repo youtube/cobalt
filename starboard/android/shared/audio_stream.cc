@@ -56,6 +56,7 @@ DEFINE_METHOD(AAudioStream_requestFlush);
 DEFINE_METHOD(AAudioStream_requestPause);
 DEFINE_METHOD(AAudioStream_requestStart);
 DEFINE_METHOD(AAudioStream_requestStop);
+DEFINE_METHOD(AAudioStream_setBufferSizeInFrames);
 DEFINE_METHOD(AAudioStream_waitForStateChange);
 DEFINE_METHOD(AAudio_convertResultToText);
 DEFINE_METHOD(AAudio_convertStreamStateToText);
@@ -116,6 +117,7 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestPause);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestStart);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestStop);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_setBufferSizeInFrames);
   LOAD_AAUDIO_FUNCTION(AAudioStream_waitForStateChange);
 
   LOAD_AAUDIO_FUNCTION(AAudio_convertResultToText);
@@ -236,15 +238,21 @@ std::unique_ptr<AudioStream> AudioStream::Create(
   std::unique_ptr<AAudioStreamBuilder, AAudioStreamBuilderDeleter> builder_raii(
       builder);
 
+  // #define AAUDIO_LOW_LATENCY
+
   AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
+#if defined(AAUDIO_LOW_LATENCY)
   AAudioStreamBuilder_setPerformanceMode(builder,
                                          AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
+#else
+  AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_NONE);
+  AAudioStreamBuilder_setFramesPerDataCallback(builder, 48 * 10);
+#endif
   AAudioStreamBuilder_setSharingMode(builder, AAUDIO_SHARING_MODE_SHARED);
   AAudioStreamBuilder_setSampleRate(builder, sample_rate);
   AAudioStreamBuilder_setChannelCount(builder, channel_count);
   AAudioStreamBuilder_setFormat(builder, format);
-  // Set buffer size to 20 msec of 48,000 sample rate.
-  // AAudioStreamBuilder_setBufferCapacityInFrames(builder, 48 * 20);
+  AAudioStreamBuilder_setBufferCapacityInFrames(builder, 48 * 20);
 
   AAudioStreamBuilder_setErrorCallback(builder, AudioStream::ErrorCallback,
                                        audio_stream_instance.get());
@@ -257,6 +265,11 @@ std::unique_ptr<AudioStream> AudioStream::Create(
   SB_LOG(INFO) << "Opening AAudio stream...";
   AAudioStream* stream;
   RETURN_ON_ERROR(AAudioStreamBuilder_openStream(builder, &stream), nullptr);
+#if defined(AAUDIO_LOW_LATENCY)
+  // Do nothing.
+#else
+  LOG_ON_ERROR(AAudioStream_setBufferSizeInFrames(stream, 48 * 10));
+#endif
 
   int32_t actual_sample_rate = AAudioStream_getSampleRate(stream);
   SB_DCHECK(actual_sample_rate == sample_rate);

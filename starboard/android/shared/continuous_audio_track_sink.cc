@@ -125,6 +125,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
     stream_->Pause();
     is_playing_ = false;
   }
+  SB_LOG(INFO) << __func__ << ": completed";
 }
 
 AudioStream::Timestamp GetEstimatedNowTimestamp(
@@ -202,7 +203,7 @@ void ContinuousAudioTrackSink::logRate(int num_frames_to_read, int64_t now_us) {
   callback_interval_count_++;
 
   int64_t cp_elapsed_us = now_us - last_callback_us_;
-  if (cp_elapsed_us > 10'000'000) {
+  if (cp_elapsed_us > 5'000'000) {
     SB_LOG(INFO) << "frames/callback="
                  << (callback_interval_frames_ / callback_interval_count_)
                  << ", callbacks/sec="
