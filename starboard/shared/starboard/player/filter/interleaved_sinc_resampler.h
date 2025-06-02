@@ -29,11 +29,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class InterleavedSincResampler {
  public:
@@ -171,10 +167,6 @@ class InterleavedSincResampler {
   void operator=(const InterleavedSincResampler&) = delete;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_INTERLEAVED_SINC_RESAMPLER_H_

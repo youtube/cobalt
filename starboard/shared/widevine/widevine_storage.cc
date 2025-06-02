@@ -19,9 +19,7 @@
 #include "starboard/shared/widevine/widevine_keybox_hash.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 // Reserved key name for referring to the Widevine Keybox checksum value.
 const char WidevineStorage::kCobaltWidevineKeyboxChecksumKey[] =
@@ -227,6 +225,4 @@ bool WidevineStorage::removeInternal(const std::string& name) {
   return true;
 }
 
-}  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::widevine

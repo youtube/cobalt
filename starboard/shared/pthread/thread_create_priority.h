@@ -18,9 +18,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace pthread {
+namespace starboard::shared::pthread {
 
 // Set priority of the current thread.
 //
@@ -28,8 +26,6 @@ namespace pthread {
 // platform SB_HAS(THREAD_PRIORITY_SUPPORT)
 void ThreadSetPriority(SbThreadPriority priority);
 
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pthread
 
 #endif  // STARBOARD_SHARED_PTHREAD_THREAD_CREATE_PRIORITY_H_

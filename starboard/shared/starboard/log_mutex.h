@@ -17,16 +17,12 @@
 
 #include "starboard/common/recursive_mutex.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // Returns a pointer to a global recursive mutex that will be used as the
 // synchronization primitive for all Starboard logging.
 RecursiveMutex* GetLoggingMutex();
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_LOG_MUTEX_H_

@@ -30,9 +30,7 @@ struct SbStorageRecordPrivate {
   std::string name;
 };
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 // Gets the path to the storage file.
 static inline bool GetStorageFilePath(const char* name,
                                       char* out_path,
@@ -51,8 +49,7 @@ static inline bool GetStorageFilePath(const char* name,
   ::starboard::strlcat(out_path, ".storage", path_size);
   return true;
 }
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_

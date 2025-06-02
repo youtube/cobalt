@@ -41,9 +41,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
-namespace starboard {
-namespace shared {
-namespace alsa {
+namespace starboard::shared::alsa {
 
 namespace {
 
@@ -260,6 +258,4 @@ bool AlsaDrain(void* playback_handle) {
   return true;
 }
 
-}  // namespace alsa
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::alsa

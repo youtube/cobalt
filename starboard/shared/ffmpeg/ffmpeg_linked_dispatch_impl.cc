@@ -28,9 +28,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 namespace {
 
 FFMPEGDispatch* g_ffmpeg_dispatch_impl;
@@ -134,6 +132,4 @@ int FFMPEGDispatch::specialization_version() const {
   return FFMPEG;
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

@@ -22,9 +22,7 @@
 #include "starboard/common/mutex.h"
 #include "third_party/internal/ce_cdm/cdm/include/cdm.h"
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 // Manages the load and save of name/value pairs in std::string.  It is used by
 // Widevine to store persistent data like device provisioning.
@@ -60,7 +58,7 @@ class WidevineStorage : public ::widevine::Cdm::IStorage {
 };
 
 }  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::widevine
 
 #endif  // STARBOARD_SHARED_WIDEVINE_WIDEVINE_STORAGE_H_

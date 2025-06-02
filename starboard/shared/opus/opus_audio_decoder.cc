@@ -19,9 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace shared {
-namespace opus {
+namespace starboard::shared::opus {
 
 namespace {
 
@@ -269,6 +267,4 @@ SbMediaAudioSampleType OpusAudioDecoder::GetSampleType() const {
   return kSbMediaAudioSampleTypeFloat32;
 }
 
-}  // namespace opus
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::opus
