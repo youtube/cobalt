@@ -34,11 +34,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // A class that sits in between the video decoder, the video sink and the
 // pipeline to coordinate data transfer between these parties.
@@ -148,10 +144,6 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 #endif                                  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_
