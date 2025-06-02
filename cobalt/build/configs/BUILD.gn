@@ -25,6 +25,7 @@ config("cobalt_config") {
   } else if (is_cobalt_hermetic_build &&
              current_toolchain == cobalt_toolchain) {
 <<<<<<< HEAD
+<<<<<<< HEAD
     configs += [
       # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
       "//starboard/build/config/modular/x64",
@@ -33,9 +34,16 @@ config("cobalt_config") {
 =======
     assert(current_cpu == "x64",
            "TODO: b/390500840 - $current_cpu not yet supported.")
+=======
+>>>>>>> 98270bc6e2b (Build starboard shared library for hermetic raspi builds (#5735))
     configs += [ "//starboard/build/config:starboard" ]
     if (sb_is_evergreen) {
-      configs += [ "//starboard/evergreen/x64/platform_configuration" ]
+      if (current_cpu == "arm") {
+        # TODO: b/419893744 - Find a way to switch between hardfp, softfp.
+        configs += [ "//starboard/evergreen/arm/hardfp/platform_configuration" ]
+      } else if (current_cpu == "x64") {
+        configs += [ "//starboard/evergreen/x64/platform_configuration" ]
+      }
     } else {
       configs += [
         # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
