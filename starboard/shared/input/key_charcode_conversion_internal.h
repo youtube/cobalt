@@ -24,8 +24,6 @@ namespace starboard::shared::input {
 
 wchar_t ComputeCharCode(SbKey key, uint32_t modifiers);
 
-}  // namespace input
-
 }  // namespace starboard::shared::input
 
 #endif  // STARBOARD_SHARED_INPUT_KEY_CHARCODE_CONVERSION_INTERNAL_H_

@@ -129,6 +129,4 @@ wchar_t ComputeCharCode(SbKey key, uint32_t modifiers) {
   }
 }
 
-}  // namespace input
-
 }  // namespace starboard::shared::input
