@@ -34,9 +34,7 @@
 #include "third_party/openh264/include/codec_app_def.h"
 #include "third_party/openh264/include/codec_def.h"
 
-namespace starboard {
-namespace shared {
-namespace openh264 {
+namespace starboard::shared::openh264 {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -134,8 +132,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace openh264
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::openh264
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_

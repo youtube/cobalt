@@ -47,9 +47,7 @@
 #include <sanitizer/lsan_interface.h>
 #endif  // HAS_LEAK_SANITIZER
 
-namespace starboard {
-namespace shared {
-namespace pulse {
+namespace starboard::shared::pulse {
 namespace {
 
 using starboard::media::GetBytesPerSample;
@@ -618,6 +616,4 @@ void PlatformTearDown() {
   pulse_unload_library();
 }
 
-}  // namespace pulse
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pulse

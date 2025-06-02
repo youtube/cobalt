@@ -19,9 +19,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace aom {
+namespace starboard::shared::aom {
 
 bool is_aom_supported();
 
@@ -43,7 +41,7 @@ extern aom_codec_err_t (*aom_codec_decode)(aom_codec_ctx_t*,
 extern aom_image_t* (*aom_codec_get_frame)(aom_codec_ctx_t*, aom_codec_iter_t*);
 
 }  // namespace aom
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::aom
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_LIBRARY_LOADER_H_
