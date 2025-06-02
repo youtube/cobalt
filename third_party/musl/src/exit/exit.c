@@ -1,12 +1,13 @@
-#include <stdlib.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include "build/build_config.h"
 #include "libc.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/system.h"
-#endif  // defined(STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 static void dummy()
 {
 }
@@ -28,16 +29,16 @@ static void libc_exit_fini(void)
 }
 
 weak_alias(libc_exit_fini, __libc_exit_fini);
-#endif // !defined(STARBOARD)
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 _Noreturn void exit(int code)
 {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 	SbSystemBreakIntoDebugger();
-#else   // !defined(STARBOARD)
+#else   // !BUILDFLAG(IS_STARBOARD)
 	__funcs_on_exit();
 	__libc_exit_fini();
 	__stdio_exit();
 	_Exit(code);
-#endif // defined(STARBOARD)
+#endif // BUILDFLAG(IS_STARBOARD)
 }

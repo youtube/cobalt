@@ -1,6 +1,8 @@
 #ifndef	_TIME_H
 #define _TIME_H
 
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -132,9 +134,9 @@ time_t timegm(struct tm *);
 #endif
 
 #if _REDIR_TIME64
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __REDIR(time, __time64);
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 __REDIR(difftime, __difftime64);
 __REDIR(mktime, __mktime64);
 __REDIR(gmtime, __gmtime64);
@@ -144,16 +146,16 @@ __REDIR(timespec_get, __timespec_get_time64);
 #if defined(_POSIX_SOURCE) || defined(_POSIX_C_SOURCE) \
  || defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
  || defined(_BSD_SOURCE)
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __REDIR(gmtime_r, __gmtime64_r);
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 __REDIR(localtime_r, __localtime64_r);
 __REDIR(ctime_r, __ctime64_r);
 __REDIR(nanosleep, __nanosleep_time64);
 __REDIR(clock_getres, __clock_getres_time64);
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __REDIR(clock_gettime, __clock_gettime64);
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_STARBOARD)
 __REDIR(clock_settime, __clock_settime64);
 __REDIR(clock_nanosleep, __clock_nanosleep_time64);
 __REDIR(timer_settime, __timer_settime64);

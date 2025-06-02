@@ -1,6 +1,8 @@
 #ifndef	_ERRNO_H
 #define _ERRNO_H
 
+#include "build/build_config.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -10,7 +12,7 @@ extern "C" {
 #include <bits/errno.h>
 
 #ifdef __GNUC__
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 __attribute__((const))
 #endif
 #endif
