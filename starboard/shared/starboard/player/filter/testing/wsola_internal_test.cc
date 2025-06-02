@@ -174,27 +174,27 @@ TEST(WsolaInternalTest, OptimalIndex_SmallBlocks) {
   EXPECT_NEAR(optimal_index, 10, 1);
 }
 
-TEST(WsolaInternalTest, GetSymmetricHanningWindow_LengthOne) {
+TEST(WsolaInternalTest, GetPeriodicHanningWindow_LengthOne) {
   float window[1];
-  GetSymmetricHanningWindow(1, window);
+  GetPeriodicHanningWindow(1, window);
   EXPECT_FLOAT_EQ(window[0],
                   0.0f);  // Hann window of length L is 0 at n=0 for periodic
 }
 
-TEST(WsolaInternalTest, GetSymmetricHanningWindow_LengthTwo) {
+TEST(WsolaInternalTest, GetPeriodicHanningWindow_LengthTwo) {
   float window[2];
 
-  GetSymmetricHanningWindow(2, window);
+  GetPeriodicHanningWindow(2, window);
 
   EXPECT_FLOAT_EQ(window[0], 0.0f);
   EXPECT_FLOAT_EQ(window[1], 1.0f);
 }
 
-TEST(WsolaInternalTest, GetSymmetricHanningWindow_AllValuesAreValid) {
+TEST(WsolaInternalTest, GetPeriodicHanningWindow_AllValuesAreValid) {
   const int kWindowLength = 64;
   std::vector<float> window(kWindowLength);
 
-  GetSymmetricHanningWindow(kWindowLength, window.data());
+  GetPeriodicHanningWindow(kWindowLength, window.data());
 
   for (int i = 0; i < kWindowLength; ++i) {
     EXPECT_GE(window[i], 0.0f);
