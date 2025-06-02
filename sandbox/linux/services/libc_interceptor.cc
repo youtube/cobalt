@@ -285,7 +285,7 @@ static void InitLibcLocaltimeFunctionsImpl() {
   if (!g_libc_localtime64_r)
     g_libc_localtime64_r = g_libc_localtime_r;
 }
-
+#if 0
 // Define localtime_override() function with asm name "localtime", so that all
 // references to localtime() will resolve to this function. Notice that we need
 // to set visibility attribute to "default" to export the symbol, as it is set
@@ -435,4 +435,5 @@ void DiscourageGetaddrinfo() {
   g_getaddrinfo_discouraged = true;
 }
 
+#endif
 }  // namespace sandbox

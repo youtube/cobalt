@@ -416,7 +416,9 @@ bool SandboxLinux::InitializeSandbox(sandbox::mojom::Sandbox sandbox_type,
       << "InitializeSandbox() called after unexpected directories have been "
       << "opened. This breaks the security of the setuid sandbox.";
 
+#if !BUILDFLAG(IS_STARBOARD)
   InitLibcLocaltimeFunctions();
+#endif
 
 #if !BUILDFLAG(IS_CHROMEOS)
   if (!IsUnsandboxedSandboxType(sandbox_type)) {
