@@ -111,7 +111,7 @@ if (is_cobalt_hermetic_build) {
       deps += [ ":starboard($starboard_toolchain)" ]
     }
 
-    if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
+    if (!sb_is_evergreen && current_toolchain == default_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
       # non-Evergreen builds, this is done via the below wrapper implementations

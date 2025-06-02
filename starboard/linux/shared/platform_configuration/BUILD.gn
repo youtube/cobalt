@@ -131,7 +131,7 @@ config("platform_configuration") {
     "rt",
   ]
 
-  if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
+  if (!sb_is_modular || current_toolchain != default_toolchain) {
     ldflags += [
       "-static-libstdc++",
 

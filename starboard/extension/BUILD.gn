@@ -23,7 +23,7 @@ source_set("extension_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+  if (sb_is_modular && current_toolchain == default_toolchain) {
     deps += cobalt_platform_dependencies
   }
 }

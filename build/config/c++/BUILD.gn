@@ -69,7 +69,7 @@ config("runtime_library") {
       "-isystem" + rebase_path("$libcxx_prefix/include", root_build_dir),
       "-isystem" + rebase_path("$libcxxabi_prefix/include", root_build_dir),
     ]
-    if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+    if (is_cobalt_hermetic_build && current_toolchain == default_toolchain) {
       # Note that //third_party/musl/src/starboard/include MUST be included
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.

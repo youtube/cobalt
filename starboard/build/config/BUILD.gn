@@ -155,7 +155,7 @@ config("target") {
       # however.
       # For windows based platforms this flag causes a linker error while building with cobalt toolchain
       if (!(host_os == "win" && sb_is_modular &&
-            current_toolchain == cobalt_toolchain)) {
+            current_toolchain == default_toolchain)) {
         cflags = [ "-fPIC" ]
       }
     }
@@ -272,7 +272,7 @@ config("warnings_as_errors") {
 # which is where these particular flags would otherwise naturally fit.
 config("default_compiler_flags") {
   if (is_starboardized_toolchain && sb_is_modular &&
-      current_toolchain == cobalt_toolchain && target_cpu == "arm") {
+      current_toolchain == default_toolchain && target_cpu == "arm") {
     cflags = [ "-mfpu=vfpv3" ]
     asmflags = cflags
   }

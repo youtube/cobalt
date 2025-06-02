@@ -14,7 +14,7 @@
 
 is_default_toolchain = current_toolchain == default_toolchain
 is_starboard_toolchain = current_toolchain == starboard_toolchain
-is_cobalt_toolchain = current_toolchain == cobalt_toolchain
+is_cobalt_toolchain = current_toolchain == default_toolchain
 is_host_toolchain = current_toolchain == host_toolchain
 
 # Toolchains using Starboard tools, not native tools.

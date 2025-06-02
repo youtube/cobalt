@@ -23,7 +23,7 @@ config("cobalt_config") {
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   } else if (is_cobalt_hermetic_build &&
-             current_toolchain == cobalt_toolchain) {
+             current_toolchain == default_toolchain) {
     assert(current_cpu == "x64",
            "TODO: b/390500840 - $current_cpu not yet supported.")
     configs += [ "//starboard/build/config:starboard" ]
