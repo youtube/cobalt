@@ -35,9 +35,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
@@ -455,8 +453,6 @@ class SB_EXPORT_ANDROID Application {
   std::vector<TeardownCallback> teardown_callbacks_;
 };
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_APPLICATION_H_

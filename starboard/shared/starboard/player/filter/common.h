@@ -21,11 +21,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 typedef std::function<void(SbPlayerError error,
                            const std::string& error_message)>
@@ -33,11 +29,7 @@ typedef std::function<void(SbPlayerError error,
 typedef std::function<void()> PrerolledCB;
 typedef std::function<void()> EndedCB;
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
 #define SB_PLAYER_FILTER_ENABLE_STATE_CHECK 1

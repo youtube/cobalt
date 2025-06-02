@@ -14,13 +14,9 @@
 
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace pthread {
+namespace starboard::shared::pthread {
 
 // Default implementation without thread priority support
 void ThreadSetPriority(SbThreadPriority priority) {}
 
-}  // namespace pthread
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::pthread

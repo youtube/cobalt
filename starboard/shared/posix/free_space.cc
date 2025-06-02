@@ -21,9 +21,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/free_space.h"
 
-namespace starboard {
-namespace shared {
-namespace posix {
+namespace starboard::shared::posix {
 
 namespace {
 
@@ -52,6 +50,4 @@ const void* GetFreeSpaceApi() {
   return &kFreeSpaceApi;
 }
 
-}  // namespace posix
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::posix

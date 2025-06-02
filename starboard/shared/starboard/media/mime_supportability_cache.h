@@ -24,10 +24,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 typedef enum Supportability {
   kSupportabilityUnknown,
@@ -120,9 +117,6 @@ class MimeSupportabilityCache {
   std::atomic_bool is_enabled_{false};
 };
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_SUPPORTABILITY_CACHE_H_

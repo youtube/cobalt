@@ -17,9 +17,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 // A platform implementation of getting the home directory. A return value of
 // false indicates that the platform doesn't have a concept of a home directory
@@ -27,8 +25,6 @@ namespace starboard {
 // appropriate system paths that may normally be stored under a home directory.
 bool GetHomeDirectory(char* out_path, int path_size);
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_GET_HOME_DIRECTORY_H_

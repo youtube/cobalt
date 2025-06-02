@@ -23,10 +23,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 InputBuffer::~InputBuffer() {
   DeallocateSampleBuffer(data_);
@@ -111,7 +108,4 @@ void InputBuffer::DeallocateSampleBuffer(const void* buffer) {
   }
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

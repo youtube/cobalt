@@ -19,9 +19,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace alsa {
+namespace starboard::shared::alsa {
 
 // The lengthy ALSA device opening function.
 // TODO: Use native alsa period as |frames_per_request|.
@@ -38,8 +36,6 @@ int AlsaGetBufferedFrames(void* playback_handle);
 void AlsaCloseDevice(void* playback_handle);
 bool AlsaDrain(void* playback_handle);
 
-}  // namespace alsa
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::alsa
 
 #endif  // STARBOARD_SHARED_ALSA_ALSA_UTIL_H_

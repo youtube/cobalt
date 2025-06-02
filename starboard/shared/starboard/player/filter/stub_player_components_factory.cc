@@ -16,11 +16,7 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // static
 std::unique_ptr<PlayerComponents::Factory>
@@ -29,8 +25,4 @@ StubPlayerComponentsFactory::Create() {
       new StubPlayerComponentsFactory);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

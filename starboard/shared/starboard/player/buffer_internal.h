@@ -23,10 +23,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 // A buffer containing arbitrary binary data, with life time and size managed.
 // It performs better than std::vector<> as it doesn't fill the buffer with 0s.
@@ -88,9 +85,6 @@ class Buffer {
   Buffer& operator=(const Buffer& that) = delete;
 };
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_BUFFER_INTERNAL_H_

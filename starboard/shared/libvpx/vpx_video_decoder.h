@@ -33,9 +33,7 @@
 #include "third_party/libvpx/source/libvpx/vpx/vp8dx.h"
 #include "third_party/libvpx/source/libvpx/vpx/vpx_decoder.h"
 
-namespace starboard {
-namespace shared {
-namespace vpx {
+namespace starboard::shared::vpx {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -110,8 +108,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace vpx
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::vpx
 
 #endif  // STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_

@@ -17,11 +17,7 @@
 #include <algorithm>
 #include <functional>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace video_dmp {
+namespace starboard::shared::starboard::player::video_dmp {
 
 namespace {
 
@@ -427,8 +423,4 @@ VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
   return &s_registry;
 }
 
-}  // namespace video_dmp
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::video_dmp

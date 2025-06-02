@@ -23,12 +23,7 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace testing {
+namespace starboard::shared::starboard::player::filter::testing {
 namespace {
 
 const char kTestFilename[] = "beneath_the_canopy_aac_stereo.dmp";
@@ -81,9 +76,5 @@ TEST_F(FileCacheReaderTest, FileCacheReader) {
 }
 
 }  // namespace
-}  // namespace testing
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::player::filter::testing
