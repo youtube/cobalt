@@ -57,12 +57,12 @@ class PosixNanosleepTests : public ::testing::Test {
 
     struct sigaction current_sa;
     ASSERT_EQ(sigaction(SIGALRM, nullptr, &old_sa_sigalrm_), 0)
-        << "Warning: Could not get old SIGALRM handler in SetUp";
+        << "Could not get old SIGALRM handler in SetUp";
   }
 
   void TearDown() override {
     ASSERT_EQ(sigaction(SIGALRM, &old_sa_sigalrm_, nullptr), 0)
-        << "Warning: Could not restore old SIGALRM handler in TearDown";
+        << "Could not restore old SIGALRM handler in TearDown";
     alarm(0);
   }
 };
@@ -94,7 +94,7 @@ TEST_F(PosixNanosleepTests, SuccessfulSleep) {
       << "gettimeofday failed for end_time";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
+  EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
@@ -122,16 +122,14 @@ TEST_F(PosixNanosleepTests, ZeroDurationSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  EXPECT_EQ(0, ret)
+  ASSERT_EQ(0, ret)
       << "Expected immediate return for zero duration sleep. Return: " << ret
       << ", errno: " << errno << " (" << strerror(errno) << ")";
 
-  if (ret == 0) {
-    long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-    EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
-        << "Zero duration sleep took too long. Elapsed: " << elapsed_us
-        << "us. Threshold: " << kShortDurationThresholdUs << "us.";
-  }
+  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
+      << "Zero duration sleep took too long. Elapsed: " << elapsed_us
+      << "us. Threshold: " << kShortDurationThresholdUs << "us.";
 }
 
 TEST_F(PosixNanosleepTests, ErrorEinvalRequestNsNegative) {
@@ -193,21 +191,20 @@ TEST_F(PosixNanosleepTests, ErrorEintr) {
   int ret = nanosleep(&req, &rem);
   alarm(0);
 
-  EXPECT_EQ(-1, ret) << "nanosleep should return -1 for NULL request pointer.";
-  EXPECT_EQ(EINTR, errno) << "Expected EINTR for interrupted sleep. errno: "
+  ASSERT_EQ(-1, ret) << "nanosleep should return -1 for NULL request pointer.";
+  ASSERT_EQ(EINTR, errno) << "Expected EINTR for interrupted sleep. errno: "
                           << errno << " (" << strerror(errno) << ")";
-  if (ret == -1 && errno == EINTR) {
-    // Remaining time is less than requested, or is zero.
-    EXPECT_TRUE(rem.tv_sec < req.tv_sec ||
-                (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
-                 rem.tv_nsec >= 0) ||
-                (rem.tv_sec == 0 && rem.tv_nsec == 0))
-        << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
-        << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
-    EXPECT_GE(rem.tv_sec, 0);
-    EXPECT_GE(rem.tv_nsec, 0);
-    EXPECT_LT(rem.tv_nsec, 1'000'000'000);
-  }
+
+  // Remaining time is less than requested, or is zero.
+  EXPECT_TRUE(rem.tv_sec < req.tv_sec ||
+              (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
+               rem.tv_nsec >= 0) ||
+              (rem.tv_sec == 0 && rem.tv_nsec == 0))
+      << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
+      << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
+  EXPECT_GE(rem.tv_sec, 0);
+  EXPECT_GE(rem.tv_nsec, 0);
+  EXPECT_LT(rem.tv_nsec, 1'000'000'000);
 }
 
 }  // namespace

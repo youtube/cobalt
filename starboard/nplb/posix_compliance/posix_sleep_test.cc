@@ -63,13 +63,13 @@ class PosixSleepTests : public ::testing::Test {
   void SetUp() override {
     errno = 0;
     ASSERT_EQ(sigaction(SIGUSR1, nullptr, &old_sa_sigusr1_), 0)
-        << "Warning: Could not get old SIGUSR1 handler in SetUp";
+        << "Could not get old SIGUSR1 handler in SetUp";
   }
 
   void TearDown() override {
     if (sigusr1_handler_set_) {
       ASSERT_EQ(sigaction(SIGUSR1, &old_sa_sigusr1_, nullptr), 0)
-          << "Warning: Could not restore old SIGUSR1 handler in TearDown";
+          << "Could not restore old SIGUSR1 handler in TearDown";
     }
   }
 
@@ -107,16 +107,14 @@ TEST_F(PosixSleepTests, SuccessfulSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  EXPECT_EQ(0, ret) << "Expected successful sleep (return 0). Return: " << ret
+  ASSERT_EQ(0, ret) << "Expected successful sleep (return 0). Return: " << ret
                     << ", errno: " << errno << " (" << strerror(errno) << ")";
 
-  if (ret == 0) {
-    long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-    long requested_us = static_cast<long>(kTestSleepSecs) * 1'000'000L;
-    EXPECT_GE(elapsed_us, requested_us)
-        << "Sleep duration was too short. Requested: " << requested_us << "us ("
-        << kTestSleepSecs << "s), Elapsed: " << elapsed_us << "us.";
-  }
+  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  long requested_us = static_cast<long>(kTestSleepSecs) * 1'000'000L;
+  EXPECT_GE(elapsed_us, requested_us)
+      << "Sleep duration was too short. Requested: " << requested_us << "us ("
+      << kTestSleepSecs << "s), Elapsed: " << elapsed_us << "us.";
 }
 
 TEST_F(PosixSleepTests, ZeroDurationSleep) {
@@ -131,17 +129,15 @@ TEST_F(PosixSleepTests, ZeroDurationSleep) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  EXPECT_EQ(0, ret) << "Expected immediate return for zero duration sleep "
+  ASSERT_EQ(0, ret) << "Expected immediate return for zero duration sleep "
                        "(return 0). Return: "
                     << ret << ", errno: " << errno << " (" << strerror(errno)
                     << ")";
 
-  if (ret == 0) {
-    long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-    EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
-        << "Zero duration sleep took too long. Elapsed: " << elapsed_us
-        << "us. Threshold: " << kShortDurationThresholdUs << "us.";
-  }
+  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
+      << "Zero duration sleep took too long. Elapsed: " << elapsed_us
+      << "us. Threshold: " << kShortDurationThresholdUs << "us.";
 }
 
 TEST_F(PosixSleepTests, ErrorEintrCheckErrnoValue) {

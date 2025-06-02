@@ -30,7 +30,7 @@ int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
   }
   struct timespec ts;  // The type from platform toolchain.
   int retval = clock_gettime(clock_id, &ts);
-  mts->tv_sec = ts.tv_sec;
+  mts->tv_sec = static_cast<int64_t>(ts.tv_sec);
   mts->tv_nsec = ts.tv_nsec;
   return retval;
 }
@@ -65,7 +65,7 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
       clock_nanosleep(clock_id, musl_nanosleep_flags_to_nanosleep_flags(flags),
                       &ts, mremain ? &remain : nullptr);
   if (mremain && !((retval == EINTR) && (flags & MUSL_TIMER_ABSTIME))) {
-    mremain->tv_sec = remain.tv_sec;
+    mremain->tv_sec = static_cast<int64_t>(remain.tv_sec);
     mremain->tv_nsec = remain.tv_nsec;
   }
   return errno_to_musl_errno(retval);

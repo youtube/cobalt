@@ -45,31 +45,32 @@ constexpr long kNanosecondsPerSecond = 1'000'000'000L;
 void InterruptSignalHandler(int) {}
 
 void AddNsToTimespec(struct timespec* ts, long nanoseconds_to_add) {
-  if (!ts) {
-    return;
-  }
-  if (nanoseconds_to_add < 0) {
-    long nanoseconds_to_subtract = -nanoseconds_to_add;
-    long sec_delta = nanoseconds_to_subtract / kNanosecondsPerSecond;
-    long nsec_delta = nanoseconds_to_subtract % kNanosecondsPerSecond;
-
-    ts->tv_sec -= sec_delta;
-    ts->tv_nsec -= nsec_delta;
-
-    while (ts->tv_nsec < 0) {
-      ts->tv_nsec += kNanosecondsPerSecond;
-      ts->tv_sec--;
-    }
-    return;
-  }
+  EXPECT_NE(ts, nullptr) << "Invalid timespec null pointer";
+  EXPECT_GE(ts->tv_nsec, 0) << "Invalid negative tv_nsec value in timespec";
+  EXPECT_LT(ts->tv_nsec, kNanosecondsPerSecond)
+      << "Invalid large tv_nsec value in timespec";
 
   long sec_delta = nanoseconds_to_add / kNanosecondsPerSecond;
   long nsec_delta = nanoseconds_to_add % kNanosecondsPerSecond;
 
   ts->tv_sec += sec_delta;
   ts->tv_nsec += nsec_delta;
+
+  // Ensure that tv_nsec is more than -kNanosecondsPerSecond and less than
+  // kNanosecondsPerSecond.
   ts->tv_sec += ts->tv_nsec / kNanosecondsPerSecond;
   ts->tv_nsec %= kNanosecondsPerSecond;
+
+  // Ensure that tv_nsec is positive.
+  if (ts->tv_nsec < 0) {
+    ts->tv_nsec += kNanosecondsPerSecond;
+    ts->tv_sec--;
+  }
+
+  EXPECT_GE(ts->tv_nsec, 0)
+      << "Unexpected invalid negative tv_nsec value in timespec";
+  EXPECT_LT(ts->tv_nsec, kNanosecondsPerSecond)
+      << "Unexpected Invalid large tv_nsec value in timespec";
 }
 
 // Assert that clock_nanosleep has the signature:
@@ -90,12 +91,12 @@ class PosixClockNanosleepTest : public ::testing::Test {
     alarm(0);
 
     ASSERT_EQ(sigaction(SIGALRM, nullptr, &old_sa_sigalrm_), 0)
-        << "Warning: Could not get old SIGALRM handler in SetUp";
+        << "Could not get old SIGALRM handler in SetUp";
   }
 
   void TearDown() override {
     ASSERT_EQ(sigaction(SIGALRM, &old_sa_sigalrm_, nullptr), 0)
-        << "Warning: Could not restore old SIGALRM handler in TearDown";
+        << "Could not restore old SIGALRM handler in TearDown";
     alarm(0);
   }
 };
@@ -125,7 +126,7 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepMonotonicClock) {
       << "gettimeofday failed for end_time";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
+  EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
@@ -145,7 +146,7 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepRealtimeClock) {
       << "gettimeofday failed for end_time";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
+  EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
@@ -173,7 +174,7 @@ TEST_F(PosixClockNanosleepTest, AbsoluteSleepMonotonicClock) {
       << "gettimeofday failed for end_time";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
+  EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
@@ -201,7 +202,7 @@ TEST_F(PosixClockNanosleepTest, AbsoluteSleepRealtimeClock) {
       << "gettimeofday failed for end_time";
 
   long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-  EXPECT_GE(elapsed_us, static_cast<long>(kTestSleepUs))
+  EXPECT_GE(elapsed_us, kTestSleepUs)
       << "Sleep duration was too short. Requested: " << kTestSleepUs
       << "us, Elapsed: " << elapsed_us << "us.";
 }
@@ -328,16 +329,14 @@ TEST_F(PosixClockNanosleepTest, RelativeSleepZeroDuration) {
   ASSERT_EQ(0, gettimeofday(&end_time, nullptr))
       << "gettimeofday failed for end_time";
 
-  EXPECT_EQ(0, ret)
+  ASSERT_EQ(0, ret)
       << "Expected immediate return for zero duration relative sleep, got: "
       << strerror(ret);
 
-  if (ret == 0) {
-    long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
-    EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
-        << "Zero duration sleep took too long. Elapsed: " << elapsed_us
-        << "us. Threshold: " << kShortDurationThresholdUs << "us.";
-  }
+  long elapsed_us = TimevalDiffToMicroseconds(&start_time, &end_time);
+  EXPECT_LT(elapsed_us, kShortDurationThresholdUs)
+      << "Zero duration sleep took too long. Elapsed: " << elapsed_us
+      << "us. Threshold: " << kShortDurationThresholdUs << "us.";
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEintrRelativeSleep) {
@@ -356,23 +355,21 @@ TEST_F(PosixClockNanosleepTest, ErrorEintrRelativeSleep) {
   int ret = clock_nanosleep(CLOCK_MONOTONIC, 0, &req, &rem);
   alarm(0);
 
-  EXPECT_EQ(EINTR, ret) << "Expected EINTR, got: " << ret << " (errno was "
+  ASSERT_EQ(EINTR, ret) << "Expected EINTR, got: " << ret << " (errno was "
                         << errno << " - " << strerror(errno) << ")";
-  if (ret == EINTR) {
-    // Remaining time is less than requested, or is zero.
-    EXPECT_TRUE(
-        rem.tv_sec < req.tv_sec ||
-        (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
-         rem.tv_nsec >= 0) ||
-        (rem.tv_sec == 0 &&
-         rem.tv_nsec ==
-             0))  // Case: entire duration was remaining or signal was immediate
-        << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
-        << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
-    EXPECT_GE(rem.tv_sec, 0);
-    EXPECT_GE(rem.tv_nsec, 0);
-    EXPECT_LT(rem.tv_nsec, kNanosecondsPerSecond);
-  }
+  // Remaining time is less than requested, or is zero.
+  EXPECT_TRUE(
+      rem.tv_sec < req.tv_sec ||
+      (rem.tv_sec == req.tv_sec && rem.tv_nsec < req.tv_nsec &&
+       rem.tv_nsec >= 0) ||
+      (rem.tv_sec == 0 &&
+       rem.tv_nsec ==
+           0))  // Case: entire duration was remaining or signal was immediate
+      << "Remaining time sec=" << rem.tv_sec << " nsec=" << rem.tv_nsec
+      << " vs requested sec=" << req.tv_sec << " nsec=" << req.tv_nsec;
+  EXPECT_GE(rem.tv_sec, 0);
+  EXPECT_GE(rem.tv_nsec, 0);
+  EXPECT_LT(rem.tv_nsec, kNanosecondsPerSecond);
 }
 
 TEST_F(PosixClockNanosleepTest, ErrorEintrAbsoluteSleep) {
