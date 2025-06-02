@@ -29,6 +29,7 @@ namespace switches {
 std::string GetInitialURL(const base::CommandLine& command_line);
 
 constexpr char kInitialURL[] = "url";
+constexpr char kRequireCSP[] = "require_csp";
 
 }  // namespace switches
 }  // namespace cobalt
