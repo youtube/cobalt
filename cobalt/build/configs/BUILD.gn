@@ -33,12 +33,10 @@ config("cobalt_config") {
         configs += [ "//starboard/evergreen/x64/platform_configuration" ]
       }
     } else {
-      # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
-      if (current_cpu == "arm") {
-        configs += [ "//starboard/build/config/modular/x64" ]
-      } else {
-        configs += [ "//starboard/build/config/modular/arm/hardfp" ]
-      }
+      configs += [
+        # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
+        "//starboard/build/config/modular/x64",
+      ]
     }
   } else {
     # No configs to add for any other toolchain
