@@ -100,10 +100,6 @@ public abstract class CobaltActivity extends Activity {
 
       String[] cobaltCommandLineParams =
           new String[] {
-            // Disable first run experience.
-            "--disable-fre",
-            // Disable user prompts in the first run.
-            "--no-first-run",
             // Run Cobalt as a single process.
             "--single-process",
             // Enable Blink to work in overlay video mode.
