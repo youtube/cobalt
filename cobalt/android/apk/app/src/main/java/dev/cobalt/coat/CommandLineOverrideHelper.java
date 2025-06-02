@@ -75,6 +75,8 @@ public final class CommandLineOverrideHelper {
         // causes rendering artifacts when
         // low-end-device-mode is enabled.
         paramOverrides.add("--disable-rgba-4444-textures");
+        // Use passthrough command decoder.
+        paramOverrides.add("--use-cmd-decoder=passthrough");
 
         return paramOverrides;
     }

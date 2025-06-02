@@ -86,6 +86,10 @@ public class CommandLineOverrideHelperTest {
       actual = CommandLine.getInstance().getSwitchValue("force-device-scale-factor");
       Assert.assertEquals(expected, actual);
 
+      String expected = "passthrough";
+      String actual = CommandLine.getInstance().getSwitchValue("use-cmd-decoder");
+      Assert.assertEquals(expected, actual);
+
       actual = CommandLine.getInstance().getSwitchValue("enable-features");
       expected = "LogJsConsoleMessages,LimitImageDecodeCacheSize:mb/32";
       Assert.assertEquals(expected, actual);
