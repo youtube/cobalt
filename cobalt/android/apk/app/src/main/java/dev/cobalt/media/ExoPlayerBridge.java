@@ -341,7 +341,7 @@ public class ExoPlayerBridge {
       return;
     }
     if (!stopped) {
-      Log.i(TAG, String.format("Writing %s sample with timestamp %d", (isAudio ? "audio" : "video"), timestampUs));
+      // Log.i(TAG, String.format("Writing %s sample with timestamp %d", (isAudio ? "audio" : "video"), timestampUs));
       if (isAudio) {
         audioPrerolled |= audioMediaSource.writeSample(data, sizeInBytes, timestampUs, isKeyFrame,
             isEndOfStream);
