@@ -69,6 +69,7 @@ source_set("browser") {
     "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
+    "//components/page_load_metrics/browser",
     "//components/prefs",
     "//components/variations/service:service",
     "//content/public/browser",
@@ -144,11 +145,15 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
+    "metrics/page_load_metrics_initialize.cc",
+    "metrics/page_load_metrics_initialize.h",
   ]
   deps = [
     "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//components/keyed_service/content:content",
     "//components/metrics",
     "//components/metrics_services_manager",
+    "//components/page_load_metrics/browser",
     "//components/prefs",
     "//components/variations",
     "//components/variations/service",
