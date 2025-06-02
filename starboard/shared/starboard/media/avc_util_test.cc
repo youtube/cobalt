@@ -19,10 +19,7 @@
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 namespace {
 
 using ::starboard::shared::starboard::media::ConvertAnnexBToAvcc;
@@ -554,7 +551,5 @@ TEST(AvcParameterSetsTest, ConvertAnnexBToAvccInvalidNalus) {
 }
 
 }  // namespace
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::media

@@ -23,10 +23,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 VideoConfig::VideoConfig(SbMediaVideoCodec video_codec,
                          int width,
@@ -112,7 +109,4 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   return kSbMediaAudioCodecNone;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

@@ -18,9 +18,7 @@
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/shared/posix/page_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace posix {
+namespace starboard::shared::posix {
 
 namespace {
 
@@ -36,6 +34,4 @@ const void* GetMemoryMappedFileApi() {
   return &kMemoryMappedFileApi;
 }
 
-}  // namespace posix
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::posix

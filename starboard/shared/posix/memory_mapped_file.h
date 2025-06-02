@@ -15,14 +15,10 @@
 #ifndef STARBOARD_SHARED_POSIX_MEMORY_MAPPED_FILE_H_
 #define STARBOARD_SHARED_POSIX_MEMORY_MAPPED_FILE_H_
 
-namespace starboard {
-namespace shared {
-namespace posix {
+namespace starboard::shared::posix {
 
 const void* GetMemoryMappedFileApi();
 
-}  // namespace posix
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::posix
 
 #endif  // STARBOARD_SHARED_POSIX_MEMORY_MAPPED_FILE_H_

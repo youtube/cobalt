@@ -19,9 +19,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libaom/aom_library_loader.h"
 
-namespace starboard {
-namespace shared {
-namespace aom {
+namespace starboard::shared::aom {
 
 using starboard::player::JobThread;
 
@@ -297,5 +295,5 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }
 
 }  // namespace aom
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::aom

@@ -20,11 +20,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 using std::placeholders::_1;
 using std::placeholders::_2;
@@ -103,8 +99,4 @@ void* PunchoutVideoRendererSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

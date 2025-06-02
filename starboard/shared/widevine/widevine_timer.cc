@@ -16,9 +16,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 namespace {
 
@@ -125,6 +123,4 @@ void WidevineTimer::CancelAllJobsOnClient(
   condition_variable->Signal();
 }
 
-}  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::widevine

@@ -25,9 +25,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 namespace {
 
@@ -423,6 +421,4 @@ void AudioDecoderImpl<FFMPEG>::TeardownCodec() {
   ffmpeg_->FreeFrame(&av_frame_);
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

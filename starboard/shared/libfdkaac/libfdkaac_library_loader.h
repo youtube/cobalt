@@ -18,9 +18,7 @@
 #include "starboard/shared/internal_only.h"
 #include "third_party/libfdkaac/include/aacdecoder_lib.h"
 
-namespace starboard {
-namespace shared {
-namespace libfdkaac {
+namespace starboard::shared::libfdkaac {
 
 class LibfdkaacHandle {
  public:
@@ -69,8 +67,6 @@ extern AAC_DECODER_ERROR (*aacDecoder_DecodeFrame)(HANDLE_AACDECODER self,
                                                    const INT timeDataSize,
                                                    const UINT flags);
 
-}  // namespace libfdkaac
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libfdkaac
 
 #endif  // STARBOARD_SHARED_LIBFDKAAC_LIBFDKAAC_LIBRARY_LOADER_H_

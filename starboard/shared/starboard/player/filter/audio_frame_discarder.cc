@@ -16,11 +16,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 void AudioFrameDiscarder::OnInputBuffers(const InputBuffers& input_buffers) {
   ScopedLock lock(mutex_);
@@ -101,8 +97,4 @@ void AudioFrameDiscarder::Reset() {
   input_buffer_infos_ = std::queue<InputBufferInfo>();
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

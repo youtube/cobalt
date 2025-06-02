@@ -22,11 +22,7 @@
 
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -427,8 +423,4 @@ void VideoRendererImpl::CheckForFrameLag(int64_t last_decoded_frame_timestamp) {
 
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

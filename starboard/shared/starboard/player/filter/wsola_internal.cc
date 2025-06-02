@@ -39,12 +39,7 @@
 #include <arm_neon.h>
 #endif
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace internal {
+namespace starboard::shared::starboard::player::filter::internal {
 
 namespace {
 
@@ -351,9 +346,4 @@ void GetSymmetricHanningWindow(int window_length, float* window) {
   }
 }
 
-}  // namespace internal
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::internal

@@ -28,10 +28,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -330,7 +327,4 @@ void MimeSupportabilityCache::UpdateBitrateSupportability_Locked(
   }
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

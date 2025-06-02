@@ -24,11 +24,7 @@
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // This class provides the media playback time when there isn't an audio track.
 class MediaTimeProviderImpl : public MediaTimeProvider,
@@ -69,10 +65,6 @@ class MediaTimeProviderImpl : public MediaTimeProvider,
   int64_t seek_to_time_set_at_ = CurrentMonotonicTime();
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MEDIA_TIME_PROVIDER_IMPL_H_

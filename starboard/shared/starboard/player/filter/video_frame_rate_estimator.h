@@ -21,11 +21,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Use the timestamps of a series of video frames to estimate the frame rate of
 // the video.
@@ -68,10 +64,6 @@ class VideoFrameRateEstimator {
   int64_t last_checked_frame_timestamp_;  // microseconds
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_FRAME_RATE_ESTIMATOR_H_

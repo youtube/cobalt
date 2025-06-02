@@ -20,9 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 
-namespace starboard {
-namespace shared {
-namespace enhanced_audio {
+namespace starboard::shared::enhanced_audio {
 
 void EnhancedAudioPlayerWriteSamples(
     SbPlayer player,
@@ -30,8 +28,6 @@ void EnhancedAudioPlayerWriteSamples(
     const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
     int number_of_sample_infos);
 
-}  // namespace enhanced_audio
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::enhanced_audio
 
 #endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_PLAYER_WRITE_SAMPLES_H_

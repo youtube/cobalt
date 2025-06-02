@@ -50,11 +50,7 @@
 #include <string.h>
 #include <algorithm>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 InterleavedSincResampler::InterleavedSincResampler(double io_sample_rate_ratio,
                                                    int channel_count)
@@ -309,8 +305,4 @@ float InterleavedSincResampler::Convolve(const float* input_ptr,
          kernel_interpolation_factor * sum2;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

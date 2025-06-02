@@ -20,9 +20,7 @@
 #include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace speechd {
+namespace starboard::shared::speechd {
 
 // |SpeechDispatcher| is a helper class that is used to implement the
 // SbSpeechSynthesis* APIs in terms of the Speech Dispatcher C API:
@@ -70,7 +68,7 @@ class SpeechDispatcher {
 };
 
 }  // namespace speechd
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::speechd
 
 #endif  // STARBOARD_SHARED_SPEECHD_SPEECHD_INTERNAL_H_

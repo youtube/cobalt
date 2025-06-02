@@ -23,10 +23,7 @@
 #include "starboard/shared/starboard/media/avc_util.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // This class captures necessary information to describe a video config.  It can
 // be used to detect config change of video stream during the playback.
@@ -70,9 +67,6 @@ class VideoConfig {
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
                                           const char* subtype);
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_

@@ -22,9 +22,7 @@
 #include "starboard/system.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 namespace {
 
@@ -166,6 +164,4 @@ bool LocalizedStrings::LoadSingleString(const std::string& message) {
   return true;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

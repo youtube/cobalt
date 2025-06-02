@@ -27,11 +27,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // Waveform Similarity Overlap-and-add (WSOLA).
 //
@@ -441,8 +437,4 @@ void AudioTimeStretcher::PeekAudioWithZeroPrepend(int read_offset_frames,
                            dest);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

@@ -20,10 +20,7 @@
 
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // This class can be used to parse a content type for media in the form of
 // "type/subtype; param1=value1; param2="value2".  For example, the content type
@@ -121,9 +118,6 @@ class MimeType {
   Params params_;
 };
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MIME_TYPE_H_

@@ -21,9 +21,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 namespace {
 pthread_mutex_t g_codec_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -59,6 +57,4 @@ void FFMPEGDispatch::FreeContext(AVCodecContext** avctx) {
   }
 }
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg

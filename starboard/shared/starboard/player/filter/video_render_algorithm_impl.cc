@@ -17,11 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl(
     const GetRefreshRateFn& get_refresh_rate_fn)
@@ -292,8 +288,4 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

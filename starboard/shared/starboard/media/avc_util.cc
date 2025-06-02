@@ -17,10 +17,7 @@
 #include <string.h>
 #include <type_traits>
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -235,7 +232,4 @@ bool ConvertAnnexBToAvcc(const uint8_t* annex_b_source,
   return true;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

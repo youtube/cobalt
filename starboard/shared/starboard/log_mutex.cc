@@ -17,9 +17,7 @@
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 namespace {
 SB_ONCE_INITIALIZE_FUNCTION(RecursiveMutex, g_log_mutex);
 }  // namespace
@@ -28,6 +26,4 @@ RecursiveMutex* GetLoggingMutex() {
   return g_log_mutex();
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
