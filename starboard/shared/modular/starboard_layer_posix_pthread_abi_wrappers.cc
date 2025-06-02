@@ -784,15 +784,15 @@ int __abi_wrap_pthread_rwlock_init(
     return MUSL_EINVAL;
   }
 
+  *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
+  SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
+
   const pthread_rwlockattr_t* tmp = nullptr;
   if (attr) {
     tmp = CONST_PTHREAD_INTERNAL_RWLOCK_ATTR(attr);
   }
 
   const int ret = pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), tmp);
-  if (ret == 0) {
-    SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
-  }
   return errno_to_musl_errno(ret);
 }
 
@@ -817,10 +817,7 @@ int __abi_wrap_pthread_rwlock_rdlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -835,10 +832,7 @@ int __abi_wrap_pthread_rwlock_wrlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -867,10 +861,7 @@ int __abi_wrap_pthread_rwlock_tryrdlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
@@ -885,10 +876,7 @@ int __abi_wrap_pthread_rwlock_trywrlock(musl_pthread_rwlock_t* rwlock) {
 
   // Ensure the rwlock is initialized. If not, lazily initialize it.
   if (!EnsureInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state))) {
-    // If initialization fails, return an error.
-    if (pthread_rwlock_init(PTHREAD_INTERNAL_RWLOCK(rwlock), NULL) != 0) {
-      return MUSL_EINVAL;
-    }
+    *PTHREAD_INTERNAL_RWLOCK(rwlock) = PTHREAD_RWLOCK_INITIALIZER;
     SetInitialized(&(INTERNAL_RWLOCK(rwlock)->initialized_state));
   }
 
