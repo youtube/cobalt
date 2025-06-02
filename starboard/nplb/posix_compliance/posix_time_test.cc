@@ -21,15 +21,27 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+// kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
+// the current time is expected to fall.
+const time_t kReasonableMinTimeUsec =
+    1'735'689'600'000'000;  // 2025-01-01 00:00:00 UTC
+
+// kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
+// the current time is expected to fall. Note that this also implicitly tests
+// that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
+// UTC on 19 January 2038.
+const time_t kReasonableMaxTimeUsec =
+    2'366'841'600'000'000;  // 2045-01-01 00:00:00 UTC
+
 TEST(PosixTimeTest, CurrentPosixTimeIsKindOfSane) {
   int64_t now_usec = CurrentPosixTime();
 
-  // Now should be after 2024-01-01 UTC (the past).
-  int64_t past_usec = 1704067200000000LL;
+  // Now should be after 2025-01-01 UTC (the past).
+  int64_t past_usec = kReasonableMinTimeUsec;
   EXPECT_GT(now_usec, past_usec);
 
   // Now should be before 2044-01-01 UTC (the future).
-  int64_t future_usec = 2335219200000000LL;
+  int64_t future_usec = kReasonableMaxTimeUsec;
   EXPECT_LT(now_usec, future_usec);
 }
 
@@ -80,12 +92,10 @@ TEST(PosixTimeTest, CurrentMonotonicTimeIsMonotonic) {
 // Tests the gmtime_r() function for correct conversion of time_t to struct tm.
 TEST(PosixTimeTest, GmtimeRConvertsTimeCorrectly) {
   // A fixed timestamp: Wed Jul 31 23:32:59 2024 UTC.
-  // This value (1722468779) can be obtained via `date -d "2024-07-31 23:32:59
-  // UTC" +%s`.
-  const time_t kFixedTime = 1722468779;
-  struct tm result_tm;
-  memset(&result_tm, 0,
-         sizeof(result_tm));  // Initialize to ensure no garbage values.
+  // This value (1'722'468'779) can be obtained via `date -d "2024-07-31
+  // 23:32:59 UTC" +%s`.
+  const time_t kFixedTime = 1'722'468'779;
+  struct tm result_tm {};
 
   struct tm* retval = gmtime_r(&kFixedTime, &result_tm);
   ASSERT_TRUE(retval != NULL)

@@ -42,7 +42,7 @@ static int64_t TimespecToMicroseconds(const struct timespec& ts) {
 // The CPU time clock is then checked to see how much CPU time was actually
 // consumed.
 long ConsumeCpuForDuration(long work_time_microseconds) {
-  struct timespec ts_before = {};
+  struct timespec ts_before {};
   int ret_before = clock_gettime(CLOCK_MONOTONIC, &ts_before);
   // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
   // value.
@@ -60,7 +60,7 @@ long ConsumeCpuForDuration(long work_time_microseconds) {
     for (int i = 0; i < kCpuWorkIterations; ++i) {
       counter_sum += i;  // Simple work
     }
-    struct timespec ts_after = {};
+    struct timespec ts_after {};
     int ret_current = clock_gettime(CLOCK_MONOTONIC, &ts_after);
     // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
     // value.
@@ -83,22 +83,22 @@ static_assert(std::is_same_v<decltype(clock), clock_t(void)>,
               "'clock_t (void)'");
 #endif
 
-TEST(PosixTimeClockTests, ClockReturnsNonNegativeOrError) {
+TEST(PosixTimeClockTests, ClockReturnsNonNegative) {
   clock_t start_clock = clock();
-  if (start_clock == static_cast<clock_t>(-1)) {
-    SUCCEED() << "clock() returned (clock_t)-1, indicating processor time "
-                 "might be unavailable or an error occurred.";
-  } else {
-    EXPECT_GE(start_clock, 0) << "clock() returned a negative value other than "
-                                 "-1, which is unexpected.";
-  }
+  ASSERT_NE(start_clock, static_cast<clock_t>(-1))
+      << "clock() unexpectedly returned (clock_t)-1, indicating processor time "
+         "might be unavailable or an error occurred.";
+  // Separately check for other negative values to log a more helpful message
+  // when the test fails.
+  EXPECT_GE(start_clock, 0)
+      << "clock() unexpectedly returned a negative value.";
 }
+
 TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
   clock_t clock_val1 = clock();
-  if (clock_val1 == static_cast<clock_t>(-1)) {
-    GTEST_SKIP() << "Initial call to clock() returned error; "
-                 << "cannot perform time increase test.";
-  }
+  ASSERT_NE(clock_val1, static_cast<clock_t>(-1))
+      << "clock() unexpectedly returned (clock_t)-1, indicating processor time "
+         "might be unavailable or an error occurred.";
 
   long elapsed_time_us = ConsumeCpuForDuration(kMinimumWorkTimeMicroseconds);
   EXPECT_GE(elapsed_time_us, kMinimumWorkTimeMicroseconds)
@@ -106,9 +106,9 @@ TEST(PosixTimeClockTests, ClockIncreasesOverTime) {
       << kMinimumWorkTimeMicroseconds << " us";
 
   clock_t clock_val2 = clock();
-  if (clock_val2 == static_cast<clock_t>(-1)) {
-    GTEST_SKIP() << "Second call to clock() returned error.";
-  }
+  ASSERT_NE(clock_val2, static_cast<clock_t>(-1))
+      << "clock() unexpectedly returned (clock_t)-1, indicating processor time "
+         "might be unavailable or an error occurred.";
 
   EXPECT_GT(clock_val2, clock_val1)
       << "Clock value did not increase, which is unexpected. val1="
@@ -138,9 +138,9 @@ TEST(PosixTimeClockTests, ClocksPerSecIsPosixStandardValue) {
 
 TEST(PosixTimeClockTests, ClockMeasuresCpuTimeNotWallTimeDuringSleep) {
   clock_t start_clock = clock();
-  if (start_clock == static_cast<clock_t>(-1)) {
-    GTEST_SKIP() << "Initial call to clock() failed; cannot perform test.";
-  }
+  ASSERT_NE(start_clock, static_cast<clock_t>(-1))
+      << "clock() unexpectedly returned (clock_t)-1, indicating processor time "
+         "might be unavailable or an error occurred.";
 
   // Sleep for a noticeable duration. During sleep, the process should ideally
   // not consume significant CPU time.
@@ -148,9 +148,9 @@ TEST(PosixTimeClockTests, ClockMeasuresCpuTimeNotWallTimeDuringSleep) {
   usleep(kSleepDurationMicroseconds);
 
   clock_t end_clock = clock();
-  if (end_clock == static_cast<clock_t>(-1)) {
-    GTEST_SKIP() << "Subsequent call to clock() failed; cannot perform test.";
-  }
+  ASSERT_NE(start_clock, static_cast<clock_t>(-1))
+      << "clock() unexpectedly returned (clock_t)-1, indicating processor time "
+         "might be unavailable or an error occurred.";
 
   EXPECT_GE(end_clock, start_clock) << "Clock value decreased during a short "
                                        "sleep, which is unexpected. Start: "

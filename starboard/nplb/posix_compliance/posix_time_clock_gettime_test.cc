@@ -47,41 +47,33 @@ static int64_t TimespecToMicroseconds(const struct timespec& ts) {
 }
 
 static std::string GetClockName(clockid_t clock_id) {
-  if (clock_id == CLOCK_REALTIME) {
-    return "CLOCK_REALTIME";
+  switch (clock_id) {
+    case CLOCK_REALTIME:
+      return "CLOCK_REALTIME";
+    case CLOCK_MONOTONIC:
+      return "CLOCK_MONOTONIC";
+    case CLOCK_PROCESS_CPUTIME_ID:
+      return "CLOCK_PROCESS_CPUTIME_ID";
+    case CLOCK_THREAD_CPUTIME_ID:
+      return "CLOCK_THREAD_CPUTIME_ID";
+    case CLOCK_MONOTONIC_RAW:
+      return "CLOCK_MONOTONIC_RAW";
+    case CLOCK_REALTIME_COARSE:
+      return "CLOCK_REALTIME_COARSE";
+    case CLOCK_MONOTONIC_COARSE:
+      return "CLOCK_MONOTONIC_COARSE";
+    case CLOCK_BOOTTIME:
+      return "CLOCK_BOOTTIME";
+    case CLOCK_REALTIME_ALARM:
+      return "CLOCK_REALTIME_ALARM";
+    case CLOCK_BOOTTIME_ALARM:
+      return "CLOCK_BOOTTIME_ALARM";
+    case CLOCK_TAI:
+      return "CLOCK_TAI";
+    default:
+      // Return a gtest-friendly name for unknown clock IDs
+      return "UnknownClockId_" + std::to_string(clock_id);
   }
-  if (clock_id == CLOCK_MONOTONIC) {
-    return "CLOCK_MONOTONIC";
-  }
-  if (clock_id == CLOCK_PROCESS_CPUTIME_ID) {
-    return "CLOCK_PROCESS_CPUTIME_ID";
-  }
-  if (clock_id == CLOCK_THREAD_CPUTIME_ID) {
-    return "CLOCK_THREAD_CPUTIME_ID";
-  }
-  if (clock_id == CLOCK_MONOTONIC_RAW) {
-    return "CLOCK_MONOTONIC_RAW";
-  }
-  if (clock_id == CLOCK_REALTIME_COARSE) {
-    return "CLOCK_REALTIME_COARSE";
-  }
-  if (clock_id == CLOCK_MONOTONIC_COARSE) {
-    return "CLOCK_MONOTONIC_COARSE";
-  }
-  if (clock_id == CLOCK_BOOTTIME) {
-    return "CLOCK_BOOTTIME";
-  }
-  if (clock_id == CLOCK_REALTIME_ALARM) {
-    return "CLOCK_REALTIME_ALARM";
-  }
-  if (clock_id == CLOCK_BOOTTIME_ALARM) {
-    return "CLOCK_BOOTTIME_ALARM";
-  }
-  if (clock_id == CLOCK_TAI) {
-    return "CLOCK_TAI";
-  }
-  // Return a gtest-friendly name for unknown clock IDs
-  return "UnknownClockId_" + std::to_string(clock_id);
 }
 
 // Helper function to do CPU work for until at least work_time_microseconds
@@ -92,7 +84,7 @@ static std::string GetClockName(clockid_t clock_id) {
 // The CPU time clock is then checked to see how much CPU time was actually
 // consumed.
 long ConsumeCpuForDuration(long work_time_microseconds) {
-  struct timespec ts_before = {};
+  struct timespec ts_before {};
   int ret_before = clock_gettime(CLOCK_MONOTONIC, &ts_before);
   // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
   // value.
@@ -110,7 +102,7 @@ long ConsumeCpuForDuration(long work_time_microseconds) {
     for (int i = 0; i < kCpuWorkIterations; ++i) {
       counter_sum += i;  // Simple work
     }
-    struct timespec ts_after = {};
+    struct timespec ts_after {};
     int ret_current = clock_gettime(CLOCK_MONOTONIC, &ts_after);
     // Note: Testing using EXPECT_EQ because ASSERT_EQ can not return with a
     // value.
@@ -166,7 +158,7 @@ class AvailableClock
     : public ::testing::TestWithParam<std::tuple<clockid_t, ClockIsRequired>> {
 };
 
-TEST_P(AvailableClock, Succeeds) {
+TEST_P(AvailableClock, IsSupported) {
   auto param = GetParam();
   clockid_t clock_id = std::get<0>(param);
   ClockIsRequired requirement = std::get<1>(param);
@@ -176,11 +168,10 @@ TEST_P(AvailableClock, Succeeds) {
   errno = 0;
   int ret = clock_gettime(clock_id, &ts);
 
-  if (ret == -1 && errno == EINVAL) {
-    if (requirement == ClockIsRequired::OPTIONAL) {
-      // This is a successful test result for optional clocks.
-      return;
-    }
+  if (ret == -1 && errno == EINVAL &&
+      requirement == ClockIsRequired::OPTIONAL) {
+    GTEST_SKIP() << "Optional " << clock_name
+                 << " is not supported on this system.";
   }
   ASSERT_EQ(0, ret) << "clock_gettime(" << clock_name
                     << ") failed. errno: " << errno << " " << strerror(errno);
@@ -226,11 +217,10 @@ TEST_P(IncreasingClock, Increases) {
   errno = 0;
   int ret_before = clock_gettime(clock_id, &ts_before);
 
-  if (ret_before == -1 && errno == EINVAL) {
-    if (requirement == ClockIsRequired::OPTIONAL) {
-      GTEST_SKIP() << "Optional " << clock_name
-                   << " is not supported on this system.";
-    }
+  if (ret_before == -1 && errno == EINVAL &&
+      requirement == ClockIsRequired::OPTIONAL) {
+    GTEST_SKIP() << "Optional " << clock_name
+                 << " is not supported on this system.";
   }
   ASSERT_EQ(0, ret_before) << "Initial clock_gettime(" << clock_name
                            << ") failed. errno: " << errno << " "
@@ -291,11 +281,10 @@ TEST_P(MonotonicClock, IsMonotonic) {
   errno = 0;
   int ret_initial = clock_gettime(clock_id, &ts_initial);
 
-  if (ret_initial == -1 && errno == EINVAL) {
-    if (requirement == ClockIsRequired::OPTIONAL) {
-      GTEST_SKIP() << "Optional " << clock_name
-                   << " is not supported on this system.";
-    }
+  if (ret_initial == -1 && errno == EINVAL &&
+      requirement == ClockIsRequired::OPTIONAL) {
+    GTEST_SKIP() << "Optional " << clock_name
+                 << " is not supported on this system.";
   }
   ASSERT_EQ(0, ret_initial)
       << "Initial clock_gettime(" << clock_name << ") failed. errno: " << errno
@@ -333,6 +322,7 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(CLOCK_THREAD_CPUTIME_ID, ClockIsRequired::REQUIRED)),
     [](const ::testing::TestParamInfo<std::tuple<clockid_t, ClockIsRequired>>&
            info) { return GetClockName(std::get<0>(info.param)); });
+
 class CpuTimeClock
     : public ::testing::TestWithParam<std::tuple<clockid_t, ClockIsRequired>> {
 };
@@ -346,11 +336,10 @@ TEST_P(CpuTimeClock, Increases) {
   errno = 0;
   struct timespec ts_before {};
   int initial_ret = clock_gettime(clock_id, &ts_before);
-  if (initial_ret == -1 && errno == EINVAL) {
-    if (requirement == ClockIsRequired::OPTIONAL) {
-      GTEST_SKIP() << "Optional " << clock_name
-                   << " is not supported on this system.";
-    }
+  if (initial_ret == -1 && errno == EINVAL &&
+      requirement == ClockIsRequired::OPTIONAL) {
+    GTEST_SKIP() << "Optional " << clock_name
+                 << " is not supported on this system.";
   }
   ASSERT_EQ(0, initial_ret)
       << "Initial clock_gettime(" << clock_name << ") failed. errno: " << errno
@@ -393,7 +382,6 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST(PosixTimeClockGettimeTests, ReturnsEinvalForInvalidClockId) {
   struct timespec ts {};
-  memset(&ts, 0, sizeof(ts));
 
   // A large positive integer unlikely to be a valid clock ID.
   const clockid_t kInvalidPositiveClockId = 0xDEFEC8ED;

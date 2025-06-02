@@ -28,11 +28,13 @@ const int64_t kMicrosecondsPerSecond = 1'000'000LL;
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTime = 1735689600;  // 2025-01-01 00:00:00 UTC
+const time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
 
 // kReasonableMaxTime represents a time (2045-01-01 00:00:00 UTC) before which
-// the current time is expected to fall.
-const time_t kReasonableMaxTime = 2366841600;  // 2045-01-01 00:00:00 UTC
+// the current time is expected to fall. Note that this also implicitly tests
+// that the code handles timestamps past the Unix Epoch wraparound on 03:14:08
+// UTC on 19 January 2038.
+const time_t kReasonableMaxTime = 2'366'841'600;  // 2045-01-01 00:00:00 UTC
 
 // TODO: b/390675141 - Remove this after non-hermetic linux build is removed.
 // On non-hermetic builds, clock_gettime() is declared "noexcept".
@@ -47,33 +49,31 @@ static_assert(std::is_same_v<decltype(time), time_t(time_t*)>,
 TEST(PosixTimeTimeTests, TimeWithNullArgumentReturnsCurrentTime) {
   time_t current_time = time(nullptr);
 
-  EXPECT_NE(current_time, static_cast<time_t>(-1))
-      << "time(nullptr) returned an error: (time_t)-1. errno: " << errno;
+  ASSERT_NE(current_time, static_cast<time_t>(-1))
+      << "time(nullptr) returned an error: (time_t)-1. errno: " << errno << " "
+      << strerror(errno);
 
-  if (current_time != static_cast<time_t>(-1)) {
-    EXPECT_GT(current_time, kReasonableMinTime)
-        << "Current time (" << current_time
-        << ") is unexpectedly earlier than kReasonableMinTime ("
-        << kReasonableMinTime << ").";
-  }
+  EXPECT_GT(current_time, kReasonableMinTime)
+      << "Current time (" << current_time
+      << ") is unexpectedly earlier than kReasonableMinTime ("
+      << kReasonableMinTime << ").";
 }
 
 TEST(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
   time_t time_val_from_arg = 0;
   time_t time_val_returned = time(&time_val_from_arg);
 
-  EXPECT_NE(time_val_returned, static_cast<time_t>(-1))
-      << "time(&tloc) returned an error: (time_t)-1. errno: " << errno;
+  ASSERT_NE(time_val_returned, static_cast<time_t>(-1))
+      << "time(&tloc) returned an error: (time_t)-1. errno: " << errno << " "
+      << strerror(errno);
 
   EXPECT_EQ(time_val_returned, time_val_from_arg)
       << "Returned time and argument time mismatch.";
 
-  if (time_val_returned != static_cast<time_t>(-1)) {
-    EXPECT_GT(time_val_returned, kReasonableMinTime)
-        << "Current time (" << time_val_returned
-        << ") is unexpectedly earlier than kReasonableMinTime ("
-        << kReasonableMinTime << ").";
-  }
+  EXPECT_GT(time_val_returned, kReasonableMinTime)
+      << "Current time (" << time_val_returned
+      << ") is unexpectedly earlier than kReasonableMinTime ("
+      << kReasonableMinTime << ").";
 }
 
 // Comment on EFAULT for time():
@@ -86,7 +86,7 @@ TEST(PosixTimeTimeTests, TimeWithValidArgumentStoresAndReturnsCurrentTime) {
 TEST(PosixTimeTimeTests, TimeIsReasonable) {
   time_t now_s = time(nullptr);
   ASSERT_NE(now_s, static_cast<time_t>(-1))
-      << "time() returned an error. errno: " << errno;
+      << "time() returned an error. errno: " << errno << " " << strerror(errno);
 
   EXPECT_GT(now_s, kReasonableMinTime)
       << "Current time (" << now_s
@@ -105,7 +105,7 @@ TEST(PosixTimeTimeTests,
   time_t time_val_from_return = time(&time_val_from_arg);
 
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
-      << "time() failed with errno: " << errno;
+      << "time() failed with errno: " << errno << " " << strerror(errno);
 
   EXPECT_EQ(time_val_from_return, time_val_from_arg)
       << "Return value from time() should be identical to the value stored via "
@@ -126,12 +126,13 @@ TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNonNullArgument) {
   struct timeval current_timeval;
 
   ASSERT_NE(-1, gettimeofday(&current_timeval, nullptr))
-      << "gettimeofday() failed with errno: " << errno;
+      << "gettimeofday() failed with errno: " << errno << " "
+      << strerror(errno);
 
   time_t time_val_from_return = time(&time_val_from_arg);
 
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
-      << "time() failed with errno: " << errno;
+      << "time() failed with errno: " << errno << " " << strerror(errno);
 
   int64_t time_func_us =
       static_cast<int64_t>(time_val_from_return) * kMicrosecondsPerSecond;
@@ -153,12 +154,13 @@ TEST(PosixTimeTimeTests, MatchesGettimeofdayWithNullArgument) {
   struct timeval current_timeval;
 
   ASSERT_NE(-1, gettimeofday(&current_timeval, nullptr))
-      << "gettimeofday() failed with errno: " << errno;
+      << "gettimeofday() failed with errno: " << errno << " "
+      << strerror(errno);
 
   time_t time_val_from_return = time(nullptr);
 
   ASSERT_NE(static_cast<time_t>(-1), time_val_from_return)
-      << "time() failed with errno: " << errno;
+      << "time() failed with errno: " << errno << " " << strerror(errno);
 
   int64_t time_func_us =
       static_cast<int64_t>(time_val_from_return) * kMicrosecondsPerSecond;
@@ -178,11 +180,13 @@ TEST(PosixTimeTimeTests, TimeProgressesMonotonically) {
   for (int i = 0; i < kNumIterations; ++i) {
     time_t time1 = time(nullptr);
     ASSERT_NE(time1, static_cast<time_t>(-1))
-        << "First call to time(nullptr) failed. errno: " << errno;
+        << "First call to time(nullptr) failed. errno: " << errno << " "
+        << strerror(errno);
 
     time_t time2 = time(nullptr);
     ASSERT_NE(time2, static_cast<time_t>(-1))
-        << "Second call to time(nullptr) failed. errno: " << errno;
+        << "Second call to time(nullptr) failed. errno: " << errno << " "
+        << strerror(errno);
 
     EXPECT_GE(time2, time1)
         << "Time is expected to be monotonically non-decreasing. Time 1: "

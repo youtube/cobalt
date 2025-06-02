@@ -27,7 +27,7 @@ namespace {
 
 // kReasonableMinTime represents a time (2025-01-01 00:00:00 UTC) after which
 // the current time is expected to fall.
-const time_t kReasonableMinTime = 1735689600;  // 2025-01-01 00:00:00 UTC
+const time_t kReasonableMinTime = 1'735'689'600;  // 2025-01-01 00:00:00 UTC
 
 // Helper template to check for the existence of tv_sec
 template <typename T, typename = void>
@@ -67,11 +67,10 @@ static_assert(
 #endif
 
 TEST(PosixTimeGettimeofdayTests, SunnyDay) {
-  struct timeval tv;
-  memset(&tv, 0, sizeof(tv));
+  struct timeval tv {};
   errno = 0;
   ASSERT_EQ(0, gettimeofday(&tv, nullptr))
-      << "gettimeofday() failed. errno: " << errno;
+      << "gettimeofday() failed. errno: " << errno << " " << strerror(errno);
 
   EXPECT_GT(tv.tv_sec, kReasonableMinTime)
       << "Current time (" << tv.tv_sec
@@ -82,10 +81,8 @@ TEST(PosixTimeGettimeofdayTests, SunnyDay) {
 }
 
 TEST(PosixTimeGettimeofdayTests, NonNullTzIsIgnoredOrCausesEinval) {
-  struct timeval tv;
-  memset(&tv, 0, sizeof(tv));
-  struct timezone tz;
-  memset(&tz, 0, sizeof(tz));
+  struct timeval tv {};
+  struct timezone tz {};
 
   errno = 0;
   int result = gettimeofday(&tv, &tz);
@@ -93,11 +90,11 @@ TEST(PosixTimeGettimeofdayTests, NonNullTzIsIgnoredOrCausesEinval) {
   if (result == -1) {
     EXPECT_EQ(EINVAL, errno)
         << "Expected EINVAL when tz is non-nullptr and not supported, "
-        << "but got errno: " << errno;
+        << "but got errno: " << errno << " " << strerror(errno);
   } else {
     EXPECT_EQ(0, result)
         << "gettimeofday with non-nullptr tz failed with an unexpected result "
-        << result << " and errno: " << errno;
+        << result << " and errno: " << errno << " " << strerror(errno);
     EXPECT_GE(tv.tv_sec, kReasonableMinTime);
     EXPECT_GE(tv.tv_usec, 0);
     EXPECT_LE(tv.tv_usec, 999999);
@@ -122,51 +119,50 @@ TEST(PosixTimeGettimeofdayTests, GettimeofdayHasDecentResolution) {
   // but small enough to not make the test excessively long.
   const int kNumIterations = 100;
   for (int i = 0; i < kNumIterations; ++i) {
-    struct timespec monotonic_ts_start;
-    memset(&monotonic_ts_start, 0, sizeof(monotonic_ts_start));
+    struct timespec monotonic_ts_start {};
     ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &monotonic_ts_start))
         << "clock_gettime(CLOCK_MONOTONIC) for timerStart failed. errno: "
         << errno;
     int64_t timerStart =
-        (static_cast<int64_t>(monotonic_ts_start.tv_sec) * 1000000LL) +
-        (static_cast<int64_t>(monotonic_ts_start.tv_nsec) / 1000LL);
+        (static_cast<int64_t>(monotonic_ts_start.tv_sec) * 1'000'000LL) +
+        (static_cast<int64_t>(monotonic_ts_start.tv_nsec) / 1'000LL);
 
-    struct timeval posix_tv_initial;
-    memset(&posix_tv_initial, 0, sizeof(posix_tv_initial));
+    struct timeval posix_tv_initial {};
     ASSERT_EQ(0, gettimeofday(&posix_tv_initial, nullptr))
-        << "gettimeofday() for initialTime failed. errno: " << errno;
+        << "gettimeofday() for initialTime failed. errno: " << errno << " "
+        << strerror(errno);
     int64_t initialTime =
         (static_cast<int64_t>(posix_tv_initial.tv_sec) * 1000000LL) +
         posix_tv_initial.tv_usec;
 
     int64_t currentTime = initialTime;
 
-    const int64_t kMaxWaitMicroseconds = 1'000'000LL;
+    const int64_t kMaxResolutionMicroseconds = 100'000LL;  // 100ms
+    // Loop until the time reported by gettimeofday changes.
     while (currentTime == initialTime) {
-      struct timeval posix_tv_current;
-      memset(&posix_tv_current, 0, sizeof(posix_tv_current));
+      struct timeval posix_tv_current {};
       ASSERT_EQ(0, gettimeofday(&posix_tv_current, nullptr))
-          << "gettimeofday() in loop failed. errno: " << errno;
+          << "gettimeofday() in loop failed. errno: " << errno << " "
+          << strerror(errno);
       currentTime =
           (static_cast<int64_t>(posix_tv_current.tv_sec) * 1000000LL) +
           posix_tv_current.tv_usec;
 
-      struct timespec monotonic_ts_current;
-      memset(&monotonic_ts_current, 0, sizeof(monotonic_ts_current));
+      struct timespec monotonic_ts_current {};
       ASSERT_EQ(0, clock_gettime(CLOCK_MONOTONIC, &monotonic_ts_current))
-          << "clock_gettime(CLOCK_MONOTONIC) in loop failed. errno: " << errno;
+          << "clock_gettime(CLOCK_MONOTONIC) in loop failed. errno: " << errno
+          << " " << strerror(errno);
       int64_t monotonicTimeNow =
-          (static_cast<int64_t>(monotonic_ts_current.tv_sec) * 1000000LL) +
-          (static_cast<int64_t>(monotonic_ts_current.tv_nsec) / 1000LL);
+          (static_cast<int64_t>(monotonic_ts_current.tv_sec) * 1'000'000LL) +
+          (static_cast<int64_t>(monotonic_ts_current.tv_nsec) / 1'000LL);
 
-      if ((monotonicTimeNow - timerStart) >= kMaxWaitMicroseconds) {
-        FAIL() << "gettimeofday()-based time hasn't changed within "
-               << (kMaxWaitMicroseconds / 1000L) << " ms "
-               << "during iteration " << i << ". Initial time: " << initialTime
-               << ", Current time (monotonic): " << monotonicTimeNow
-               << ", Timer start (monotonic): " << timerStart;
-        return;
-      }
+      int64_t monotonic_time_elapsed_us = monotonicTimeNow - timerStart;
+      ASSERT_LT(monotonic_time_elapsed_us, kMaxResolutionMicroseconds)
+          << "gettimeofday()-based time hasn't changed within "
+          << (kMaxResolutionMicroseconds / 1'000L) << " ms "
+          << "during iteration " << i << ". Initial time: " << initialTime
+          << ", Elapsed monotonic time: " << monotonic_time_elapsed_us / 1'000L
+          << " ms.";
     }
   }
 }
