@@ -47,7 +47,7 @@ public class CobaltSampleStream implements SampleStream {
   }
 
   void discardBuffer(long positionUs, boolean toKeyframe) {
-    Log.i(TAG, String.format("Discarding Samplequeue to %d", positionUs));
+    // Log.i(TAG, String.format("Discarding Samplequeue to %d", positionUs));
     sampleQueue.discardTo(positionUs, toKeyframe, true);
   }
 
@@ -74,7 +74,7 @@ public class CobaltSampleStream implements SampleStream {
     }
     try {
       sampleQueue.sampleMetadata(timestampUs, sampleFlags, sizeInBytes, 0, null);
-      Log.i(TAG, String.format("Wrote %s sample with timestamp %d", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" :"video"), timestampUs));
+      // Log.i(TAG, String.format("Wrote %s sample with timestamp %d", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" :"video"), timestampUs));
     } catch (Exception e) {
       Log.i(TAG, String.format("Caught exception from sampleQueue.sampleMetadata() %s", e.toString()));
     }
@@ -84,13 +84,13 @@ public class CobaltSampleStream implements SampleStream {
     if (!prerolled) {
       if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
         // Audio stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500000) || endOfStream;
+        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500) || endOfStream;
         if (prerolled) {
           Log.i(TAG, "Prerolled audio stream");
         }
       } else {
         // Video stream
-        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 5000000) || endOfStream;
+        prerolled = (prerolled || sampleQueue.getLargestQueuedTimestampUs() > 500) || endOfStream;
         if (prerolled) {
           Log.i(TAG, "Prerolled video stream");
         }
@@ -100,8 +100,9 @@ public class CobaltSampleStream implements SampleStream {
 
   @Override
   public boolean isReady() {
-    Log.i(TAG, String.format("Checking if SampleStream is ready: %b", sampleQueue.isReady(endOfStream)));
-    return sampleQueue.isReady(endOfStream) && prerolled;
+    // Log.i(TAG, String.format("Checking if SampleStream is ready: %b", sampleQueue.isReady(endOfStream)));
+    // return sampleQueue.isReady(endOfStream) && prerolled;
+    return sampleQueue.isReady(endOfStream) || endOfStream;
     // boolean ready = sampleQueue.isReady(false);
     // Log.i(TAG, String.format("Checking if SampleStream is ready. SampleQueue: %b, prerolled: %b", ready, prerolled));
     // return ready && prerolled;
@@ -120,17 +121,17 @@ public class CobaltSampleStream implements SampleStream {
 
   @Override
   public int readData(FormatHolder formatHolder, DecoderInputBuffer buffer, int readFlags) {
-    if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
-      Log.i(TAG, "Called readData() for audio");
-    } else {
-      Log.i(TAG, "Called readData() for video");
-    }
+    // if (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE) {
+    //   Log.i(TAG, "Called readData() for audio");
+    // } else {
+    //   Log.i(TAG, "Called readData() for video");
+    // }
     if (!sampleQueue.isReady(endOfStream)) {
       // Log.e(TAG, "SampleQueue is not ready to read from");
-      Log.i(TAG, "Queue is not ready to be read from");
+      // Log.i(TAG, "Queue is not ready to be read from");
       return C.RESULT_NOTHING_READ;
     }
-    Log.i(TAG, String.format("Current read position is %d", sampleQueue.getFirstTimestampUs()));
+    // Log.i(TAG, String.format("Current read position is %d", sampleQueue.getFirstTimestampUs()));
     // Log.i(TAG, String.format("READING DATA FROM SAMPLEQUEUE. READFLAGS: %d", readFlags));
     // if (buffer.format != null) {
     //   Log.i(TAG, String.format("ExoPlayer is reading data for format %s", buffer.format.sampleMimeType));
@@ -140,20 +141,20 @@ public class CobaltSampleStream implements SampleStream {
     int read = -1;
     try {
       read = sampleQueue.read(formatHolder, buffer, readFlags, endOfStream);
-      if (buffer.format != null) {
-        Log.i(TAG,
-            String.format("ExoPlayer is reading data for format %s", buffer.format.sampleMimeType));
-      } else if (formatHolder.format != null) {
-        Log.i(TAG, String.format("ExoPlayer is reading formatholder for format %s",
-            formatHolder.format.sampleMimeType));
-      }
-      Log.i(TAG, String.format("READ RETURNS %d", read));
+      // if (buffer.format != null) {
+      //   Log.i(TAG,
+      //       String.format("ExoPlayer is reading data for format %s", buffer.format.sampleMimeType));
+      // } else if (formatHolder.format != null) {
+      //   Log.i(TAG, String.format("ExoPlayer is reading formatholder for format %s",
+      //       formatHolder.format.sampleMimeType));
+      // }
+      // Log.i(TAG, String.format("READ RETURNS %d", read));
     } catch (Exception e) {
       Log.i(TAG, String.format("Caught exception from read() %s", e.toString()));
     }
 
-    Log.i(TAG, String.format("Buffer time for %s sample is %d, is key frame %b", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video"), buffer.timeUs, buffer.isKeyFrame()));
-    Log.i(TAG, String.format("Allocated bytes is %d", allocator.getTotalBytesAllocated()));
+    // Log.i(TAG, String.format("Buffer time for %s sample is %d, is key frame %b", (sampleQueue.getUpstreamFormat().sampleRate != Format.NO_VALUE ? "audio" : "video"), buffer.timeUs, buffer.isKeyFrame()));
+    // Log.i(TAG, String.format("Allocated bytes is %d", allocator.getTotalBytesAllocated()));
     return read;
   }
 

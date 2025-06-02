@@ -60,6 +60,7 @@ Java_dev_cobalt_media_ExoPlayerBridge_nativeOnPlaybackStateChanged(
     exoplayer_bridge->OnPlayerPrerolled();
   } else if (playback_state == PLAYER_STATE_ENDED) {
     SB_LOG(INFO) << "Player has ENDED";
+    exoplayer_bridge->OnPlaybackEnded();
   }
 }
 
@@ -117,6 +118,8 @@ ExoPlayerBridge::ExoPlayerBridge(
       player_(player),
       audio_only_(creation_param->video_stream_info.codec ==
                   kSbMediaVideoCodecNone),
+      video_only_(creation_param->audio_stream_info.codec ==
+                  kSbMediaAudioCodecNone),
       context_(context),
       ticket_(SB_PLAYER_INITIAL_TICKET),
       audio_stream_info_(creation_param->audio_stream_info),
@@ -134,8 +137,8 @@ ExoPlayerBridge::ExoPlayerBridge(
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
+  ON_INSTANCE_RELEASED(ExoPlayerBridge);
   JniEnvExt* env = JniEnvExt::Get();
-  Stop();
   SB_LOG(INFO) << "Started exoplayer destructor";
   // if (exoplayer_pthread_ != 0) {
   //   pthread_join(exoplayer_pthread_, NULL);
@@ -149,7 +152,7 @@ ExoPlayerBridge::~ExoPlayerBridge() {
     j_sample_data_ = nullptr;
   }
   SB_LOG(INFO) << "Finished exoplayer destructor";
-  // UpdatePlayerState(kSbPlayerStateDestroyed);
+  UpdatePlayerState(kSbPlayerStateDestroyed);
 }
 
 void ExoPlayerBridge::Seek(int64_t seek_to_timestamp, int ticket) {
@@ -184,6 +187,7 @@ bool ExoPlayerBridge::Play() {
 
 bool ExoPlayerBridge::Pause() {
   SB_CHECK(exoplayer_thread_);
+  SB_LOG(INFO) << "Requesting ExoPlayer pause";
   exoplayer_thread_->job_queue()->Schedule(
       std::bind(&ExoPlayerBridge::DoPause, this));
   return true;
@@ -228,6 +232,14 @@ void ExoPlayerBridge::OnPlayerError() {
                 error_message));
 }
 
+void ExoPlayerBridge::OnPlaybackEnded() {
+  SB_CHECK(exoplayer_thread_);
+  SB_LOG(INFO) << "Reporting ExoPlayer playback end";
+  std::string error_message;
+  exoplayer_thread_->job_queue()->Schedule(std::bind(
+      &ExoPlayerBridge::UpdatePlayerState, this, kSbPlayerStateEndOfStream));
+}
+
 void ExoPlayerBridge::SetPlayingStatus(bool is_playing) {
   SB_CHECK(exoplayer_thread_);
   SB_LOG(INFO) << "Changing playing state to "
@@ -268,10 +280,10 @@ bool ExoPlayerBridge::InitExoplayer() {
         audio_stream_info_.audio_specific_config.size()));
   }
 
-  std::string video_mime =
-      video_stream_info_.codec != kSbMediaVideoCodecNone
-          ? SupportedVideoCodecToMimeType(video_stream_info_.codec)
-          : "";
+  std::string video_mime = video_stream_info_.codec != kSbMediaVideoCodecNone
+                               ? video_stream_info_.mime
+                               : "";
+  SB_LOG(INFO) << "VIDEO MIME IS " << video_mime;
   int witdh = video_stream_info_.codec != kSbMediaVideoCodecNone
                   ? video_stream_info_.frame_width
                   : 0;
@@ -280,39 +292,44 @@ bool ExoPlayerBridge::InitExoplayer() {
                    : 0;
   int fps = 0;
   int audio_samplerate = 0;
-  int audio_channels = 0;
+  int audio_channels = 2;
   int video_bitrate = 0;
 
+  std::string j_video_mime_str =
+      video_stream_info_.codec != kSbMediaVideoCodecNone
+          ? SupportedVideoCodecToMimeType(video_stream_info_.codec)
+          : "";
   ScopedLocalJavaRef<jstring> j_video_mime(
-      env->NewStringStandardUTFOrAbort(video_mime.c_str()));
+      env->NewStringStandardUTFOrAbort(j_video_mime_str.c_str()));
   bool is_passthrough = false;
   std::string audio_mime = audio_stream_info_.codec != kSbMediaAudioCodecNone
                                ? SupportedAudioCodecToMimeType(
                                      audio_stream_info_.codec, &is_passthrough)
                                : "";
+  SB_LOG(INFO) << "AUDIO MIME IS " << audio_mime;
+  std::string j_audio_mime_str =
+      audio_stream_info_.codec != kSbMediaAudioCodecNone
+          ? SupportedAudioCodecToMimeType(audio_stream_info_.codec,
+                                          &is_passthrough)
+          : "";
   ScopedLocalJavaRef<jstring> j_audio_mime(
-      env->NewStringStandardUTFOrAbort(audio_mime.c_str()));
+      env->NewStringStandardUTFOrAbort(j_audio_mime_str.c_str()));
 
   if (video_stream_info_.codec != kSbMediaVideoCodecNone) {
     starboard::shared::starboard::media::MimeType video_mime_type(video_mime);
-    if (!video_mime_type.is_valid()) {
-      SB_LOG(INFO) << "Video mime type is invalid.";
-      return false;
-    }
-    fps = video_mime_type.GetParamIntValue("framerate", 30);
-    video_bitrate = video_mime_type.GetParamIntValue("bitrate", 0);
-    if (video_bitrate == 0) {
-      SB_LOG(INFO) << "Video bit rate cannot be 0.";
-      return false;
+    if (video_mime_type.is_valid()) {
+      fps = video_mime_type.GetParamIntValue("framerate", 30);
+      SB_LOG(INFO) << "Set video fps to " << fps;
+      video_bitrate = video_mime_type.GetParamIntValue("bitrate", 0);
+      SB_LOG(INFO) << "Set video bitrate to " << video_bitrate;
+      // if (video_bitrate == 0) {
+      //   SB_LOG(INFO) << "Video bit rate cannot be 0.";
+      //   return false;
+      // }
     }
   }
 
   if (audio_stream_info_.codec != kSbMediaAudioCodecNone) {
-    starboard::shared::starboard::media::MimeType audio_mime_type(audio_mime);
-    if (!audio_mime_type.is_valid()) {
-      SB_LOG(INFO) << "Audio mime type is invalid.";
-      return false;
-    }
     audio_samplerate = audio_stream_info_.samples_per_second;
     SB_LOG(INFO) << "Set audio sample rate to " << audio_samplerate;
     audio_channels = audio_stream_info_.number_of_channels;
@@ -321,10 +338,11 @@ bool ExoPlayerBridge::InitExoplayer() {
 
   env->CallVoidMethodOrAbort(
       j_exoplayer_bridge_, "createExoPlayer",
-      "(JLandroid/view/Surface;[BZIIIIIILjava/lang/String;Ljava/lang/String;)V",
+      "(JLandroid/view/Surface;[BZZIIIIIILjava/lang/String;Ljava/lang/"
+      "String;)V",
       reinterpret_cast<jlong>(this), j_output_surface, configuration_data.Get(),
-      audio_only_, audio_samplerate, audio_channels, witdh, height, fps,
-      video_bitrate, j_audio_mime.Get(), j_video_mime.Get());
+      audio_only_, video_only_, audio_samplerate, audio_channels, witdh, height,
+      fps, video_bitrate, j_audio_mime.Get(), j_video_mime.Get());
   SB_LOG(INFO) << "Exoplayer is created";
   j_sample_data_ = env->NewByteArray(2 * 65536 * 32);
   SB_DCHECK(j_sample_data_) << "Failed to allocate |j_sample_data_|";
@@ -348,13 +366,12 @@ void ExoPlayerBridge::DoSeek(int64_t seek_to_timestamp, int ticket) {
   }
   JniEnvExt* env = JniEnvExt::Get();
 
-  // SB_DLOG(INFO) << "Try to seek to " << seek_to_timestamp << "
-  // microseconds."; if (!env->CallBooleanMethodOrAbort(j_exoplayer_bridge_,
-  // "seek", "(J)Z",
-  //                                    seek_to_timestamp)) {
-  //   SB_LOG(INFO) << "Failed seek.";
-  //   UpdatePlayerError(kSbPlayerErrorDecode, "Failed seek.");
-  // }
+  SB_DLOG(INFO) << "Try to seek to " << seek_to_timestamp << "microseconds.";
+  if (!env->CallBooleanMethodOrAbort(j_exoplayer_bridge_, "seek", "(J)Z",
+                                     seek_to_timestamp)) {
+    SB_LOG(INFO) << "Failed seek.";
+    UpdatePlayerError(kSbPlayerErrorDecode, "Failed seek.");
+  }
 
   ticket_ = ticket;
   ended_ = false;
@@ -386,17 +403,18 @@ void ExoPlayerBridge::DoWriteSamples(SbMediaType sample_type,
     // SB_LOG(INFO) << "Video key frame";
     is_key_frame = sample_infos->video_sample_info.is_key_frame;
     // SB_LOG(INFO) << "Writing video frame with timestamp " <<
-    // sample_infos->timestamp; SB_LOG_IF(INFO, is_key_frame) << "This is a key
+    // sample_infos->timestamp;
+    // SB_LOG_IF(INFO, is_key_frame) << "This is a key
     // frame";
-    SB_LOG(INFO) << "Writing video frame with timestamp "
-                 << sample_infos->timestamp;
+    // SB_LOG(INFO) << "Writing video frame with timestamp "
+    //              << sample_infos->timestamp;
   } else {
-    SB_LOG(INFO) << "Writing audio frame with timestamp "
-                 << sample_infos->timestamp;
+    // SB_LOG(INFO) << "Writing audio frame with timestamp "
+    //              << sample_infos->timestamp;
   }
-  SB_LOG(INFO) << "Buffer size is " << sample_infos->buffer_size;
-  JniEnvExt* env = JniEnvExt::Get();
+  // SB_LOG(INFO) << "Buffer size is " << sample_infos->buffer_size;
   bool is_eos = false;
+  JniEnvExt* env = JniEnvExt::Get();
   env->SetByteArrayRegion(static_cast<jbyteArray>(j_sample_data_), kNoOffset,
                           sample_infos->buffer_size,
                           reinterpret_cast<const jbyte*>(sample_infos->buffer));
@@ -422,7 +440,7 @@ void ExoPlayerBridge::DoWriteEndOfStream(SbMediaType stream_type) {
   env->CallVoidMethodOrAbort(j_exoplayer_bridge_, "writeSample", "([BIJZZZ)V",
                              j_sample_data_, buffer_size, timestamp, is_audio,
                              is_key_frame, is_eos);
-  UpdatePlayerState(kSbPlayerStateEndOfStream);
+  // UpdatePlayerState(kSbPlayerStateEndOfStream);
 }
 
 void ExoPlayerBridge::DoPlay() {
@@ -482,8 +500,8 @@ void ExoPlayerBridge::Update() {
     JniEnvExt* env = JniEnvExt::Get();
     jlong media_time = env->CallLongMethodOrAbort(
         j_exoplayer_bridge_, "getCurrentPositionUs", "()J");
-    SB_LOG(INFO) << "Sampled media time is "
-                 << static_cast<int64_t>(media_time);
+    // SB_LOG(INFO) << "Sampled media time is "
+    //              << static_cast<int64_t>(media_time);
     update_media_info_cb_(static_cast<int64_t>(media_time), 0, ticket_,
                           is_progressing_);
   }
@@ -514,6 +532,7 @@ void ExoPlayerBridge::UpdatePlayingStatus(bool is_playing) {
     SB_LOG(WARNING) << "Playing status is updated after an error.";
     return;
   }
+  SB_LOG(INFO) << "Chaning is_progressing_ to " << is_playing;
   is_progressing_ = is_playing;
 }
 

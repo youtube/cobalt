@@ -69,6 +69,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void OnPlayerInitialized();
   void OnPlayerPrerolled();
   void OnPlayerError();
+  void OnPlaybackEnded();
   void SetPlayingStatus(bool is_playing);
 
   // VideoSurfaceHolder method
@@ -111,6 +112,7 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   bool error_occurred_ = false;
   int ticket_;
   bool audio_only_ = false;
+  bool video_only_ = false;
   SbPlayerState player_state_;
   std::unique_ptr<JobThread> exoplayer_thread_;
   pthread_t exoplayer_pthread_ = 0;

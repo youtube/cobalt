@@ -56,7 +56,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   if (video_codec != kSbMediaVideoCodecNone) {
     if (video_codec != kSbMediaVideoCodecH264 &&
-        video_codec != kSbMediaVideoCodecVp9) {
+        video_codec != kSbMediaVideoCodecVp9 &&
+        video_codec != kSbMediaVideoCodecAv1) {
       return kSbPlayerInvalid;
     }
   }
