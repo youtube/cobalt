@@ -25,12 +25,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace internal {
+namespace starboard::shared::starboard::player::filter::internal {
 namespace {
 
 constexpr int kSampleRate = 48'000;
@@ -50,7 +45,7 @@ scoped_refptr<DecodedAudio> CreateTestDecodedAudio(int frames,
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, 0, kBufferSize);
 
-  float* data = reinterpret_cast<float*>(audio->data());
+  float* data = audio->data_as_float32();
   for (int i = 0; i < frames; ++i) {
     for (int c = 0; c < channels; ++c) {
       data[i * channels + c] =
@@ -87,8 +82,8 @@ TEST(WsolaInternalTest, OptimalIndex_ExactMatch) {
       kFrames, kChannels, kSampleRate, kFrequency, kAmplitude);
 
   // Place an exact match at index 25
-  float* search_data = reinterpret_cast<float*>(search_block->data());
-  float* target_data = reinterpret_cast<float*>(target_block->data());
+  float* search_data = search_block->data_as_float32();
+  float* target_data = target_block->data_as_float32();
   memcpy(search_data + 25 * kChannels, target_data,
          50 * kChannels * sizeof(float));
 
@@ -133,8 +128,8 @@ TEST(WsolaInternalTest, OptimalIndex_ExcludeInterval) {
       kFrames, kChannels, kSampleRate, kFrequency, kAmplitude);
 
   // Create an exact match within the exclusion interval
-  float* search_data = reinterpret_cast<float*>(search_block->data());
-  float* target_data = reinterpret_cast<float*>(target_block->data());
+  float* search_data = search_block->data_as_float32();
+  float* target_data = target_block->data_as_float32();
   memcpy(search_data + 10 * kChannels, target_data,
          20 * kChannels * sizeof(float));  // Match at 10
 
@@ -161,8 +156,8 @@ TEST(WsolaInternalTest, OptimalIndex_SmallBlocks) {
   scoped_refptr<DecodedAudio> search_block =
       CreateTestDecodedAudio(kFrames, kChannels, kSampleRate, 440.0f, 0.5f);
 
-  float* search_data = reinterpret_cast<float*>(search_block->data());
-  float* target_data = reinterpret_cast<float*>(target_block->data());
+  float* search_data = search_block->data_as_float32();
+  float* target_data = target_block->data_as_float32();
   memcpy(search_data + 10 * kChannels, target_data,
          5 * kChannels * sizeof(float));
 
@@ -204,9 +199,4 @@ TEST(WsolaInternalTest, GetPeriodicHanningWindow_AllValuesAreValid) {
 
 }  // namespace
 
-}  // namespace internal
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::internal
