@@ -2,46 +2,52 @@
   "docker_service": "build-rdk",
   "evergreen_loader": "rdk-arm",
   "on_device_test": {
-    "enabled": false
+    "enabled": true,
+    "tests": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ]
   },
   "platforms": [
-    "evergreen-arm-hardfp-sbversion-14",
-    "evergreen-arm-hardfp-sbversion-15",
-    "evergreen-arm-hardfp-sbversion-16"
+    "evergreen-rdk-arm-hardfp-sbversion-14",
+    "evergreen-rdk-arm-hardfp-sbversion-15",
+    "evergreen-rdk-arm-hardfp-sbversion-16"
   ],
   "includes": [
     {
       "name":"sbversion-14",
-      "platform":"evergreen-arm-hardfp-sbversion-14",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-14",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"is_clang=false using_old_compiler=true rdk_build_with_yocto=false rdk_starboard_root=\\\"//starboard/contrib/rdk/src\\\" rdk_enable_securityagent=false",
       "evergreen_loader_extra_build_targets":"loader_app_bin elf_loader_sandbox_bin",
       "sb_api_version": "14",
-      "dimension": "release_version=regex:10.*"
+      "dimension": "release_version=3.1.11"
     },
     {
       "name":"sbversion-15",
-      "platform":"evergreen-arm-hardfp-sbversion-15",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-15",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"is_clang=false using_old_compiler=true rdk_build_with_yocto=false rdk_starboard_root=\\\"//starboard/contrib/rdk/src\\\" rdk_enable_securityagent=false",
       "evergreen_loader_extra_build_targets":"loader_app_bin elf_loader_sandbox_bin",
       "sb_api_version": "15",
-      "dimension": "release_version=regex:10.*"
+      "dimension": "release_version=3.1.11"
     },
     {
       "name":"sbversion-16",
-      "platform":"evergreen-arm-hardfp-sbversion-16",
+      "platform":"evergreen-rdk-arm-hardfp-sbversion-16",
       "target_platform":"evergreen-arm-hardfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false using_old_compiler=true rdk_build_with_yocto=false rdk_starboard_root=\\\"//starboard/contrib/rdk/src\\\" rdk_enable_securityagent=false",
       "evergreen_loader_extra_build_targets":"loader_app_bin elf_loader_sandbox_bin",
       "sb_api_version": "16",
-      "dimension": "release_version=regex:10.*"
+      "dimension": "release_version=3.1.11"
     }
   ]
 }
