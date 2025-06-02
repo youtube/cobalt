@@ -14,7 +14,15 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include "build/build_config.h"
+
 #include <dirent.h>
+
+// TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include <dlfcn.h>
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -356,15 +364,27 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vswprintf);
   REGISTER_WRAPPER(writev);
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/399696581 - Remove once the //base cleanup is done.
+  REGISTER_SYMBOL(pthread_atfork);
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  if (!address) {
-    SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  if (address) {
+    return address;
   }
+
+  SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  // TODO: Cobalt b/421944504 - Cleanup once we are done with all the symbols or
+  // potentially keep it behind a flag to help with future maintenance.
+  address = dlsym(RTLD_DEFAULT, name);
+  SB_LOG(ERROR) << "'. Falling back to dlsym address " << address << "'.";
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return address;
 }
 
