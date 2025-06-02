@@ -45,19 +45,19 @@ DEFINE_METHOD(AAudioStream_getBufferSizeInFrames);
 DEFINE_METHOD(AAudioStream_getChannelCount);
 DEFINE_METHOD(AAudioStream_getFormat);
 DEFINE_METHOD(AAudioStream_getFramesPerBurst);
+DEFINE_METHOD(AAudioStream_getFramesRead);
 DEFINE_METHOD(AAudioStream_getFramesWritten);
 DEFINE_METHOD(AAudioStream_getPerformanceMode);
 DEFINE_METHOD(AAudioStream_getSampleRate);
-DEFINE_METHOD(AAudioStream_getSamplesPerFrame);
 DEFINE_METHOD(AAudioStream_getState);
 DEFINE_METHOD(AAudioStream_getTimestamp);
 DEFINE_METHOD(AAudioStream_getXRunCount);
 DEFINE_METHOD(AAudioStream_requestFlush);
 DEFINE_METHOD(AAudioStream_requestPause);
 DEFINE_METHOD(AAudioStream_requestStart);
-DEFINE_METHOD(AAudioStream_requestStop);
 DEFINE_METHOD(AAudioStream_setBufferSizeInFrames);
 DEFINE_METHOD(AAudioStream_waitForStateChange);
+DEFINE_METHOD(AAudioStream_write);
 DEFINE_METHOD(AAudio_convertResultToText);
 DEFINE_METHOD(AAudio_convertStreamStateToText);
 
@@ -106,19 +106,19 @@ void* LoadAAudioSymbols() {
   LOAD_AAUDIO_FUNCTION(AAudioStream_getChannelCount);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFormat);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesPerBurst);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesRead);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getFramesWritten);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getPerformanceMode);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getSampleRate);
-  LOAD_AAUDIO_FUNCTION(AAudioStream_getSamplesPerFrame);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getState);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getTimestamp);
   LOAD_AAUDIO_FUNCTION(AAudioStream_getXRunCount);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestFlush);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestPause);
   LOAD_AAUDIO_FUNCTION(AAudioStream_requestStart);
-  LOAD_AAUDIO_FUNCTION(AAudioStream_requestStop);
   LOAD_AAUDIO_FUNCTION(AAudioStream_setBufferSizeInFrames);
   LOAD_AAUDIO_FUNCTION(AAudioStream_waitForStateChange);
+  LOAD_AAUDIO_FUNCTION(AAudioStream_write);
 
   LOAD_AAUDIO_FUNCTION(AAudio_convertResultToText);
   LOAD_AAUDIO_FUNCTION(AAudio_convertStreamStateToText);
@@ -224,10 +224,12 @@ std::unique_ptr<AudioStream> AudioStream::Create(
   }
   aaudio_format_t format = GetAudioFormat(sample_type);
 
+  bool use_pull_mode = data_callback != nullptr;
   SB_LOG(INFO) << __func__ << " format=" << AudioFormatString(format)
                << ", channel_count=" << channel_count
                << ", sample_rate=" << sample_rate
-               << ", buffer_frames=" << buffer_frames;
+               << ", buffer_frames=" << buffer_frames
+               << ", use_pull_mode=" << (use_pull_mode ? "true" : "false");
 
   auto audio_stream_instance = std::unique_ptr<AudioStream>(new AudioStream(
       std::move(local_libaaudio_dl_handle), channel_count, sample_rate,
@@ -256,8 +258,10 @@ std::unique_ptr<AudioStream> AudioStream::Create(
 
   AAudioStreamBuilder_setErrorCallback(builder, AudioStream::ErrorCallback,
                                        audio_stream_instance.get());
-  AAudioStreamBuilder_setDataCallback(builder, AudioStream::StaticDataCallback,
-                                      audio_stream_instance.get());
+  if (use_pull_mode) {
+    AAudioStreamBuilder_setDataCallback(
+        builder, AudioStream::StaticDataCallback, audio_stream_instance.get());
+  }
   // Let AAudio choose the number of frames per callback, usually burst size.
   // A value of 0 requests that the callback occurs at a default rate.
   // AAudioStreamBuilder_setFramesPerDataCallback(builder, 0);
@@ -405,6 +409,29 @@ bool AudioStream::PauseAndFlush() {
   return result == AAUDIO_OK;
 }
 
+std::optional<int> AudioStream::WriteFrames(void* buffer, int frames) {
+  aaudio_result_t result =
+      AAudioStream_write(stream_, buffer, frames, /*timeoutNanoseconds=*/0);
+  if (result < 0) {
+    SB_LOG(ERROR) << "AAudioStream_write failed: "
+                  << AAudio_convertResultToText(result)
+                  << ", failure_count=" << consecutive_failure_count_;
+    consecutive_failure_count_++;
+    SB_CHECK(consecutive_failure_count_ < 100);
+
+    return std::nullopt;
+  }
+  SB_LOG(INFO) << __func__ << ": frames_written=" << result;
+  if (result == 0) {
+    consecutive_failure_count_++;
+    SB_CHECK(consecutive_failure_count_ < 100);
+    return 0;
+  }
+  consecutive_failure_count_ = 0;
+
+  return result;
+}
+
 aaudio_data_callback_result_t AudioStream::StaticDataCallback(
     AAudioStream* stream,
     void* user_data,
@@ -444,6 +471,19 @@ std ::optional<AudioStream::Timestamp> AudioStream::GetTimestamp() const {
 
 std::string AudioStream::GetStateName() const {
   return AAudio_convertStreamStateToText(AAudioStream_getState(stream_));
+}
+
+int AudioStream::GetFramesInBuffer() const {
+  const int frames_read = AAudioStream_getFramesRead(stream_);
+  const int frames_written = AAudioStream_getFramesWritten(stream_);
+  SB_CHECK(frames_written >= frames_read)
+      << ": frames_written=" << frames_written
+      << ", frames_read=" << frames_read;
+  return frames_written - frames_read;
+}
+
+int64_t AudioStream::GetFramesInBufferMsec() const {
+  return GetFramesInBuffer() * 1'000 / sample_rate_;
 }
 
 std::ostream& operator<<(std::ostream& os, const AudioStream::Timestamp& ts) {

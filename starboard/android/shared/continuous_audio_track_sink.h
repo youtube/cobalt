@@ -57,6 +57,18 @@ class ContinuousAudioTrackSink
   int GetStartThresholdInFrames();
 
  private:
+  static void* ThreadEntryPoint(void* context);
+  void AudioThreadFunc();
+
+  struct SourceState {
+    int available_frames;
+    int frame_offset;
+    bool is_playing;
+    bool is_eos_reached;
+  };
+  SourceState GetSourceState();
+  bool WriteFrames(const SourceState& source);
+
   bool OnReadData(void* buffer, int num_frames_to_read);
 
   void ReportError(bool capability_changed, const std::string& error_message);
@@ -66,6 +78,7 @@ class ContinuousAudioTrackSink
   int64_t GetFramesDurationUs(int frames) const;
 
   Type* const type_;
+  const bool use_push_mode_ = true;
 
   const int channels_;
   const int sampling_frequency_hz_;
@@ -79,8 +92,6 @@ class ContinuousAudioTrackSink
   void* const context_;
 
   std::unique_ptr<AudioStream> stream_;
-
-  volatile bool quit_ = false;
 
   Mutex mutex_;
   double playback_rate_ = 1.0;
@@ -105,6 +116,9 @@ class ContinuousAudioTrackSink
   int64_t callback_interval_frames_ = 0;
 
   AudioStream::Timestamp aaudio_in_ts_{0, 0};
+
+  pthread_t main_thread_ = 0;
+  bool thread_stop_ = false;
 };
 
 }  // namespace starboard::android::shared

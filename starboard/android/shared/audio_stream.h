@@ -28,6 +28,10 @@ class AudioStream {
   bool Play();
   bool Pause();
   bool PauseAndFlush();
+  std::optional<int> WriteFrames(void* buffer, int frames);
+
+  int GetFramesInBuffer() const;
+  int64_t GetFramesInBufferMsec() const;
 
   int32_t GetUnderrunCount() const;
 
@@ -79,6 +83,8 @@ class AudioStream {
   int write_offset_ = 0;
   int read_offset_ = 0;
   int filled_bytes_ = 0;
+
+  int consecutive_failure_count_ = 0;
 };
 
 std::ostream& operator<<(std::ostream& os, const AudioStream::Timestamp& ts);
