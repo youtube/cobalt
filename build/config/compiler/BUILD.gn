@@ -615,8 +615,7 @@ config("compiler") {
         cflags_cc += [ "-std=${standard_prefix}++20" ]
       }
     } else {
-      if (use_cxx17 && is_starboard) {
-        # For cobalt's raspi-2 platform we are compiling with C++17 below starboard.
+      if (use_cxx17 && is_cobalt) {
         cflags_cc += [ "-std=${standard_prefix}++17" ]
       } else {
       # The gcc bots are currently using GCC 9, which is not new enough to
