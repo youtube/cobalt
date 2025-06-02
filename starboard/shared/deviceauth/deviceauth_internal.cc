@@ -40,9 +40,7 @@ bool Base64Decode(const std::string& input, std::string* output) {
 }
 }  // namespace
 
-namespace starboard {
-namespace shared {
-namespace deviceauth {
+namespace starboard::shared::deviceauth {
 
 // This function is meant to exist purely for reference.
 //
@@ -80,5 +78,4 @@ bool SignWithCertificationSecretKey(const char* secret_key,
 }
 
 }  // namespace deviceauth
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::deviceauth

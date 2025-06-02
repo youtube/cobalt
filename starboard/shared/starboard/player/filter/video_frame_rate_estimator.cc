@@ -18,11 +18,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 VideoFrameRateEstimator::VideoFrameRateEstimator() {
   Reset();
@@ -144,8 +140,4 @@ void VideoFrameRateEstimator::RefineFrameRate(const Frames& frames) {
   CalculateInitialFrameRate(frames, last_frame_duration);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

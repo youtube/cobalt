@@ -22,10 +22,7 @@
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -362,7 +359,4 @@ std::ostream& operator<<(std::ostream& os, const DecodedAudio& decoded_audio) {
             << ", frames: " << decoded_audio.frames();
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player
