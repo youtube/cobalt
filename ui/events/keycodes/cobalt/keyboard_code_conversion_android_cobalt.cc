@@ -382,129 +382,129 @@ DomKey GetDomKeyFromAndroidKeycode(int keycode) {
     case AKEYCODE_DVR:
       return DomKey::DVR;
 
-    // The following codes should already be handled as printable
-    // character mapping.
+      // The following codes should already be handled as printable
+      // character mapping.
 
-    // case AKEYCODE_0:
-    // case AKEYCODE_1:
-    // case AKEYCODE_2:
-    // case AKEYCODE_3:
-    // case AKEYCODE_4:
-    // case AKEYCODE_5:
-    // case AKEYCODE_6:
-    // case AKEYCODE_7:
-    // case AKEYCODE_8:
-    // case AKEYCODE_9:
-    // case AKEYCODE_STAR:
-    // case AKEYCODE_POUND:
-    // case AKEYCODE_A:
-    // case AKEYCODE_B:
-    // case AKEYCODE_C:
-    // case AKEYCODE_D:
-    // case AKEYCODE_E:
-    // case AKEYCODE_F:
-    // case AKEYCODE_G:
-    // case AKEYCODE_H:
-    // case AKEYCODE_I:
-    // case AKEYCODE_J:
-    // case AKEYCODE_K:
-    // case AKEYCODE_L:
-    // case AKEYCODE_M:
-    // case AKEYCODE_N:
-    // case AKEYCODE_O:
-    // case AKEYCODE_P:
-    // case AKEYCODE_Q:
-    // case AKEYCODE_R:
-    // case AKEYCODE_S:
-    // case AKEYCODE_T:
-    // case AKEYCODE_U:
-    // case AKEYCODE_V:
-    // case AKEYCODE_W:
-    // case AKEYCODE_X:
-    // case AKEYCODE_Y:
-    // case AKEYCODE_Z:
-    // case AKEYCODE_COMMA:
-    // case AKEYCODE_PERIOD:
-    // case AKEYCODE_GRAVE:
-    // case AKEYCODE_MINUS:
-    // case AKEYCODE_EQUALS:
-    // case AKEYCODE_LEFT_BRACKET:
-    // case AKEYCODE_RIGHT_BRACKET:
-    // case AKEYCODE_BACKSLASH:
-    // case AKEYCODE_SEMICOLON:
-    // case AKEYCODE_APOSTROPHE:
-    // case AKEYCODE_SLASH:
-    // case AKEYCODE_AT:
-    // case AKEYCODE_NUM:
-    // case AKEYCODE_NUMPAD_0:
-    // case AKEYCODE_NUMPAD_1:
-    // case AKEYCODE_NUMPAD_2:
-    // case AKEYCODE_NUMPAD_3:
-    // case AKEYCODE_NUMPAD_4:
-    // case AKEYCODE_NUMPAD_5:
-    // case AKEYCODE_NUMPAD_6:
-    // case AKEYCODE_NUMPAD_7:
-    // case AKEYCODE_NUMPAD_8:
-    // case AKEYCODE_NUMPAD_9:
-    // case AKEYCODE_NUMPAD_DIVIDE:
-    // case AKEYCODE_NUMPAD_MULTIPLY:
-    // case AKEYCODE_NUMPAD_SUBTRACT:
-    // case AKEYCODE_NUMPAD_ADD:
-    // case AKEYCODE_NUMPAD_DOT:
-    // case AKEYCODE_NUMPAD_COMMA:
-    // case AKEYCODE_NUMPAD_EQUALS:
-    // case AKEYCODE_NUMPAD_LEFT_PAREN:
-    // case AKEYCODE_NUMPAD_RIGHT_PAREN:
-    // case AKEYCODE_SPACE:
-    // case AKEYCODE_PLUS:
+      // case AKEYCODE_0:
+      // case AKEYCODE_1:
+      // case AKEYCODE_2:
+      // case AKEYCODE_3:
+      // case AKEYCODE_4:
+      // case AKEYCODE_5:
+      // case AKEYCODE_6:
+      // case AKEYCODE_7:
+      // case AKEYCODE_8:
+      // case AKEYCODE_9:
+      // case AKEYCODE_STAR:
+      // case AKEYCODE_POUND:
+      // case AKEYCODE_A:
+      // case AKEYCODE_B:
+      // case AKEYCODE_C:
+      // case AKEYCODE_D:
+      // case AKEYCODE_E:
+      // case AKEYCODE_F:
+      // case AKEYCODE_G:
+      // case AKEYCODE_H:
+      // case AKEYCODE_I:
+      // case AKEYCODE_J:
+      // case AKEYCODE_K:
+      // case AKEYCODE_L:
+      // case AKEYCODE_M:
+      // case AKEYCODE_N:
+      // case AKEYCODE_O:
+      // case AKEYCODE_P:
+      // case AKEYCODE_Q:
+      // case AKEYCODE_R:
+      // case AKEYCODE_S:
+      // case AKEYCODE_T:
+      // case AKEYCODE_U:
+      // case AKEYCODE_V:
+      // case AKEYCODE_W:
+      // case AKEYCODE_X:
+      // case AKEYCODE_Y:
+      // case AKEYCODE_Z:
+      // case AKEYCODE_COMMA:
+      // case AKEYCODE_PERIOD:
+      // case AKEYCODE_GRAVE:
+      // case AKEYCODE_MINUS:
+      // case AKEYCODE_EQUALS:
+      // case AKEYCODE_LEFT_BRACKET:
+      // case AKEYCODE_RIGHT_BRACKET:
+      // case AKEYCODE_BACKSLASH:
+      // case AKEYCODE_SEMICOLON:
+      // case AKEYCODE_APOSTROPHE:
+      // case AKEYCODE_SLASH:
+      // case AKEYCODE_AT:
+      // case AKEYCODE_NUM:
+      // case AKEYCODE_NUMPAD_0:
+      // case AKEYCODE_NUMPAD_1:
+      // case AKEYCODE_NUMPAD_2:
+      // case AKEYCODE_NUMPAD_3:
+      // case AKEYCODE_NUMPAD_4:
+      // case AKEYCODE_NUMPAD_5:
+      // case AKEYCODE_NUMPAD_6:
+      // case AKEYCODE_NUMPAD_7:
+      // case AKEYCODE_NUMPAD_8:
+      // case AKEYCODE_NUMPAD_9:
+      // case AKEYCODE_NUMPAD_DIVIDE:
+      // case AKEYCODE_NUMPAD_MULTIPLY:
+      // case AKEYCODE_NUMPAD_SUBTRACT:
+      // case AKEYCODE_NUMPAD_ADD:
+      // case AKEYCODE_NUMPAD_DOT:
+      // case AKEYCODE_NUMPAD_COMMA:
+      // case AKEYCODE_NUMPAD_EQUALS:
+      // case AKEYCODE_NUMPAD_LEFT_PAREN:
+      // case AKEYCODE_NUMPAD_RIGHT_PAREN:
+      // case AKEYCODE_SPACE:
+      // case AKEYCODE_PLUS:
 
-    // The following codes are unsupported. ie; there is no
-    // applicable mapping from the Android keycode to DOM Code
-    // currently.
+      // The following codes are unsupported. ie; there is no
+      // applicable mapping from the Android keycode to DOM Code
+      // currently.
 
-    // case AKEYCODE_SOFT_LEFT:
-    // case AKEYCODE_SOFT_RIGHT:
-    // case AKEYCODE_PICTSYMBOLS:
-    // case AKEYCODE_BUTTON_A:
-    // case AKEYCODE_BUTTON_B:
-    // case AKEYCODE_BUTTON_C:
-    // case AKEYCODE_BUTTON_X:
-    // case AKEYCODE_BUTTON_Y:
-    // case AKEYCODE_BUTTON_Z:
-    // case AKEYCODE_BUTTON_L1:
-    // case AKEYCODE_BUTTON_R1:
-    // case AKEYCODE_BUTTON_L2:
-    // case AKEYCODE_BUTTON_R2:
-    // case AKEYCODE_BUTTON_THUMBL:
-    // case AKEYCODE_BUTTON_THUMBR:
-    // case AKEYCODE_BUTTON_START:
-    // case AKEYCODE_BUTTON_SELECT:
-    // case AKEYCODE_BUTTON_MODE:
-    // case AKEYCODE_WINDOW:
-    // case AKEYCODE_BUTTON_1:
-    // case AKEYCODE_BUTTON_2:
-    // case AKEYCODE_BUTTON_3:
-    // case AKEYCODE_BUTTON_4:
-    // case AKEYCODE_BUTTON_5:
-    // case AKEYCODE_BUTTON_6:
-    // case AKEYCODE_BUTTON_7:
-    // case AKEYCODE_BUTTON_8:
-    // case AKEYCODE_BUTTON_9:
-    // case AKEYCODE_BUTTON_10:
-    // case AKEYCODE_BUTTON_11:
-    // case AKEYCODE_BUTTON_12:
-    // case AKEYCODE_BUTTON_13:
-    // case AKEYCODE_BUTTON_14:
-    // case AKEYCODE_BUTTON_15:
-    // case AKEYCODE_BUTTON_16:
-    // case AKEYCODE_YEN:
-    // case AKEYCODE_RO:
-    // case AKEYCODE_ASSIST:
-    // case AKEYCODE_11:
-    // case AKEYCODE_12:
-    // case AKEYCODE_TV_DATA:
-    // case AKEYCODE_VOICE_ASSIST:
-    // case AKEYCODE_TV_MEDIA_CONTEXT_MENU:
+      // case AKEYCODE_SOFT_LEFT:
+      // case AKEYCODE_SOFT_RIGHT:
+      // case AKEYCODE_PICTSYMBOLS:
+      // case AKEYCODE_BUTTON_A:
+      // case AKEYCODE_BUTTON_B:
+      // case AKEYCODE_BUTTON_C:
+      // case AKEYCODE_BUTTON_X:
+      // case AKEYCODE_BUTTON_Y:
+      // case AKEYCODE_BUTTON_Z:
+      // case AKEYCODE_BUTTON_L1:
+      // case AKEYCODE_BUTTON_R1:
+      // case AKEYCODE_BUTTON_L2:
+      // case AKEYCODE_BUTTON_R2:
+      // case AKEYCODE_BUTTON_THUMBL:
+      // case AKEYCODE_BUTTON_THUMBR:
+      // case AKEYCODE_BUTTON_START:
+      // case AKEYCODE_BUTTON_SELECT:
+      // case AKEYCODE_BUTTON_MODE:
+      // case AKEYCODE_WINDOW:
+      // case AKEYCODE_BUTTON_1:
+      // case AKEYCODE_BUTTON_2:
+      // case AKEYCODE_BUTTON_3:
+      // case AKEYCODE_BUTTON_4:
+      // case AKEYCODE_BUTTON_5:
+      // case AKEYCODE_BUTTON_6:
+      // case AKEYCODE_BUTTON_7:
+      // case AKEYCODE_BUTTON_8:
+      // case AKEYCODE_BUTTON_9:
+      // case AKEYCODE_BUTTON_10:
+      // case AKEYCODE_BUTTON_11:
+      // case AKEYCODE_BUTTON_12:
+      // case AKEYCODE_BUTTON_13:
+      // case AKEYCODE_BUTTON_14:
+      // case AKEYCODE_BUTTON_15:
+      // case AKEYCODE_BUTTON_16:
+      // case AKEYCODE_YEN:
+      // case AKEYCODE_RO:
+      // case AKEYCODE_ASSIST:
+      // case AKEYCODE_11:
+      // case AKEYCODE_12:
+      // case AKEYCODE_TV_DATA:
+      // case AKEYCODE_VOICE_ASSIST:
+      // case AKEYCODE_TV_MEDIA_CONTEXT_MENU:
   }
 }
 
@@ -513,8 +513,9 @@ DomKey GetDomKeyFromAndroidKeycode(int keycode) {
 DomKey GetDomKeyFromAndroidEvent(int keycode, int unicode_character) {
   // Android maps ENTER to '\n'; but the DOM maps it to '\r'; ensure
   // the difference in mapping is mitigated.
-  if (unicode_character == '\n')
+  if (unicode_character == '\n') {
     unicode_character = '\r';
+  }
 
   // Android generates unicode_characters with the high bit on indicating
   // the key is a combining character.
@@ -527,8 +528,9 @@ DomKey GetDomKeyFromAndroidEvent(int keycode, int unicode_character) {
   // keyboard layout and modifiers. When the |unicode_character|
   // is non-zero then a printable character has been successfully
   // mapped; otherwise generate the DomKey from the keycode.
-  if (unicode_character)
+  if (unicode_character) {
     return DomKey::FromCharacter(unicode_character);
+  }
   return GetDomKeyFromAndroidKeycode(keycode);
 }
 
@@ -771,7 +773,8 @@ KeyboardCode KeyboardCodeFromAndroidKeyCode(int keycode) {
       return VKEY_PRIOR;
     case AKEYCODE_CHANNEL_DOWN:
       return VKEY_NEXT;
-// TODO: b/415832960 - Change to using a separate file specific to Cobalt inputs.
+// TODO: b/415832960 - Change to using a separate file specific to Cobalt
+// inputs.
 #if BUILDFLAG(IS_COBALT)
     case AKEYCODE_CAPTIONS:
       return KEY_SUBTITLES;
