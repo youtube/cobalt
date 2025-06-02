@@ -16,7 +16,6 @@
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
-#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "content/public/common/content_switches.h"
 #include "content/shell/common/shell_switches.h"
@@ -33,8 +32,6 @@ namespace {
 
 // List of toggleable default switches.
 static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre", switches::kNoFirstRun, switches::kKioskMode,
       // Enable Blink to work in overlay video mode
       switches::kForceVideoOverlays,
       // Disable multiprocess mode.
@@ -120,15 +117,9 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     }
   }
 
-  // Ensure the window size configs are consistent wherever they are set.
-  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
-    // --window-size takes priority over other window-size configs.
-    std::string window_size =
-        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
-    std::replace(window_size.begin(), window_size.end(), ',', 'x');
-    cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
-                                window_size);
-  }
+  CHECK(!cmd_line_.HasSwitch("window-size"))
+      << "--window-size is not supported, since it is a Chrome (not Cobalt) "
+         "command line switch. Try --content-shell-host-window-size instead.";
 
   // Any remaining parameter switches are set to their defaults.
   for (const auto& iter : cobalt_param_switch_defaults) {
