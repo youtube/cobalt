@@ -18,16 +18,12 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
+namespace starboard::shared::starboard {
 
 bool SbFileAtomicReplaceWriteFile(const char* path,
                                   const char* data,
                                   int64_t data_size);
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_FILE_ATOMIC_REPLACE_WRITE_FILE_H_
