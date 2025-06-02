@@ -26,7 +26,6 @@
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
-#include "cobalt/browser/cobalt_experiment_names.h"
 #include "cobalt/browser/cobalt_secure_navigation_throttle.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/constants/cobalt_experiment_names.h"
