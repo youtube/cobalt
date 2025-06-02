@@ -32,8 +32,6 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   virtual bool is_valid() const = 0;
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_H_

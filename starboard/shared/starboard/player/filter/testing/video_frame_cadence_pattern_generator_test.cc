@@ -100,6 +100,5 @@ TEST(VideoFrameCadencePatternGeneratorTest, 24fpsFrameRateOn60fpsRefreshRate) {
 }
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

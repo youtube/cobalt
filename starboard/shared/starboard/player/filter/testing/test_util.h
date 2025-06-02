@@ -74,8 +74,6 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
     int64_t discarded_duration_from_front,
     int64_t discarded_duration_from_back);
 
-}  // namespace testing
-
 }  // namespace starboard::shared::starboard::player::filter::testing
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_

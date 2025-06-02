@@ -132,6 +132,4 @@ int FFMPEGDispatch::specialization_version() const {
   return FFMPEG;
 }
 
-}  // namespace ffmpeg
-
-}  // namespace starboard::shared::ffmpeg::
+}  // namespace starboard::shared::ffmpeg

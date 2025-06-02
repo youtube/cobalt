@@ -80,8 +80,6 @@ class AudioDecoderImpl<FFMPEG> : public AudioDecoder,
   AudioStreamInfo audio_stream_info_;
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_H_

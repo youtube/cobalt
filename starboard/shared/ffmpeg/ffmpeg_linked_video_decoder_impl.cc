@@ -37,6 +37,5 @@ VideoDecoder* VideoDecoder::Create(
   return VideoDecoderImpl<FFMPEG>::Create(
       video_codec, output_mode, decode_target_graphics_context_provider);
 }
-}  // namespace ffmpeg
 
 }  // namespace starboard::shared::ffmpeg

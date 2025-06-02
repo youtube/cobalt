@@ -54,8 +54,6 @@ class DevInput {
   DevInput() {}
 };
 
-}  // namespace dev_input
-
 }  // namespace starboard::shared::dev_input
 
 #endif  // STARBOARD_SHARED_LINUX_DEV_INPUT_DEV_INPUT_H_

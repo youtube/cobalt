@@ -36,8 +36,6 @@ int AlsaGetBufferedFrames(void* playback_handle);
 void AlsaCloseDevice(void* playback_handle);
 bool AlsaDrain(void* playback_handle);
 
-}  // namespace alsa
-
 }  // namespace starboard::shared::alsa
 
 #endif  // STARBOARD_SHARED_ALSA_ALSA_UTIL_H_

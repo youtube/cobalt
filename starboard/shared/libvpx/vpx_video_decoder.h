@@ -108,8 +108,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace vpx
-
 }  // namespace starboard::shared::vpx
 
 #endif  // STARBOARD_SHARED_LIBVPX_VPX_VIDEO_DECODER_H_

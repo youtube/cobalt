@@ -34,8 +34,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
   virtual bool is_valid() const = 0;
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_

@@ -160,6 +160,5 @@ INSTANTIATE_TEST_CASE_P(
     });
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

@@ -412,6 +412,5 @@ INSTANTIATE_TEST_CASE_P(AdaptiveAudioDecoderTests,
                         GetAdaptiveAudioDecoderTestConfigName);
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

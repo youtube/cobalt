@@ -25,8 +25,6 @@ SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* context_provider,
                       const uint8_t* data,
                       size_t size);
 
-}  // namespace libjpeg
-
 }  // namespace starboard::shared::libjpeg
 
 #endif  // STARBOARD_SHARED_LIBJPEG_JPEG_IMAGE_DECODER_H_

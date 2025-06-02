@@ -294,6 +294,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace vpx
-
 }  // namespace starboard::shared::vpx

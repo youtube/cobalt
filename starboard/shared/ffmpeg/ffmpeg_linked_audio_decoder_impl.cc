@@ -34,6 +34,4 @@ AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
   return AudioDecoderImpl<FFMPEG>::Create(audio_stream_info);
 }
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg

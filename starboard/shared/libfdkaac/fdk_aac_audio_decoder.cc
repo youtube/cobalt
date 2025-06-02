@@ -255,6 +255,4 @@ void FdkAacAudioDecoder::TryToOutputDecodedAudio(const uint8_t* data,
   }
 }
 
-}  // namespace libfdkaac
-
 }  // namespace starboard::shared::libfdkaac

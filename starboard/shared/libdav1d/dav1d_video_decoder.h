@@ -118,8 +118,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace libdav1d
-
 }  // namespace starboard::shared::libdav1d
 
 #endif  // STARBOARD_SHARED_LIBDAV1D_DAV1D_VIDEO_DECODER_H_

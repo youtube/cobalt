@@ -182,6 +182,5 @@ INSTANTIATE_TEST_CASE_P(AudioResamplerTests,
                         GetTestConfigName);
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

@@ -64,6 +64,4 @@ SbDrmSystem CreateDummyDrmSystem(const char* key_system) {
       DummyServerCertificateUpdatedFunc, DummySessionClosedFunc);
 }
 
-}  // namespace drm
-
 }  // namespace starboard::shared::starboard::drm

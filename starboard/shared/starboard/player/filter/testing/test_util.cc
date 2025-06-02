@@ -308,6 +308,4 @@ scoped_refptr<InputBuffer> GetAudioInputBuffer(
   return input_buffer;
 }
 
-}  // namespace testing
-
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

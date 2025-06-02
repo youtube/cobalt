@@ -191,6 +191,4 @@ int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
   return result;
 }
 
-}  // namespace video_dmp
-
 }  // namespace starboard::shared::starboard::player::video_dmp

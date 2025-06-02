@@ -302,6 +302,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace de265
-
 }  // namespace starboard::shared::de265

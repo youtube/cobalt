@@ -93,7 +93,5 @@ class FdkAacAudioDecoder : public starboard::player::filter::AudioDecoder,
   size_t audio_data_to_discard_in_bytes_ = 0;
 };
 
-}  // namespace libfdkaac
-
 }  // namespace starboard::shared::libfdkaac
 #endif  // STARBOARD_SHARED_LIBFDKAAC_FDK_AAC_AUDIO_DECODER_H_

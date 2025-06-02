@@ -755,6 +755,5 @@ INSTANTIATE_TEST_CASE_P(PlayerComponentsTests,
                         ValuesIn(GetSupportedCreationParameters()),
                         GetPlayerComponentsTestConfigName);
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

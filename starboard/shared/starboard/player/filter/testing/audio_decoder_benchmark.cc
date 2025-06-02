@@ -124,9 +124,7 @@ void RunBenchmark(::benchmark::State& state, const char* filename) {
   state.SetItemsProcessed(state.iterations() * number_of_inputs);
 }
 
-}  // namespace testing
-
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing
 
 // This function has to reside in the global namespace for BENCHMARK_CAPTURE to
 // pick it up.

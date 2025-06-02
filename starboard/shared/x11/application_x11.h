@@ -154,8 +154,6 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   bool touchscreen_pointer_;
 };
 
-}  // namespace x11
-
 }  // namespace starboard::shared::x11
 
 #endif  // STARBOARD_SHARED_X11_APPLICATION_X11_H_

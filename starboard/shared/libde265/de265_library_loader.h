@@ -47,8 +47,6 @@ extern const uint8_t* (*de265_get_image_plane)(const de265_image*,
                                                int* out_stride);
 extern de265_PTS (*de265_get_image_PTS)(const de265_image*);
 
-}  // namespace de265
-
 }  // namespace starboard::shared::de265
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_LIBRARY_LOADER_H_

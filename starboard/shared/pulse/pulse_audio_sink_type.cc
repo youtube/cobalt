@@ -616,5 +616,4 @@ void PlatformTearDown() {
   pulse_unload_library();
 }
 
-}  // namespace pulse
-}  // namespace starboard::shared::pulse::
+}  // namespace starboard::shared::pulse

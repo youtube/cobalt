@@ -423,6 +423,4 @@ VideoDmpReader::Registry* VideoDmpReader::GetRegistry() {
   return &s_registry;
 }
 
-}  // namespace video_dmp
-
 }  // namespace starboard::shared::starboard::player::video_dmp

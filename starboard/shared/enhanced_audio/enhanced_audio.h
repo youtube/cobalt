@@ -19,8 +19,6 @@ namespace starboard::shared::enhanced_audio {
 
 const void* GetEnhancedAudioApi();
 
-}  // namespace enhanced_audio
-
 }  // namespace starboard::shared::enhanced_audio
 
 #endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_

@@ -67,8 +67,6 @@ extern AAC_DECODER_ERROR (*aacDecoder_DecodeFrame)(HANDLE_AACDECODER self,
                                                    const INT timeDataSize,
                                                    const UINT flags);
 
-}  // namespace libfdkaac
-
 }  // namespace starboard::shared::libfdkaac
 
 #endif  // STARBOARD_SHARED_LIBFDKAAC_LIBFDKAAC_LIBRARY_LOADER_H_

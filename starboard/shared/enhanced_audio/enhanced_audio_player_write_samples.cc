@@ -48,6 +48,4 @@ void EnhancedAudioPlayerWriteSamples(
   player->WriteSamples(sample_infos, number_of_sample_infos);
 }
 
-}  // namespace enhanced_audio
-
 }  // namespace starboard::shared::enhanced_audio

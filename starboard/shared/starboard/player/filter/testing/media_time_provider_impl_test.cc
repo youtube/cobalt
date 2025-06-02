@@ -273,6 +273,5 @@ TEST_F(MediaTimeProviderImplTest, Pause) {
 }
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

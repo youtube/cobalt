@@ -180,8 +180,6 @@ class VideoDmpReader {
   std::vector<VideoAccessUnit> video_access_units_;
 };
 
-}  // namespace video_dmp
-
 }  // namespace starboard::shared::starboard::player::video_dmp
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_READER_H_

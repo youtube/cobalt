@@ -159,8 +159,6 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   std::queue<scoped_refptr<CpuVideoFrame>> frames_;
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_

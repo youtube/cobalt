@@ -895,6 +895,5 @@ TEST_F(AudioRendererTest, Seek) {
 // TODO: Add more Seek tests.
 
 }  // namespace
-}  // namespace testing
 
-}  // namespace starboard::shared::starboard::player::filter::testing::
+}  // namespace starboard::shared::starboard::player::filter::testing

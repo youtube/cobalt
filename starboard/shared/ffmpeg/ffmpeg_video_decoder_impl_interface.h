@@ -32,8 +32,6 @@ class VideoDecoderImpl : public VideoDecoder {
                                   decode_target_graphics_context_provider);
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_INTERFACE_H_

@@ -132,8 +132,6 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   optional<shared::starboard::media::VideoConfig> video_config_;
 };
 
-}  // namespace openh264
-
 }  // namespace starboard::shared::openh264
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_VIDEO_DECODER_H_

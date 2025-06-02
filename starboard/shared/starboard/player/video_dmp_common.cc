@@ -284,6 +284,4 @@ void Write(const WriteCB& write_cb,
   }
 }
 
-}  // namespace video_dmp
-
 }  // namespace starboard::shared::starboard::player::video_dmp

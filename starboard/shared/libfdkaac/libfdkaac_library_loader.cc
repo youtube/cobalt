@@ -98,5 +98,4 @@ AAC_DECODER_ERROR(*aacDecoder_DecodeFrame)
  const INT timeDataSize,
  const UINT flags);
 
-}  // namespace libfdkaac
 }  // namespace starboard::shared::libfdkaac

@@ -30,8 +30,6 @@ class AudioDecoderImpl : public AudioDecoder {
   static AudioDecoder* Create(const AudioStreamInfo& audio_stream_info);
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_IMPL_INTERFACE_H_

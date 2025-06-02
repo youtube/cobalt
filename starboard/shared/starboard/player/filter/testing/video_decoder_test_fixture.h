@@ -166,8 +166,6 @@ class VideoDecoderTestFixture {
   std::map<size_t, uint8_t> invalid_inputs_;
 };
 
-}  // namespace testing
-
 }  // namespace starboard::shared::starboard::player::filter::testing
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_VIDEO_DECODER_TEST_FIXTURE_H_

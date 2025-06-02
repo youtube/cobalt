@@ -28,8 +28,6 @@ extern int (*WelsCreateDecoder)(ISVCDecoder** ppDecoder);
 
 extern void (*WelsDestroyDecoder)(ISVCDecoder* pDecoder);
 
-}  // namespace openh264
-
 }  // namespace starboard::shared::openh264
 
 #endif  // STARBOARD_SHARED_OPENH264_OPENH264_LIBRARY_LOADER_H_

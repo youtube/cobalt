@@ -51,8 +51,6 @@ class VideoDmpWriter {
   WriteCB write_cb_;
 };
 
-}  // namespace video_dmp
-
 }  // namespace starboard::shared::starboard::player::video_dmp
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_WRITER_H_

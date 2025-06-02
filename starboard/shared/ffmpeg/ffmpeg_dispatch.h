@@ -147,8 +147,6 @@ class FFMPEGDispatch {
   void FreeContext(AVCodecContext** avctx);
 };
 
-}  // namespace ffmpeg
-
 }  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_DISPATCH_H_

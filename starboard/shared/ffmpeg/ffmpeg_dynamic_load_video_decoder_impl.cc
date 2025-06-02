@@ -73,6 +73,5 @@ VideoDecoder* VideoDecoder::Create(
   }
   return video_decoder;
 }
-}  // namespace ffmpeg
 
 }  // namespace starboard::shared::ffmpeg

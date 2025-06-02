@@ -75,6 +75,5 @@ TEST_F(FFmpegAudioDecoderTest, SupportsPcmCodecFor16BitAudio) {
 }
 
 }  // namespace
-}  // namespace ffmpeg
 
-}  // namespace starboard::shared::ffmpeg::
+}  // namespace starboard::shared::ffmpeg

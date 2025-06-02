@@ -23,8 +23,6 @@ namespace starboard::shared::pulse {
 void PlatformInitialize();
 void PlatformTearDown();
 
-}  // namespace pulse
-
 }  // namespace starboard::shared::pulse
 
 #endif  // STARBOARD_SHARED_PULSE_PULSE_AUDIO_SINK_TYPE_H_

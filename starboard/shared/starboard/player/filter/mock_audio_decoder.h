@@ -41,8 +41,6 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(Reset, void());
 };
 
-}  // namespace testing
-
 }  // namespace starboard::shared::starboard::player::filter::testing
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_MOCK_AUDIO_DECODER_H_
