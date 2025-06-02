@@ -3,7 +3,7 @@ permissions: read-all
 
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, reopened, synchronize, labeled]
     branches:
       - main
       - experimental/*
