@@ -19,7 +19,6 @@
 
 #include <atomic>
 #include <deque>
-
 #include <memory>
 #include <optional>
 #include <string>

@@ -34,15 +34,14 @@ bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return false;
   }
 
-  if (audio_codec != kSbMediaAudioCodecOpus &&
-      audio_codec != kSbMediaAudioCodecAac) {
-    return false;
-  }
-
   bool is_passthrough = false;
   const char* mime =
       SupportedAudioCodecToMimeType(audio_codec, &is_passthrough);
   if (!mime) {
+    return false;
+  }
+
+  if (is_passthrough) {
     return false;
   }
 

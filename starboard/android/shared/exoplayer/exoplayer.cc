@@ -152,6 +152,8 @@ void ExoPlayer::GetInfo(SbPlayerInfo* out_player_info) const {
 
   starboard::ScopedLock lock(mutex_);
   if (is_paused_ || !is_progressing_) {
+    // SB_LOG(INFO) << "Paused: " << is_paused_ << " progressing: " <<
+    // is_progressing_;
     out_player_info->current_media_timestamp = media_time_;
   } else {
     out_player_info->current_media_timestamp =
@@ -192,7 +194,7 @@ void ExoPlayer::UpdateMediaInfo(int64_t media_time,
                                 int dropped_video_frames,
                                 int ticket,
                                 bool is_progressing) {
-  SB_LOG(INFO) << "Called updatemediainfo with media time " << media_time;
+  // SB_LOG(INFO) << "Called updatemediainfo with media time " << media_time;
   starboard::ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     SB_LOG(INFO) << "Ticket mismatch, returning early";
@@ -202,7 +204,7 @@ void ExoPlayer::UpdateMediaInfo(int64_t media_time,
   is_progressing_ = is_progressing;
   media_time_updated_at_ = starboard::CurrentMonotonicTime();
   dropped_video_frames_ = dropped_video_frames;
-  SB_LOG(INFO) << "Finished updatemediainfo";
+  // SB_LOG(INFO) << "Finished updatemediainfo";
 }
 
 }  // namespace shared

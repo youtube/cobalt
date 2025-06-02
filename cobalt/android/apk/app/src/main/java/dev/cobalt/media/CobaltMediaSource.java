@@ -83,7 +83,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     // Once ready, call this method (and populate any data you care about):
     refreshSourceInfo(
         new SinglePeriodTimeline(
-            /* durationUs= */ C.TIME_UNSET,
+            /* durationUs= */ 92233720391l, // ~25.6 hours
             /* isSeekable= */ true,
             /* isDynamic= */ false,
             /* useLiveConfiguration= */ false,
@@ -100,7 +100,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
   @Override
   public MediaItem getMediaItem() {
     // If needed, return a value that can be obtained via Player.getCurrentMediaItem();
-    Log.i(TAG, "Called getMediaItem()");
+    // Log.i(TAG, "Called getMediaItem()");
     return this.mediaItem;
   }
 
@@ -111,8 +111,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
   @Override
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-    Log.i(TAG, "Called createPeriod");
-    Log.i(TAG, String.format("Allocation size is %d", allocator.getIndividualAllocationLength()));
+    // Log.i(TAG, "Called createPeriod");
+    // Log.i(TAG, String.format("Allocation size is %d", allocator.getIndividualAllocationLength()));
     // Format format = isAudio ? audioFormat : videoFormat;
     mediaPeriod = new CustomMediaPeriod(format, allocator, playerBridge, isAudio);
     return mediaPeriod;
@@ -173,7 +173,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     }
     @Override
     public void prepare(Callback callback, long positionUs) {
-      Log.i(TAG, "Called CobaltMediaSource.CustomMediaPeriod.prepare()");
+      // Log.i(TAG, "Called CobaltMediaSource.CustomMediaPeriod.prepare()");
       this.callback = callback;
       // Start loading media from positionUs.
       // Once the list of Formats (see getTrackGroups()) is available, call:
@@ -235,7 +235,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
         if (selections[i] != null) {
           // Log.i(TAG, String.format("Stream %d (%s) format is %s", i, selections[i].getSelectedFormat().codecs,
           //     selections[i].getSelectedFormat().sampleMimeType));
-          Log.i(TAG, "Created SampleStream");
+          // Log.i(TAG, "Created SampleStream");
           stream = new CobaltSampleStream(allocator, selections[i].getSelectedFormat());
           streams[i] = stream;
           streamResetFlags[i] = true;
@@ -250,14 +250,14 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public void discardBuffer(long positionUs, boolean toKeyframe) {
       // Discard data from the streams up to positionUs after it's been played.
-      Log.i(TAG, "Called discardBuffer()");
+      // Log.i(TAG, "Called discardBuffer()");
       stream.discardBuffer(positionUs, toKeyframe);
     }
 
     @Override
     public long readDiscontinuity() {
       // Ignorable, just return this value.
-      Log.i(TAG, "Called readDiscontinuity()");
+      // Log.i(TAG, "Called readDiscontinuity()");
       return C.TIME_UNSET;
     }
 
@@ -284,17 +284,17 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // Return how far the media is buffered.
       // Log.i(TAG, "Called getBufferedPositionUs()");
       if (reachedEos) {
-        Log.i(TAG, "Returning end of source for getBufferedPositionUs()");
+        // Log.i(TAG, "Returning end of source for getBufferedPositionUs()");
         return C.TIME_END_OF_SOURCE;
       }
       long pos = C.TIME_UNSET;
       if (stream != null) {
         pos = stream.getBufferedPositionUs();
       } else {
-        Log.i(TAG, "Stream is null in getBufferedPositionUs()");
+        // Log.i(TAG, "Stream is null in getBufferedPositionUs()");
       }
       pos = pos == C.TIME_UNSET ? 0 : pos;
-      Log.i(TAG, String.format("Returning %d for getBufferedPositionUs()", pos));
+      // Log.i(TAG, String.format("Returning %d for getBufferedPositionUs()", pos));
       return pos;
     }
 
@@ -302,7 +302,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     public long getNextLoadPositionUs() {
       // Log.i(TAG, "Called getBufferedPositionUs()");
       long pos = getBufferedPositionUs();
-      Log.i(TAG, String.format("Returning %d for getNextLoadPositionUs()", pos));
+      // Log.i(TAG, String.format("Returning %d for getNextLoadPositionUs()", pos));
       return pos;
     }
 
@@ -311,7 +311,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // Request to continue loading data. Will be called once initially and whenever
       // Callback.onContinueLoadingRequested is triggered from this class (this allows the player's
       // LoadControl to prevent further loading if the buffer is already full)
-      Log.i(TAG, "Called continueLoading()");
+      // Log.i(TAG, "Called continueLoading()");
       // Log.i(TAG, String.format("LoadingInfo: lastRebufferRealtimeMs - %d, playbackPositionUs - %d, playbackSpeed - %.2f", loadingInfo.lastRebufferRealtimeMs, loadingInfo.playbackPositionUs, loadingInfo.playbackSpeed));
       // if (firstCall) {
       //   Log.i(TAG, "Return true");
@@ -326,7 +326,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public boolean isLoading() {
       // Whether media is currently loading.
-      Log.i(TAG, "Called isLoading()");
+      // Log.i(TAG, "Called isLoading()");
       // return stream.firstData;
       return true;
     }
@@ -334,14 +334,14 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public void reevaluateBuffer(long positionUs) {
       // Ignorable, do nothing.
-      Log.i(TAG, "Called reevaluateBuffer()");
+      // Log.i(TAG, "Called reevaluateBuffer()");
     }
 
     public boolean writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame, boolean isEndOfStream) {
       // Log.i(TAG, "Called writeSample()");
       try {
         if (isEndOfStream) {
-          Log.i(TAG, "Setting reachedEos to true");
+          // Log.i(TAG, "Setting reachedEos to true");
           reachedEos = true;
         }
         // pendingSamples.put(new SampleData(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream));
