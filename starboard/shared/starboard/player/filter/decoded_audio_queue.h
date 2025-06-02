@@ -26,11 +26,7 @@
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // A queue of AudioBuffers to support reading of arbitrary chunks of a media
 // data source. Audio data can be copied into an DecodedAudio for output. The
@@ -101,10 +97,6 @@ class DecodedAudioQueue {
   void operator=(const DecodedAudioQueue&) = delete;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_DECODED_AUDIO_QUEUE_H_

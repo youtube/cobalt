@@ -24,10 +24,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // Encapsulates all information contained in `SbMediaAudioStreamInfo`.  It
 // doesn't maintain the same binary layout as `SbMediaAudioStreamInfo`, and is
@@ -168,9 +165,6 @@ bool IsAudioSampleInfoSubstantiallyDifferent(const AudioStreamInfo& left,
 int AudioDurationToFrames(int64_t duration, int samples_per_second);
 int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_

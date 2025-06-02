@@ -27,10 +27,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/media/parsed_mime_info.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -297,7 +294,4 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const char* mime,
              : kSbMediaSupportTypeNotSupported;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

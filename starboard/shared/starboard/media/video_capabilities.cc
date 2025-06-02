@@ -19,10 +19,7 @@
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 VideoCapabilities::Rule::Rule(SbMediaVideoCodec codec,
                               int width,
@@ -110,7 +107,4 @@ bool VideoCapabilities::IsSupported(const Rule& rule_to_check,
   return false;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

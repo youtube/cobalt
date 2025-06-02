@@ -25,11 +25,7 @@
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
@@ -82,10 +78,6 @@ class AudioDecoder {
   virtual void Reset() = 0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_

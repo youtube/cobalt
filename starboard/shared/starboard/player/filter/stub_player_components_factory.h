@@ -21,11 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  public:
@@ -59,10 +55,6 @@ class StubPlayerComponentsFactory : public PlayerComponents::Factory {
   void operator=(const StubPlayerComponentsFactory&) = delete;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_STUB_PLAYER_COMPONENTS_FACTORY_H_

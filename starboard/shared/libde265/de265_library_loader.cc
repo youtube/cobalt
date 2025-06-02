@@ -18,9 +18,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace de265 {
+namespace starboard::shared::de265 {
 
 namespace {
 
@@ -114,6 +112,4 @@ bool is_de265_supported() {
   return GetHandle()->IsLoaded();
 }
 
-}  // namespace de265
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::de265

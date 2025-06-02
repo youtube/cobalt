@@ -23,11 +23,7 @@
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // The class is used to display the video frames.
 // It is expected that a pointer of this class is passed to RenderCB and the
@@ -54,10 +50,6 @@ class VideoRendererSink : public RefCountedThreadSafe<VideoRendererSink> {
   virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_SINK_H_

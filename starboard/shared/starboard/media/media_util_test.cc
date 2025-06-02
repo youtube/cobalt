@@ -24,10 +24,7 @@
 extern bool operator==(const SbMediaColorMetadata&,
                        const SbMediaColorMetadata&);
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 namespace {
 
 std::vector<uint8_t> ToVector(const void* data, int size) {
@@ -308,7 +305,5 @@ TEST(MediaUtilTest, AudioFramesToDuration) {
 }
 
 }  // namespace
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::media

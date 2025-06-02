@@ -31,9 +31,7 @@ extern "C" {
 // clang-format on
 }
 
-namespace starboard {
-namespace shared {
-namespace libjpeg {
+namespace starboard::shared::libjpeg {
 
 namespace {
 
@@ -335,6 +333,4 @@ SbDecodeTarget Decode(SbDecodeTargetGraphicsContextProvider* context_provider,
                             height, decode_target_format);
 }
 
-}  // namespace libjpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::libjpeg

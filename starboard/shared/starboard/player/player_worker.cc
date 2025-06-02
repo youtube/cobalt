@@ -26,10 +26,7 @@
 #include "starboard/common/player.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 
 namespace {
 
@@ -428,7 +425,4 @@ void PlayerWorker::UpdateDecoderState(SbMediaType type,
   decoder_status_func_(player_, context_, type, state, ticket_);
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player

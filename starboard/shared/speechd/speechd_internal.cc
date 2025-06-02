@@ -30,9 +30,7 @@
 #include "starboard/common/once.h"
 #include "starboard/shared/starboard/application.h"
 
-namespace starboard {
-namespace shared {
-namespace speechd {
+namespace starboard::shared::speechd {
 namespace {
 SbOnceControl init_once = SB_ONCE_INITIALIZER;
 }  // namespace
@@ -122,5 +120,5 @@ void SpeechDispatcher::Destroy() {
 }
 
 }  // namespace speechd
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::speechd::

@@ -31,9 +31,7 @@
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
-namespace starboard {
-namespace shared {
-namespace alsa {
+namespace starboard::shared::alsa {
 namespace {
 
 using ::starboard::ScopedLock;
@@ -472,6 +470,4 @@ void PlatformTearDown() {
   alsa_audio_sink_type_ = NULL;
 }
 
-}  // namespace alsa
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::alsa

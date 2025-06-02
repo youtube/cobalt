@@ -27,11 +27,9 @@ namespace {
 #error "COBALT_WIDEVINE_KEYBOX_INCLUDE is not defined."
 #endif  // COBALT_WIDEVINE_KEYBOX_INCLUDE
 }  // namespace
-}  // namespace wvoec_mock
+}  // namespace wvoec_mock::
 
-namespace starboard {
-namespace shared {
-namespace widevine {
+namespace starboard::shared::widevine {
 
 std::string GetWidevineKeyboxHash() {
   // Note: not a cryptographic hash.
@@ -44,5 +42,4 @@ std::string GetWidevineKeyboxHash() {
 }
 
 }  // namespace widevine
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::widevine

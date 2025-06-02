@@ -19,9 +19,7 @@
 #include "starboard/shared/libde265/de265_library_loader.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace de265 {
+namespace starboard::shared::de265 {
 
 using starboard::player::JobThread;
 
@@ -304,6 +302,4 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   }
 }
 
-}  // namespace de265
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::de265

@@ -17,9 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/openh264/openh264_library_loader.h"
 
-namespace starboard {
-namespace shared {
-namespace openh264 {
+namespace starboard::shared::openh264 {
 
 namespace {
 
@@ -76,6 +74,4 @@ bool is_openh264_supported() {
   return GetHandle()->IsLoaded();
 }
 
-}  // namespace openh264
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::openh264

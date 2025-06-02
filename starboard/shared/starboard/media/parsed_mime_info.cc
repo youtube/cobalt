@@ -21,10 +21,7 @@
 #include "starboard/common/media.h"
 #include "starboard/shared/starboard/media/codec_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 namespace {
 
@@ -177,7 +174,4 @@ void ParsedMimeInfo::ResetCodecInfos() {
   video_info_.codec = kSbMediaVideoCodecNone;
 }
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media

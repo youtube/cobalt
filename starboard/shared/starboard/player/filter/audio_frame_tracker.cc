@@ -21,11 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 void AudioFrameTracker::Reset() {
   frame_records_.clear();
@@ -100,8 +96,4 @@ int64_t AudioFrameTracker::GetFutureFramesPlayedAdjustedToPlaybackRate(
   return frames_played;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

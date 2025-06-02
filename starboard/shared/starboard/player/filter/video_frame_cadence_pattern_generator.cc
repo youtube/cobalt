@@ -16,11 +16,7 @@
 
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 void VideoFrameCadencePatternGenerator::UpdateRefreshRateAndMaybeReset(
     double refresh_rate) {
@@ -89,8 +85,4 @@ void VideoFrameCadencePatternGenerator::Reset(double refresh_rate) {
   frame_index_ = 0;
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

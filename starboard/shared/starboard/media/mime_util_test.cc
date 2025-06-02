@@ -19,10 +19,7 @@
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 namespace {
 
 // The codecs tested by these tests were introduced in SB_API_VERSION 14.
@@ -110,7 +107,5 @@ TEST(MimeUtilTest, ChecksUnsupportedWavCodecs) {
 }
 
 }  // namespace
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::media
