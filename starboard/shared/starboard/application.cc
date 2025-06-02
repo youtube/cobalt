@@ -23,11 +23,15 @@
 #include "starboard/configuration.h"
 #include "starboard/event.h"
 
+<<<<<<< HEAD
 #include "starboard/shared/starboard/command_line.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
+=======
+namespace starboard::shared::starboard {
+>>>>>>> 51936ed9d64 (Use nested namespace in starboard/shared (#5948))
 
 namespace {
 
@@ -503,6 +507,4 @@ int Application::RunLoop() {
   return error_level_;
 }
 
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard

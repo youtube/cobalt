@@ -19,9 +19,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 // For each version V that is supported, there will be an explicit
 // specialization of the VideoDecoder class.
@@ -34,8 +32,6 @@ class VideoDecoderImpl : public VideoDecoder {
                                   decode_target_graphics_context_provider);
 };
 
-}  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_INTERFACE_H_

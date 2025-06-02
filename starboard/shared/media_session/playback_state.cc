@@ -20,9 +20,7 @@
 #include "starboard/extension/media_session.h"
 #include "starboard/system.h"
 
-namespace starboard {
-namespace shared {
-namespace media_session {
+namespace starboard::shared::media_session {
 namespace {
 
 CobaltExtensionMediaSessionPlaybackState
@@ -61,6 +59,5 @@ void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
     g_extension->UpdateActiveSessionPlatformPlaybackState(ext_state);
   }
 }
-}  // namespace media_session
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::media_session

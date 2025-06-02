@@ -31,9 +31,7 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
-namespace starboard {
-namespace shared {
-namespace aom {
+namespace starboard::shared::aom {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -109,7 +107,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 };
 
 }  // namespace aom
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::aom
 
 #endif  // STARBOARD_SHARED_LIBAOM_AOM_VIDEO_DECODER_H_
