@@ -21,10 +21,7 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+namespace starboard::shared::starboard::media {
 
 // Allows to query video capabilities via simple, preset rules.  With a setup
 // like:
@@ -71,9 +68,6 @@ class VideoCapabilities {
   Rules hdr_rules_;
 };
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::media
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_VIDEO_CAPABILITIES_H_

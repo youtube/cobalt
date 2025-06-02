@@ -19,11 +19,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 namespace {
 
@@ -282,8 +278,4 @@ void StubAudioDecoder::DecodeEndOfStream() {
   Schedule(output_cb_);
 }
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter

@@ -26,10 +26,7 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
+namespace starboard::shared::starboard::player {
 namespace {
 
 using std::placeholders::_1;
@@ -258,7 +255,4 @@ SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
                << number_of_players_ << " players.";
 }
 
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player
