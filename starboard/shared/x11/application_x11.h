@@ -31,9 +31,7 @@
 #include "starboard/types.h"
 #include "starboard/window.h"
 
-namespace starboard {
-namespace shared {
-namespace x11 {
+namespace starboard::shared::x11 {
 
 // This application engine combines the generic queue with the X11 event queue.
 class ApplicationX11 : public shared::starboard::QueueApplication {
@@ -157,7 +155,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 };
 
 }  // namespace x11
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::x11
 
 #endif  // STARBOARD_SHARED_X11_APPLICATION_X11_H_

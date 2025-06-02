@@ -19,10 +19,7 @@
 
 // Helpers to be used by tests
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace drm {
+namespace starboard::shared::starboard::drm {
 
 void DummySessionUpdateRequestFunc(SbDrmSystem drm_system,
                                    void* context,
@@ -151,8 +148,7 @@ static constexpr uint8_t kCencInitData[] = {
     0x86, 0x7c, 0xff, 0xb5, 0x84, 0xed, 0x4c, 0x19};
 
 }  // namespace drm
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::starboard::drm
 
 #endif  // STARBOARD_SHARED_STARBOARD_DRM_DRM_TEST_HELPERS_H_

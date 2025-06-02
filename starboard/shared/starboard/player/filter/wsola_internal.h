@@ -30,12 +30,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
-namespace internal {
+namespace starboard::shared::starboard::player::filter::internal {
 
 typedef std::pair<int, int> Interval;
 
@@ -52,11 +47,6 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
 // reconstruction for overlap-and-add.
 void GetSymmetricHanningWindow(int window_length, float* window);
 
-}  // namespace internal
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter::internal
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_WSOLA_INTERNAL_H_

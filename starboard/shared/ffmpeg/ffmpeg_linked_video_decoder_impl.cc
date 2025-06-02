@@ -22,9 +22,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 // static
 VideoDecoder* VideoDecoder::Create(
@@ -40,5 +38,5 @@ VideoDecoder* VideoDecoder::Create(
       video_codec, output_mode, decode_target_graphics_context_provider);
 }
 }  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::ffmpeg

@@ -33,9 +33,7 @@
 #include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace de265 {
+namespace starboard::shared::de265 {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder,
                      private starboard::player::JobQueue::JobOwner {
@@ -110,7 +108,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 };
 
 }  // namespace de265
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::de265
 
 #endif  // STARBOARD_SHARED_LIBDE265_DE265_VIDEO_DECODER_H_

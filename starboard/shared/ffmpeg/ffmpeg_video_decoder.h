@@ -20,9 +20,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 class VideoDecoder : public starboard::player::filter::VideoDecoder {
  public:
@@ -37,7 +35,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder {
 };
 
 }  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_

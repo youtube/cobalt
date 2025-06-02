@@ -17,9 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace enhanced_audio {
+namespace starboard::shared::enhanced_audio {
 
 void EnhancedAudioPlayerWriteSamples(
     SbPlayer player,
@@ -51,5 +49,5 @@ void EnhancedAudioPlayerWriteSamples(
 }
 
 }  // namespace enhanced_audio
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::enhanced_audio

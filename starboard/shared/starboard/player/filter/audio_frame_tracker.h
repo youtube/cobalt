@@ -22,11 +22,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace player {
-namespace filter {
+namespace starboard::shared::starboard::player::filter {
 
 // This class helps on tracking how many audio frames have been played with
 // playback rate taking into account.
@@ -56,10 +52,6 @@ class AudioFrameTracker {
   double last_playback_rate_ = 1.0;
 };
 
-}  // namespace filter
-}  // namespace player
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_FRAME_TRACKER_H_

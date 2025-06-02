@@ -18,9 +18,7 @@
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/thread.h"
 
-namespace starboard {
-namespace shared {
-namespace vpx {
+namespace starboard::shared::vpx {
 
 using starboard::player::JobThread;
 
@@ -297,5 +295,5 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }
 
 }  // namespace vpx
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::vpx

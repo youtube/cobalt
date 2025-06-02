@@ -20,9 +20,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
@@ -35,7 +33,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
 };
 
 }  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_AUDIO_DECODER_H_

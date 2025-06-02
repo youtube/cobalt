@@ -33,9 +33,7 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
-namespace starboard {
-namespace shared {
-namespace ffmpeg {
+namespace starboard::shared::ffmpeg {
 
 // Forward class declaration of the explicit specialization with value FFMPEG.
 template <>
@@ -162,7 +160,7 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
 };
 
 }  // namespace ffmpeg
-}  // namespace shared
-}  // namespace starboard
+
+}  // namespace starboard::shared::ffmpeg
 
 #endif  // STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
