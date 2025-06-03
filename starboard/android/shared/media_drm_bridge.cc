@@ -112,12 +112,18 @@ extern "C" SB_EXPORT_PLATFORM void JNI_MediaDrmBridge_OnMediaDrmKeyStatusChange(
   std::vector<SbDrmKeyId> drm_key_ids(length);
   std::vector<SbDrmKeyStatus> drm_key_statuses(length);
 
-  jclass mediaDrmKeyStatusClass =
+  static jclass mediaDrmKeyStatusClass =
       env->FindClass("android/media/MediaDrm$KeyStatus");
-  jmethodID getKeyIdMethod =
+  SB_DCHECK(mediaDrmKeyStatusClass);
+
+  static jmethodID getKeyIdMethod =
       env->GetMethodID(mediaDrmKeyStatusClass, "getKeyId", "()[B");
-  jmethodID getStatusCodeMethod =
+  SB_DCHECK(getKeyIdMethod);
+
+  static jmethodID getStatusCodeMethod =
       env->GetMethodID(mediaDrmKeyStatusClass, "getStatusCode", "()I");
+  SB_DCHECK(getStatusCodeMethod);
+
   for (jsize i = 0; i < length; ++i) {
     jobject j_key_status = env->GetObjectArrayElement(keyInformation, i);
     jbyteArray j_key_id = static_cast<jbyteArray>(
@@ -233,7 +239,7 @@ bool MediaDrmBridge::UpdateSession(int ticket,
 }
 
 void MediaDrmBridge::CloseSession(
-    std::vector<const uint8_t>& session_id) const {
+    const std::vector<const uint8_t>& session_id) const {
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> j_session_id =

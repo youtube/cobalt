@@ -76,7 +76,7 @@ class MediaDrmBridge {
                      const void* session_id,
                      int session_id_size,
                      std::string* error_msg) const;
-  void CloseSession(std::vector<const uint8_t>& session_id) const;
+  void CloseSession(const std::vector<const uint8_t>& session_id) const;
   const void* GetMetrics(int* size);
   bool CreateMediaCryptoSession();
 
