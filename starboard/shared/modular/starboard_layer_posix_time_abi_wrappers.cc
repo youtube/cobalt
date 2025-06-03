@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
+#include <errno.h>
+
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
+#include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
   if (!mts) {
+    errno = EFAULT;
     return -1;
   }
 
@@ -69,15 +72,6 @@ int __abi_wrap_clock_nanosleep(int /* clockid_t */ musl_clock_id,
     mremain->tv_nsec = remain.tv_nsec;
   }
   return errno_to_musl_errno(retval);
-}
-
-int64_t __abi_wrap_time(int64_t* /* time_t* */ musl_tloc) {
-  time_t t = time(NULL);  // The type from platform toolchain (may be 32-bits).
-  int64_t retval = static_cast<int64_t>(t);
-  if (musl_tloc) {
-    *musl_tloc = retval;
-  }
-  return retval;
 }
 
 struct musl_tm* __abi_wrap_gmtime_r(const int64_t* /* time_t* */ musl_timer,
