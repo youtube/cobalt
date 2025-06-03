@@ -25,9 +25,7 @@
 #include "base/memory/raw_ptr.h"
 #include "starboard/drm.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
+namespace starboard::android::shared {
 
 using base::android::JavaRef;
 using base::android::ScopedJavaGlobalRef;
@@ -93,8 +91,6 @@ class MediaDrmBridge {
   ScopedJavaGlobalRef<jobject> j_media_crypto_;
 };
 
-}  // namespace shared
-}  // namespace android
-}  // namespace starboard
+}  // namespace starboard::android::shared
 
 #endif  // STARBOARD_ANDROID_SHARED_MEDIA_DRM_BRIDGE_H_
