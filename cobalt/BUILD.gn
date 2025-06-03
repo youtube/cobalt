@@ -198,6 +198,7 @@ test("cobalt_unittests") {
   }
 }
 
+# TODO(b/384748332): Changes below are for removing dependency on content shell
 config("content_shell_lib_warnings") {
   if (is_clang) {
     # TODO(thakis): Remove this once http://crbug.com/383820 is figured out
@@ -205,6 +206,7 @@ config("content_shell_lib_warnings") {
   }
 }
 
+# TODO(b/422171398): Refactor source set to not depend on content shell
 static_library("content_shell_lib") {
   testonly = true
   sources = [
@@ -321,6 +323,7 @@ static_library("content_shell_lib") {
     check_includes = false
   }
 
+  # TODO(b/384748332): Remove dependency on content shell
   public_deps = [
     "//content/shell:android_shell_descriptors",
 
