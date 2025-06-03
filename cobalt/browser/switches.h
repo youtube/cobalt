@@ -30,6 +30,7 @@ std::string GetInitialURL(const base::CommandLine& command_line);
 
 constexpr char kInitialURL[] = "url";
 constexpr char kRequireCSP[] = "require_csp";
+constexpr char kRequireHTTPS[] = "require_https";
 
 }  // namespace switches
 }  // namespace cobalt
