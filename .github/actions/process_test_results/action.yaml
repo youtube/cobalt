@@ -37,7 +37,7 @@ runs:
         shopt -s globstar nullglob
 
         result_xmls=(${{ inputs.results_glob }})
-        if [ ${#result_xmls[@]} -ne ${{ inputs.num_shards }} ]; then
+        if [ ${#result_xmls[@]} -ne ${{ inputs.num_gtest_shards }} ]; then
           echo "::error::Missing test result xml. Did a test crash?"
           exit 1
         fi
