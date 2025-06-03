@@ -26,7 +26,7 @@ import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
-import android.text.TextUtils;
+//import android.text.TextUtils;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -58,10 +58,13 @@ import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_shell.Shell;
-import org.chromium.content_shell.ShellManager;
+// import org.chromium.content_shell.Shell;
+// import org.chromium.content_shell.ShellManager;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+import org.chromium.components.embedder_support.view.ContentViewRenderView;
+import org.chromium.chrome.browser.WebContentsFactory;
+
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -85,8 +88,12 @@ public abstract class CobaltActivity extends Activity {
 
   private long timeInNanoseconds;
 
-  private ShellManager mShellManager;
+  // private ShellManager mShellManager;
   private ActivityWindowAndroid mWindowAndroid;
+
+  private ContentViewRenderView mContentViewRenderView;
+  private WebContents mWebContents;
+
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
@@ -180,30 +187,57 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    setContentView(R.layout.content_shell_activity);
-    mShellManager = findViewById(R.id.shell_container);
+    // setContentView(R.layout.content_shell_activity);
+    // mShellManager = findViewById(R.id.shell_container);
+
+    // investigate
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
-    mShellManager.setWindow(mWindowAndroid);
-    // Set up the animation placeholder to be the SurfaceView. This disables the
-    // SurfaceView's 'hole' clipping during animations that are notified to the window.
-    mWindowAndroid.setAnimationPlaceholderView(
-        mShellManager.getContentViewRenderView().getSurfaceView());
+    mWindowAndroid = new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
 
-    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
-      String[] args = getStarboardBridge().getArgs();
-      mStartupUrl =
-          Arrays.stream(args)
-              .filter(line -> line.contains(URL_ARG))
-              .findAny()
-              .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
-              .orElse(null);
-    }
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
-    }
+    FrameLayout contentHolder = findViewById(R.id.shell_container);
+    mContentViewRenderView = new ContentViewRenderView(this);
+    contentHolder.addView(mContentViewRenderView, new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
+
+    mWebContents = WebContentsFactory.createWebContents(
+      BrowserContext.getDefault(),
+      false
+    );
+    mContentView = ContentView.createContentView(this, null, mWebContents);
+    contentHolder.addView(mContentView, new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
+
+    mWebContents.initialize(
+      "",
+      ViewAndroidDelegate.createBasicDelegate(mContentView), // new ShellViewAndroidDelegate(mContentView);
+      mContentView,
+      mWindowAndroid,
+      WebContents.createDefaultInternalsHolder()
+    );
+    mContentViewRenderView.setCurrentWebContents(mWebContents);
+
+    // // mShellManager.setWindow(mWindowAndroid);
+    // // Set up the animation placeholder to be the SurfaceView. This disables the
+    // // SurfaceView's 'hole' clipping during animations that are notified to the window.
+    // // mWindowAndroid.setAnimationPlaceholderView(
+    // //     mShellManager.getContentViewRenderView().getSurfaceView());
+
+    // if (mStartupUrl == null || mStartupUrl.isEmpty()) {
+    //   String[] args = getStarboardBridge().getArgs();
+    //   mStartupUrl =
+    //       Arrays.stream(args)
+    //           .filter(line -> line.contains(URL_ARG))
+    //           .findAny()
+    //           .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+    //           .orElse(null);
+    // }
+    // if (!TextUtils.isEmpty(mStartupUrl)) {
+    //   mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+    // }
 
     // TODO(b/377025559): Bring back WebTests launch capability
     BrowserStartupController.getInstance()
@@ -231,14 +265,16 @@ public abstract class CobaltActivity extends Activity {
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
     // Load an empty page to let shell create WebContents.
-    mShellManager.launchShell("");
+    // mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
-    getStarboardBridge().setWebContents(getActiveWebContents());
+    // getStarboardBridge().setWebContents(getActiveWebContents());
+    getStarboardBridge().setWebContents(mWebContents);
+
 
     // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + mStartupUrl);
-    mShellManager.getActiveShell().loadUrl(mStartupUrl);
+    // Log.i(TAG, "shellManager load url:" + mStartupUrl);
+    // mShellManager.getActiveShell().loadUrl(mStartupUrl);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -321,20 +357,20 @@ public abstract class CobaltActivity extends Activity {
     return intent != null ? intent.getStringArrayExtra(COMMAND_LINE_ARGS_KEY) : null;
   }
 
-  /**
-   * @return The {@link ShellManager} configured for the activity or null if it has not been created
-   *     yet.
-   */
-  public ShellManager getShellManager() {
-    return mShellManager;
-  }
+  // /**
+  //  * @return The {@link ShellManager} configured for the activity or null if it has not been created
+  //  *     yet.
+  //  */
+  // public ShellManager getShellManager() {
+  //   return mShellManager;
+  // }
 
-  /**
-   * @return The currently visible {@link Shell} or null if one is not showing.
-   */
-  public Shell getActiveShell() {
-    return mShellManager != null ? mShellManager.getActiveShell() : null;
-  }
+  // /**
+  //  * @return The currently visible {@link Shell} or null if one is not showing.
+  //  */
+  // public Shell getActiveShell() {
+  //   return mShellManager != null ? mShellManager.getActiveShell() : null;
+  // }
 
   /**
    * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if one is
@@ -342,14 +378,13 @@ public abstract class CobaltActivity extends Activity {
    */
   @Nullable
   public WebContents getActiveWebContents() {
-    Shell shell = getActiveShell();
-    return shell != null ? shell.getWebContents() : null;
+    return mWebContents;
   }
 
   @Nullable
   protected ImeAdapterImpl getImeAdapterImpl() {
-    WebContents webContents = getActiveWebContents();
-    return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
+    // WebContents webContents = getActiveWebContents();
+    return mWebContents != null ? ImeAdapterImpl.fromWebContents(mWebContents) : null;
   }
 
   // TODO(b/375442742): re-enable native code.
@@ -384,8 +419,8 @@ public abstract class CobaltActivity extends Activity {
   private void initializeJavaBridge() {
     Log.i(TAG, "initializeJavaBridge");
 
-    WebContents webContents = getActiveWebContents();
-    if (webContents == null) {
+    // WebContents webContents = getActiveWebContents();
+    if (mWebContents == null) {
       throw new RuntimeException(
           "webContents is null in initializeJavaBridge. This should never happen.");
     }
@@ -440,12 +475,12 @@ public abstract class CobaltActivity extends Activity {
 
     getStarboardBridge().onActivityStart(this);
 
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // WebContents webContents = getActiveWebContents();
+    if (mWebContents != null) {
       // document.onresume event
-      webContents.onResume();
+      mWebContents.onResume();
       // visibility:visible event
-      webContents.onShow();
+      mWebContents.onShow();
     }
     super.onStart();
   }
@@ -467,12 +502,12 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
+    // WebContents webContents = getActiveWebContents();
+    if (mWebContents != null) {
       // visibility:hidden event
-      webContents.onHide();
+      mWebContents.onHide();
       // document.onfreeze event
-      webContents.onFreeze();
+      mWebContents.onFreeze();
     }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
@@ -486,9 +521,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mShellManager != null) {
-      mShellManager.destroy();
-    }
+    // if (mShellManager != null) {
+    //   mShellManager.destroy();
+    // }
     mWindowAndroid.destroy();
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
@@ -687,9 +722,9 @@ public abstract class CobaltActivity extends Activity {
         new Runnable() {
           @Override
           public void run() {
-            WebContents webContents = getActiveWebContents();
-            if (webContents != null) {
-              webContents.evaluateJavaScript(jsCode, null);
+            // WebContents webContents = getActiveWebContents();
+            if (mWebContents != null) {
+              mWebContents.evaluateJavaScript(jsCode, null);
             }
           }
         });
