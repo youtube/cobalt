@@ -43,19 +43,19 @@ namespace starboard::android::shared {
 
 // static
 void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
-  SB_DCHECK(g_tls_key == 0);
+  SB_DCHECK_EQ(g_tls_key, 0);
   pthread_key_create(&g_tls_key, Destroy);
 
   // This must be initialized separately from JNI_OnLoad
-  SB_DCHECK(JNIState::GetVM() != NULL);
+  SB_DCHECK_NE(JNIState::GetVM(), nullptr);
 
-  SB_DCHECK(JNIState::GetApplicationClassLoader() == NULL);
+  SB_DCHECK_EQ(JNIState::GetApplicationClassLoader(), nullptr);
   JNIState::SetApplicationClassLoader(
       env->ConvertLocalRefToGlobalRef(env->CallObjectMethodOrAbort(
           env->GetObjectClass(starboard_bridge), "getClassLoader",
           "()Ljava/lang/ClassLoader;")));
 
-  SB_DCHECK(JNIState::GetStarboardBridge() == NULL);
+  SB_DCHECK_EQ(JNIState::GetStarboardBridge(), nullptr);
   JNIState::SetStarboardBridge(env->NewGlobalRef(starboard_bridge));
 }
 

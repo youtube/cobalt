@@ -394,7 +394,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   SB_DCHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
-    SB_DCHECK(tunnel_mode_audio_session_id != -1);
+    SB_DCHECK_NE(tunnel_mode_audio_session_id, -1);
     SB_DCHECK(!drm_system_);
     drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
         "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
@@ -408,7 +408,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   }
 
   if (require_software_codec_) {
-    SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+    SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   }
 
   if (video_codec_ != kSbMediaVideoCodecAv1) {
@@ -497,11 +497,11 @@ int64_t VideoDecoder::GetPrerollTimeout() const {
 void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(input_buffers.front()->sample_type() == kSbMediaTypeVideo);
+  SB_DCHECK_EQ(input_buffers.front()->sample_type(), kSbMediaTypeVideo);
   SB_DCHECK(decoder_status_cb_);
 
   if (input_buffer_written_ == 0) {
-    SB_DCHECK(video_fps_ == 0);
+    SB_DCHECK_EQ(video_fps_, 0);
     first_buffer_timestamp_ = input_buffers.front()->timestamp();
 
     // If color metadata is present and is not an identity mapping, then
@@ -584,7 +584,7 @@ void VideoDecoder::WriteEndOfStream() {
 
   if (video_codec_ == kSbMediaVideoCodecAv1 && video_fps_ == 0) {
     SB_DCHECK(!media_decoder_);
-    SB_DCHECK(pending_input_buffers_.size() ==
+    SB_DCHECK_EQ(pending_input_buffers_.size(),
               static_cast<size_t>(input_buffer_written_));
 
     std::string error_message;
@@ -732,7 +732,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   if (video_stream_info.codec == kSbMediaVideoCodecAv1) {
     SB_DCHECK(video_fps_ > 0);
   } else {
-    SB_DCHECK(video_fps_ == 0);
+    SB_DCHECK_EQ(video_fps_, 0);
   }
 
   std::optional<int> max_width, max_height;
@@ -962,7 +962,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
-  SB_DCHECK(tunnel_mode_audio_session_id_ == -1);
+  SB_DCHECK_EQ(tunnel_mode_audio_session_id_, -1);
   return sink_->Render();
 }
 
@@ -1003,21 +1003,21 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
   // Ensure that this matrix contains no rotations or shears.  In other words,
   // make sure that we can convert it to a decode target content region without
   // losing any information.
-  SB_DCHECK(matrix4x4[1] == 0.0f);
-  SB_DCHECK(matrix4x4[2] == 0.0f);
-  SB_DCHECK(matrix4x4[3] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[1], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[2], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[3], 0.0f);
 
-  SB_DCHECK(matrix4x4[4] == 0.0f);
-  SB_DCHECK(matrix4x4[6] == 0.0f);
-  SB_DCHECK(matrix4x4[7] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[4], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[6], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[7], 0.0f);
 
-  SB_DCHECK(matrix4x4[8] == 0.0f);
-  SB_DCHECK(matrix4x4[9] == 0.0f);
-  SB_DCHECK(matrix4x4[10] == 1.0f);
-  SB_DCHECK(matrix4x4[11] == 0.0f);
+  SB_DCHECK_EQ(matrix4x4[8], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[9], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[10], 1.0f);
+  SB_DCHECK_EQ(matrix4x4[11], 0.0f);
 
-  SB_DCHECK(matrix4x4[14] == 0.0f);
-  SB_DCHECK(matrix4x4[15] == 1.0f);
+  SB_DCHECK_EQ(matrix4x4[14], 0.0f);
+  SB_DCHECK_EQ(matrix4x4[15], 1.0f);
 
   float origin_x = matrix4x4[12];
   float origin_y = matrix4x4[13];
@@ -1055,7 +1055,7 @@ SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_DCHECK_EQ(output_mode_, kSbPlayerOutputModeDecodeToTexture);
   // We must take a lock here since this function can be called from a separate
   // thread.
   ScopedLock lock(decode_target_mutex_);
@@ -1199,21 +1199,21 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 }
 
 void VideoDecoder::OnFirstTunnelFrameReady() {
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   TryToSignalPrerollForTunnelMode();
 }
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK_NE(tunnel_mode_audio_session_id_, -1);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null
