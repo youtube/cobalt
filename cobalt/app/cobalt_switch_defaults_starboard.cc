@@ -23,6 +23,7 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+#include "third_party/blink/public/common/switches.h"
 #include "ui/gl/gl_switches.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -55,7 +56,20 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       // rebasing to m120+
       switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD:cobalt/app/cobalt_switch_defaults_starboard.cc
       sandbox::policy::switches::kNoSandbox
+=======
+      // Disable Zygote (a process fork utility); in turn needs sandbox
+      // disabled.
+      switches::kNoZygote, sandbox::policy::switches::kNoSandbox,
+      // Rasterize Tiles directly to GPU memory.
+      blink::switches::kEnableZeroCopy,
+      // Enable low-end device mode. This comes with a load of memory and CPU
+      // saving goodies but can degrade the experience considerably. One of the
+      // known regressions is 4444 textures, which are then disabled explicitly.
+      switches::kEnableLowEndDeviceMode,
+      blink::switches::kDisableRGBA4444Textures,
+>>>>>>> 9bc18d10a8e (cobalt 3P: Enable low-end-device-mode (w/ caveats) and zero-copy (#5958)):cobalt/app/cobalt_switch_defaults.cc
 });
 
 // Map of switches with parameters and their defaults.
@@ -74,6 +88,9 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
         // Enable remote Devtools access.
         {switches::kRemoteDebuggingPort, "9222"},
         {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+        // kEnableLowEndDeviceMode sets MSAA to 4 (and not 8, the default). But
+        // we set it explicitly just in case.
+        {blink::switches::kGpuRasterizationMSAASampleCount, "4"},
   });
   return cobalt_param_switch_defaults;
 }
