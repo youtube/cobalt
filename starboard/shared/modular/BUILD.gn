@@ -21,6 +21,7 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
       "starboard_layer_posix_directory_abi_wrappers.cc",
       "starboard_layer_posix_directory_abi_wrappers.h",
       "starboard_layer_posix_errno_abi_wrappers.cc",
+      "starboard_layer_posix_errno_abi_wrappers.h",
       "starboard_layer_posix_mmap_abi_wrappers.cc",
       "starboard_layer_posix_mmap_abi_wrappers.h",
       "starboard_layer_posix_pthread_abi_wrappers.cc",
