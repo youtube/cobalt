@@ -361,7 +361,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_WRAPPER(setsockopt);
   REGISTER_WRAPPER(shutdown);
   REGISTER_WRAPPER(stat);
-  REGISTER_WRAPPER(time);
   REGISTER_SYMBOL(vswprintf);
   REGISTER_WRAPPER(writev);
 
