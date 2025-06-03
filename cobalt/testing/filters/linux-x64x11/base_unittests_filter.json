@@ -69,6 +69,7 @@
     "RTLTest.WrapString",
     "ReadOnlyFileUtilTest.ContentsEqual",
     "ReadOnlyFileUtilTest.TextContentsEqual",
+    "ScopedFDOwnershipTrackingTest.CrashOnUnownedClose",
     "StringSearchTest.ASCII",
     "StringSearchTest.FixedPatternMultipleSearch",
     "StringSearchTest.RepeatingStringSearch",
