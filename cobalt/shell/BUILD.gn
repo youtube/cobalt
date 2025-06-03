@@ -372,7 +372,7 @@ static_library("content_shell_app") {
     "//content/shell/app/shell_main_delegate.cc",
     "//content/shell/app/shell_main_delegate.h",
   ]
-  deps = [ ":content_shell_app_deps" ]
+  public_deps = [ ":content_shell_app_deps" ]
   if (is_apple) {
     configs += [ "//build/config/compiler:enable_arc" ]
     sources += [
@@ -400,22 +400,23 @@ static_library("content_shell_app") {
 
 group("content_shell_app_deps") {
   testonly = true
-  deps = [
+  public_deps = [
     ":content_shell_lib",
     "//components/crash/core/common:crash_key",
     "//components/memory_system",
     "//content/public/app",
+    "//content/public/renderer",
     "//v8",
   ]
   if (support_web_tests) {
-    deps += [
+    public_deps += [
       "//content/web_test:web_test_browser",
       "//content/web_test:web_test_common",
       "//content/web_test:web_test_renderer",
     ]
   }
   if (!is_fuchsia) {
-    deps += [
+    public_deps += [
       "//components/crash/core/app",
       "//components/crash/core/app:test_support",
     ]
