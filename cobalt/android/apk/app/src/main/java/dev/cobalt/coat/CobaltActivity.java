@@ -69,7 +69,7 @@ public abstract class CobaltActivity extends Activity {
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-  public static final String COMMAND_LINE_V8_ENABLE_FEATURES_KEY = "v8EnableFeatures";
+  public static final String COMMAND_LINE_JS_FLAGS_KEY = "jsFlags";
   public static final String COMMAND_LINE_ENABLE_FEATURES_KEY = "enableFeatures";
   public static final String COMMAND_LINE_DISABLE_FEATURES_KEY = "disableFeatures";
   public static final String COMMAND_LINE_BLINK_ENABLE_FEATURES_KEY = "blinkEnableFeatures";
@@ -105,9 +105,9 @@ public abstract class CobaltActivity extends Activity {
       String[] commandLineOverrides =
           getCommandLineParamsFromIntent(
               getIntent(), COMMAND_LINE_ARGS_KEY);
-      String[] v8CommandLineOverrides =
+      String[] jsFlagOverrides =
           getCommandLineParamsFromIntent(
-              getIntent(), COMMAND_LINE_V8_ENABLE_FEATURES_KEY);
+              getIntent(), COMMAND_LINE_JS_FLAGS_KEY);
       String[] enableFeaturesCommandLineOverrides =
           getCommandLineParamsFromIntent(
               getIntent(), COMMAND_LINE_ENABLE_FEATURES_KEY);
@@ -122,7 +122,7 @@ public abstract class CobaltActivity extends Activity {
               shouldSetJNIPrefix,
               VersionInfo.isOfficialBuild(),
               commandLineOverrides,
-              v8CommandLineOverrides,
+              jsFlagOverrides,
               enableFeaturesCommandLineOverrides,
               disableFeaturesCommandLineOverrides,
               blinkEnableFeaturesCommandLineOverrides

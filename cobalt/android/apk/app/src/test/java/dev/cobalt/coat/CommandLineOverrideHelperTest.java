@@ -41,8 +41,8 @@ public class CommandLineOverrideHelperTest {
     }
 
     @Test
-    public void testDefaultV8OverridesList() {
-        String overrides = CommandLineOverrideHelper.getDefaultV8OverridesList().toString();
+    public void testDefaultJsFlagOverridesList() {
+        String overrides = CommandLineOverrideHelper.getDefaultJsFlagOverridesList().toString();
         assertThat(overrides.contains("--optimize_for_size=true")).isTrue();
         assertThat(overrides.contains("--concurrent_marking=false")).isTrue();
     }

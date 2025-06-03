@@ -29,14 +29,14 @@ public final class CommandLineOverrideHelper {
             boolean shouldSetJNIPrefix,
             boolean isOfficialBuild,
             String[] commandLineOverrides,
-            String[] v8CommandLineOverrides,
+            String[] jsFlagCommandLineOverrides,
             String[] enableFeaturesCommandLineOverrides,
             String[] disableFeaturesCommandLineOverrides,
             String[] blinkEnableFeaturesCommandLineOverrides) {
             mShouldSetJNIPrefix = shouldSetJNIPrefix;
             mIsOfficialBuild = isOfficialBuild;
             mCommandLineOverrides = commandLineOverrides;
-            mV8CommandLineOverrides = v8CommandLineOverrides;
+            mJsFlagCommandLineOverrides = jsFlagCommandLineOverrides;
             mEnableFeaturesCommandLineOverrides = enableFeaturesCommandLineOverrides;
             mDisableFeaturesCommandLineOverrides = disableFeaturesCommandLineOverrides;
             mBlinkEnableFeaturesCommandLineOverrides = blinkEnableFeaturesCommandLineOverrides;
@@ -45,7 +45,7 @@ public final class CommandLineOverrideHelper {
         private boolean mShouldSetJNIPrefix;
         private boolean mIsOfficialBuild;
         private String[] mCommandLineOverrides;
-        private String[] mV8CommandLineOverrides;
+        private String[] mJsFlagCommandLineOverrides;
         private String[] mEnableFeaturesCommandLineOverrides;
         private String[] mDisableFeaturesCommandLineOverrides;
         private String[] mBlinkEnableFeaturesCommandLineOverrides;
@@ -82,7 +82,7 @@ public final class CommandLineOverrideHelper {
         return paramOverrides;
     }
 
-    public static StringJoiner getDefaultV8OverridesList() {
+    public static StringJoiner getDefaultJsFlagOverridesList() {
         StringJoiner paramOverrides = new StringJoiner(",");
 
         // Trades a little V8 performance for significant memory savings.
@@ -126,8 +126,8 @@ public final class CommandLineOverrideHelper {
         CommandLineOverrideHelperParams params) {
         List<String> cliOverrides =
             getDefaultCommandLineOverridesList();
-        StringJoiner v8ParamOverrides =
-            getDefaultV8OverridesList();
+        StringJoiner jsFlagOverrides =
+            getDefaultJsFlagOverridesList();
         StringJoiner enableFeatureOverrides =
             getDefaultEnableFeatureOverridesList();
         StringJoiner disableFeatureOverrides =
@@ -151,12 +151,12 @@ public final class CommandLineOverrideHelper {
                     cliOverrides.add(param);
                 }
             }
-            if (params.mV8CommandLineOverrides != null) {
-                for (String param: params.mV8CommandLineOverrides) {
+            if (params.mJsFlagCommandLineOverrides != null) {
+                for (String param: params.mJsFlagCommandLineOverrides) {
                     if (param == null || param.isEmpty()) {
                         continue; // Skip null or empty params
                     }
-                    v8ParamOverrides.add(param);
+                    jsFlagOverrides.add(param);
                 }
             }
             if (params.mEnableFeaturesCommandLineOverrides != null) {
@@ -188,7 +188,7 @@ public final class CommandLineOverrideHelper {
         CommandLine.getInstance().appendSwitchesAndArguments(
             cliOverrides.toArray(new String[0]));
         CommandLine.getInstance().appendSwitchesAndArguments(
-            new String[]{"--js-flags=" + v8ParamOverrides.toString() });
+            new String[]{"--js-flags=" + jsFlagOverrides.toString() });
         CommandLine.getInstance().appendSwitchesAndArguments(
             new String[]{"--enable-features="
             + enableFeatureOverrides.toString() });
