@@ -178,13 +178,11 @@ void ConvertStringToLowerCase(std::string* str) {
 }
 
 bool GetIsWidevineSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return MediaDrmBridge::IsWidevineSupported(env);
+  return MediaDrmBridge::IsWidevineSupported(AttachCurrentThread());
 }
 
 bool GetIsCbcsSupported() {
-  JNIEnv* env = AttachCurrentThread();
-  return MediaDrmBridge::IsCbcsSupported(env);
+  return MediaDrmBridge::IsCbcsSupported(AttachCurrentThread());
 }
 
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {

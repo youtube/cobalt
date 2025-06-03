@@ -43,7 +43,6 @@ import java.util.Locale;
 import java.util.UUID;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeClassQualifiedName;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the android MediaDrm class. */
@@ -437,7 +436,7 @@ public class MediaDrmBridge {
               byte[] sessionId,
               List<MediaDrm.KeyStatus> keyInformation,
               boolean hasNewUsableKey) {
-            MediaDrmBridgeJni.get().onMediaDrmKeyStatusChange(
+            MediaDrmBridgeJni.get().onKeyStatusChange(
                 mNativeMediaDrmBridge,
                 sessionId,
                 keyInformation.toArray(new MediaDrm.KeyStatus[keyInformation.size()]));
@@ -482,7 +481,7 @@ public class MediaDrmBridge {
 
     int requestType = request.getRequestType();
 
-    MediaDrmBridgeJni.get().onMediaDrmSessionMessage(
+    MediaDrmBridgeJni.get().onSessionMessage(
         mNativeMediaDrmBridge, ticket, sessionId, requestType, request.getData());
   }
 
@@ -775,17 +774,15 @@ public class MediaDrmBridge {
 
   @NativeMethods
   interface Natives {
-    @NativeClassQualifiedName("MediaDrmBridge")
-    void onMediaDrmSessionMessage(
-        long mediaDrmBridge,
+    void onSessionMessage(
+        long nativeMediaDrmBridge,
         int ticket,
         byte[] sessionId,
         int requestType,
         byte[] message);
 
-    @NativeClassQualifiedName("MediaDrmBridge")
-    void onMediaDrmKeyStatusChange(
-        long mediaDrmBridge,
+    void onKeyStatusChange(
+        long nativeMediaDrmBridge,
         byte[] sessionId,
         MediaDrm.KeyStatus[] keyInformation);
   }

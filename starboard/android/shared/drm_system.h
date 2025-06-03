@@ -101,9 +101,9 @@ class DrmSystem : public ::SbDrmSystemPrivate,
     void Generate(const MediaDrmBridge* media_drm_bridge) const;
 
    private:
-    int ticket_;
-    std::vector<const uint8_t> init_data_;
-    std::string mime_;
+    const int ticket_;
+    const std::vector<const uint8_t> init_data_;
+    const std::string mime_;
   };
 
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();

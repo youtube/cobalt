@@ -91,14 +91,11 @@ DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
     int ticket,
     const char* type,
     const void* initialization_data,
-    int initialization_data_size) {
-  ticket_ = ticket;
-  init_data_ = std::vector<const uint8_t>(
-      static_cast<const uint8_t*>(initialization_data),
-      static_cast<const uint8_t*>(initialization_data) +
-          initialization_data_size);
-  mime_ = type;
-}
+    int initialization_data_size)
+    : ticket_(ticket),
+      init_data_(static_cast<const uint8_t*>(initialization_data),
+                 static_cast<const uint8_t*>(initialization_data) + initialization_data_size),
+      mime_(type) {}
 
 void DrmSystem::SessionUpdateRequest::Generate(
     const MediaDrmBridge* media_drm_bridge) const {
@@ -140,12 +137,8 @@ void DrmSystem::UpdateSession(int ticket,
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
-  std::vector<const uint8_t> session_id_copy(
-      static_cast<const uint8_t*>(session_id),
-      static_cast<const uint8_t*>(session_id) + session_id_size);
-  std::string session_id_as_string(
-      static_cast<const char*>(session_id),
-      static_cast<const char*>(session_id) + session_id_size);
+  std::string session_id_as_string(static_cast<const char*>(session_id),
+                                   session_id_size);
 
   {
     ScopedLock scoped_lock(mutex_);
@@ -154,7 +147,7 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
       cached_drm_key_ids_.erase(iter);
     }
   }
-  media_drm_bridge_->CloseSession(session_id_copy);
+  media_drm_bridge_->CloseSession(session_id_as_string);
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -192,9 +185,8 @@ void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
     const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
   SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
 
-  std::string session_id_as_string(
-      static_cast<const char*>(session_id),
-      static_cast<const char*>(session_id) + session_id_size);
+  std::string session_id_as_string(static_cast<const char*>(session_id),
+                                   session_id_size);
 
   {
     ScopedLock scoped_lock(mutex_);
