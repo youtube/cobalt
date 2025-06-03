@@ -22,6 +22,9 @@ if (use_aura) {
   shell_use_toolkit_views = toolkit_views && !is_castos
 }
 
+# Web test support not built on android, but is everywhere else.
+support_web_tests = !is_android
+
 # TODO(b/384748332): Changes below are for removing dependency on content shell
 config("content_shell_lib_warnings") {
   if (is_clang) {
@@ -345,6 +348,76 @@ static_library("content_shell_lib") {
     sources -= [
       "//content/shell/browser/shell_platform_data_aura.cc",
       "//content/shell/browser/shell_platform_data_aura.h",
+    ]
+  }
+}
+
+# This component provides a ContentMainDelegate for Content Shell and derived
+# applications. This delegate is the central place that creates interfaces for
+# each type of process (browser, renderer, etc). This implementation of
+# ContentMainDelegate will create either production or test-based
+# implementations.
+#
+# This component needs to be linked into every process in a Content Shell-based
+# application that wants to use ShellMainDelegate.
+#
+# TODO(danakj): This component will depend on {renderer,browser}/web_test. The
+# content_shell_lib component will not, to avoid circular deps, as web_test
+# inherits from things in content_shell_lib.
+static_library("content_shell_app") {
+  testonly = true
+  sources = [
+    "//content/shell/app/shell_crash_reporter_client.cc",
+    "//content/shell/app/shell_crash_reporter_client.h",
+    "//content/shell/app/shell_main_delegate.cc",
+    "//content/shell/app/shell_main_delegate.h",
+  ]
+  deps = [ ":content_shell_app_deps" ]
+  if (is_apple) {
+    configs += [ "//build/config/compiler:enable_arc" ]
+    sources += [
+      "app/paths_mac.h",
+      "app/paths_mac.mm",
+    ]
+  }
+  if (is_mac) {
+    sources += [
+      "app/shell_main_delegate_mac.h",
+      "app/shell_main_delegate_mac.mm",
+    ]
+  }
+  if (is_ios) {
+    sources += [
+      "app/ios/shell_application_ios.h",
+      "app/ios/shell_application_ios.mm",
+    ]
+  }
+  defines = [
+    "CONTENT_SHELL_VERSION=\"1.0.0\"",
+    "CONTENT_SHELL_MAJOR_VERSION=\"1\"",
+  ]
+}
+
+group("content_shell_app_deps") {
+  testonly = true
+  deps = [
+    ":content_shell_lib",
+    "//components/crash/core/common:crash_key",
+    "//components/memory_system",
+    "//content/public/app",
+    "//v8",
+  ]
+  if (support_web_tests) {
+    deps += [
+      "//content/web_test:web_test_browser",
+      "//content/web_test:web_test_common",
+      "//content/web_test:web_test_renderer",
+    ]
+  }
+  if (!is_fuchsia) {
+    deps += [
+      "//components/crash/core/app",
+      "//components/crash/core/app:test_support",
     ]
   }
 }
