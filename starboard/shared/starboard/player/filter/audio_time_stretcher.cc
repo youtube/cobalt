@@ -142,11 +142,11 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
       num_candidate_blocks_ / 2 + (ola_window_size_ / 2 - 1);
 
   ola_window_.reset(new float[ola_window_size_]);
-  internal::GetSymmetricHanningWindow(ola_window_size_, ola_window_.get());
+  internal::GetPeriodicHanningWindow(ola_window_size_, ola_window_.get());
 
   transition_window_.reset(new float[ola_window_size_ * 2]);
-  internal::GetSymmetricHanningWindow(2 * ola_window_size_,
-                                      transition_window_.get());
+  internal::GetPeriodicHanningWindow(2 * ola_window_size_,
+                                     transition_window_.get());
 
   wsola_output_ = new DecodedAudio(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,

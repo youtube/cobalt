@@ -34,6 +34,7 @@ if (current_toolchain == starboard_toolchain) {
       "video_decoder_test_fixture.h",
       "video_frame_cadence_pattern_generator_test.cc",
       "video_frame_rate_estimator_test.cc",
+      "wsola_internal_test.cc",
     ]
 
     public_deps = [
