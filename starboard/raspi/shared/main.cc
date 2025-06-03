@@ -22,9 +22,9 @@
 #include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
+#include "starboard/common/command_line.h"
 #include "starboard/common/paths.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
-#include "starboard/shared/starboard/command_line.h"
 #endif
 
 #include "starboard/crashpad_wrapper/wrapper.h"
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
   starboard::shared::signal::InstallSuspendSignalHandlers();
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
-  auto command_line = starboard::shared::starboard::CommandLine(argc, argv);
+  auto command_line = starboard::CommandLine(argc, argv);
   auto evergreen_content_path =
       command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent);
   std::string ca_certificates_path =

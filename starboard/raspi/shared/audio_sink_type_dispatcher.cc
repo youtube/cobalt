@@ -23,7 +23,8 @@ namespace audio_sink {
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
   ::starboard::shared::alsa::PlatformInitialize();
-  SbAudioSinkPrivate::EnableFallbackToStub();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
+      EnableFallbackToStub();
 }
 
 // static
